@@ -1,0 +1,15 @@
+# byte-compiled / optimized files
+__pycache__/
+*.py[cod]
+
+# dev / testing directories
+/config
+/frontend/test_js/**
+
+# venv
+env
+venv
+
+# Editor directories and files
+.vscode
+.idea
