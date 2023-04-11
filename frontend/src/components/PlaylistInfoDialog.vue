@@ -192,7 +192,7 @@ export default {
     fetchPlaylistData: function () {
       // Fetch from server
       axios({
-        method: 'get',
+        method: 'GET',
         url: '/tic-api/playlists/settings/' + this.playlistId,
       }).then((response) => {
         this.enabled = response.data.data.enabled
@@ -202,23 +202,19 @@ export default {
       });
     },
     save: function () {
-      let playlistId = this.playlistId
-      if (!playlistId) {
-        playlistId = (Math.random() + 1).toString(36).substring(5);
+      let url = '/tic-api/playlists/new'
+      if (this.playlistId) {
+        url = `/tic-api/playlists/settings/${this.playlistId}/save`
       }
       let data = {
-        playlists: {
-          [playlistId]: {
-            enabled: this.enabled,
-            name: this.name,
-            url: this.url,
-            connections: this.connections,
-          }
-        }
+        enabled: this.enabled,
+        name: this.name,
+        url: this.url,
+        connections: this.connections,
       }
       axios({
-        method: 'post',
-        url: `/tic-api/playlists/settings/${playlistId}/save`,
+        method: 'POST',
+        url: url,
         data: data
       }).then((response) => {
         // Save success, show feedback

@@ -7,7 +7,7 @@ from ipytv import playlist
 from lib.config import write_yaml, read_yaml
 
 
-def download_file(url, output):
+def download_playlist_file(url, output):
     headers = {
         'User-Agent': 'VLC/3.0.0-git LibVLC/3.0.0-gi',
     }
@@ -32,23 +32,6 @@ def parse_playlist(path):
             "extras":     channel.extras,
         }
     return discovered_streams
-
-
-def import_playlist_data(config, playlist_id):
-    settings = config.read_settings()
-    # Download playlist data and save to YAML cache file
-    playlist_m3u_file = os.path.join(config.config_path, 'cache', 'playlists', f"{playlist_id}.m3u")
-    download_file(settings['playlists'][playlist_id]['url'], playlist_m3u_file)
-    remote_playlist_data = parse_playlist(playlist_m3u_file)
-    playlist_yaml_file = os.path.join(config.config_path, 'cache', 'playlists', f"{playlist_id}.yml")
-    write_yaml(playlist_yaml_file, remote_playlist_data)
-
-
-def import_all_playlist_data(config):
-    settings = config.read_settings()
-    for key in settings.get('playlists', {}):
-        if settings.get('playlists', {}).get(key).get('enabled'):
-            import_playlist_data(config, key)
 
 
 def read_streams_from_all_playlists(config):
@@ -83,8 +66,3 @@ def read_playlist_config(config, playlist_id=None):
             print(pl_id)
             return settings['playlists'][pl_id]
     return {}
-
-
-def delete_playlist(config, playlist_id):
-    settings = config.read_settings()
-    del settings['playlists'][playlist_id]

@@ -20,16 +20,6 @@ def download_xmltv_epg(url, output):
                 f.write(chunk)
 
 
-def import_epg_data(config, epg_id):
-    settings = config.read_settings()
-    epg_info = settings['epgs'][epg_id]
-    xmltv_file = os.path.join(config.config_path, 'cache', 'epgs', f"{epg_id}.xml")
-    # Download a new local copy of the EPG
-    download_xmltv_epg(epg_info.get('url', ''), xmltv_file)
-    # Parse the XMLTV file for channels and cache them
-    parse_xmltv_for_channels(config, epg_id)
-
-
 def import_all_epg_data(config):
     settings = config.read_settings()
     for key in settings['epgs']:
@@ -44,36 +34,6 @@ def read_epgs_config(config, epg_id=None):
     if epg_id is None:
         return settings['epgs']
     return settings['epgs'].get(epg_id, {})
-
-
-def read_channels_config(config, channel_number=None):
-    settings = config.read_settings()
-    if channel_number is None:
-        return settings['channels']
-    # When fetching for a single channel, add some extra details from the playlist
-    channel_info = settings['channels'].get(channel_number, {})
-    for source_id in channel_info.get('sources', {}):
-        source = channel_info['sources'][source_id]
-        playlist_info = settings.get('playlists', {}).get(source['playlist_id'])
-        source['playlist_name'] = playlist_info['name']
-        source['playlist_enabled'] = playlist_info['enabled']
-    return channel_info
-
-
-def prune_playlist_from_channel_sources(config, playlist_id):
-    channels = read_channels_config(config)
-    for channel_id in channels.copy():
-        channel = channels[channel_id]
-        for source_id in channel['sources'].copy():
-            source = channel['sources'][source_id]
-            if source.get('playlist_id') == playlist_id:
-                del channel['sources'][source_id]
-
-
-def remove_channel_from_channels_config(config, channel_number):
-    settings = config.read_settings()
-    if channel_number in settings['channels']:
-        del settings['channels'][channel_number]
 
 
 def read_channels_from_all_epgs(config):

@@ -5,6 +5,7 @@ from mergedeep import merge
 
 frontend_dir = os.path.join(os.path.dirname(os.path.abspath(os.path.dirname(__file__))), 'frontend')
 
+
 def get_home_dir():
     home_dir = os.environ.get('HOME_DIR')
     if home_dir is None:
@@ -112,6 +113,11 @@ class Config:
 
 class FlaskConfig(object):
     basedir = os.path.abspath(os.path.dirname(__file__))
+    config_path = os.path.join(get_home_dir(), '.tvh_iptv_config')
+
+    # Configure SQLite DB
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(config_path, 'db.sqlite3')
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # App configuration
     APP_CONFIG = Config()

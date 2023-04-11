@@ -179,7 +179,7 @@ export default {
     fetchPlaylistData: function () {
       // Fetch from server
       axios({
-        method: 'get',
+        method: 'GET',
         url: '/tic-api/epgs/settings/' + this.epgId,
       }).then((response) => {
         this.enabled = response.data.data.enabled
@@ -188,22 +188,18 @@ export default {
       });
     },
     save: function () {
-      let epgId = this.epgId
-      if (!epgId) {
-        epgId = (Math.random() + 1).toString(36).substring(5);
+      let url = '/tic-api/epgs/settings/new'
+      if (this.epgId) {
+        url = `/tic-api/epgs/settings/${this.epgId}/save`
       }
       let data = {
-        epgs: {
-          [epgId]: {
-            enabled: this.enabled,
-            name: this.name,
-            url: this.url,
-          }
-        }
+        enabled: this.enabled,
+        name: this.name,
+        url: this.url,
       }
       axios({
-        method: 'post',
-        url: `/tic-api/epgs/settings/${epgId}/save`,
+        method: 'POST',
+        url: url,
         data: data
       }).then((response) => {
         // Save success, show feedback

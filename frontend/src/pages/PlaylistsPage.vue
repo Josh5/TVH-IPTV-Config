@@ -65,7 +65,7 @@
                       dropdown-icon="more_vert">
                       <q-list>
 
-                        <q-item clickable v-close-popup @click="updatePlaylist(index)">
+                        <q-item clickable v-close-popup @click="updatePlaylist(playlist.id)">
                           <q-item-section avatar>
                             <q-icon color="info" name="update"/>
                           </q-item-section>
@@ -74,7 +74,7 @@
                           </q-item-section>
                         </q-item>
 
-                        <q-item clickable v-close-popup @click="openPlaylistSettings(index)">
+                        <q-item clickable v-close-popup @click="openPlaylistSettings(playlist.id)">
                           <q-item-section avatar>
                             <q-icon color="grey-8" name="tune"/>
                           </q-item-section>
@@ -83,7 +83,7 @@
                           </q-item-section>
                         </q-item>
 
-                        <q-item clickable v-close-popup @click="removePlaylist(index)">
+                        <q-item clickable v-close-popup @click="removePlaylist(playlist.id)">
                           <q-item-section avatar>
                             <q-icon color="negative" name="delete"/>
                           </q-item-section>
@@ -190,7 +190,7 @@ export default defineComponent({
       this.$q.loading.show()
       axios({
         method: 'DELETE',
-        url: `/tic-api/playlists/settings/${playlistId}/delete`,
+        url: `/tic-api/playlists/${playlistId}/delete`,
       }).then((response) => {
         this.$q.loading.hide()
         this.$q.notify({

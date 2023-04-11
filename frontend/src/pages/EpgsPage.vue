@@ -58,7 +58,7 @@
                       dropdown-icon="more_vert">
                       <q-list>
 
-                        <q-item clickable v-close-popup @click="updateEpg(index)">
+                        <q-item clickable v-close-popup @click="updateEpg(epg.id)">
                           <q-item-section avatar>
                             <q-icon color="info" name="update"/>
                           </q-item-section>
@@ -67,7 +67,7 @@
                           </q-item-section>
                         </q-item>
 
-                        <q-item clickable v-close-popup @click="openEpgSettings(index)">
+                        <q-item clickable v-close-popup @click="openEpgSettings(epg.id)">
                           <q-item-section avatar>
                             <q-icon color="grey-8" name="tune"/>
                           </q-item-section>
@@ -76,7 +76,7 @@
                           </q-item-section>
                         </q-item>
 
-                        <q-item clickable v-close-popup @click="removeSinglePlugin(plugin.id)">
+                        <q-item clickable v-close-popup @click="deleteEpg(epg.id)">
                           <q-item-section avatar>
                             <q-icon color="negative" name="delete"/>
                           </q-item-section>
@@ -163,7 +163,7 @@ export default defineComponent({
           color: 'positive',
           position: 'top',
           icon: 'cloud_done',
-          message: 'EPG Updated',
+          message: 'EPG updated',
           timeout: 200
         })
       }).catch(() => {
@@ -172,6 +172,33 @@ export default defineComponent({
           color: 'negative',
           position: 'top',
           message: "Failed to update EPG",
+          icon: 'report_problem',
+          actions: [{icon: 'close', color: 'white'}]
+        })
+      });
+    },
+    deleteEpg: function (epgId) {
+      // Fetch current settings
+      this.$q.loading.show()
+      axios({
+        method: 'DELETE',
+        url: `/tic-api/epgs/settings/${epgId}/delete`,
+      }).then((response) => {
+        this.$q.loading.hide()
+        this.fetchSettings();
+        this.$q.notify({
+          color: 'positive',
+          position: 'top',
+          icon: 'cloud_done',
+          message: 'EPG deleted',
+          timeout: 200
+        })
+      }).catch(() => {
+        this.$q.loading.hide()
+        this.$q.notify({
+          color: 'negative',
+          position: 'top',
+          message: "Failed to delete EPG",
           icon: 'report_problem',
           actions: [{icon: 'close', color: 'white'}]
         })

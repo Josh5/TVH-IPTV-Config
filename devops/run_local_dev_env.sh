@@ -5,7 +5,7 @@
 # File Created: Tuesday, 11th April 2023 3:31:39 pm
 # Author: Josh.5 (jsunnex@gmail.com)
 # -----
-# Last Modified: Tuesday, 11th April 2023 3:34:21 pm
+# Last Modified: Tuesday, 11th April 2023 11:40:19 pm
 # Modified By: Josh.5 (jsunnex@gmail.com)
 ###
 
@@ -31,6 +31,13 @@ export FLASK_DEBUG=true;
 export HOME_DIR="${PWD}/config/"
 
 mkdir -p "${HOME_DIR}"
+
+# Setup database
+flask db init
+flask db migrate
+flask db upgrade
+
+# Run main process
 python3 ./run.py
 
 

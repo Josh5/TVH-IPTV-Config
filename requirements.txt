@@ -1,5 +1,7 @@
 Flask==2.2.3
 Flask-Minify==0.41
+flask_migrate==4.0.4
+flask_sqlalchemy==3.0.3
 gunicorn==20.1.0
 m3u-ipytv==0.2.4
 mergedeep==1.3.4

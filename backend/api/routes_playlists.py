@@ -2,45 +2,40 @@
 # -*- coding:utf-8 -*-
 import os
 
-from lib.epg import prune_playlist_from_channel_sources
-from lib.playlist import read_playlist_config, read_streams_from_all_playlists, import_playlist_data, delete_playlist
-from lib.tvheadend import configure_playlist_networks
+from backend.playlists import read_config_all_playlists, add_new_playlist, read_config_one_playlist, update_playlist, \
+    delete_playlist, import_playlist_data
+from lib.playlist import read_streams_from_all_playlists
 from backend.api import blueprint
 from flask import request, jsonify, current_app
 
-# epg = os.path.join(os.path.dirname(os.path.abspath(os.path.dirname(__file__))), 'frontend')
 frontend_dir = os.path.join(os.path.dirname(os.path.abspath(os.path.dirname(__file__))), 'frontend')
 static_assets = os.path.join(frontend_dir, 'dist', 'spa')
 
 
 @blueprint.route('/tic-api/playlists/get', methods=['GET'])
-def api_get_playlists():
-    config = current_app.config['APP_CONFIG']
-    playlist_config = read_playlist_config(config)
+def api_get_playlists_list():
+    all_playlist_configs = read_config_all_playlists()
     return jsonify(
         {
             "success": True,
-            "data":    playlist_config
+            "data":    all_playlist_configs
         }
     )
 
 
-@blueprint.route('/tic-api/playlists/streams', methods=['GET'])
-def api_get_all_playlist_streams():
-    config = current_app.config['APP_CONFIG']
-    playlist_streams = read_streams_from_all_playlists(config)
+@blueprint.route('/tic-api/playlists/new', methods=['POST'])
+def api_add_new_playlist():
+    add_new_playlist(request.json)
     return jsonify(
         {
-            "success": True,
-            "data":    playlist_streams
+            "success": True
         }
     )
 
 
 @blueprint.route('/tic-api/playlists/settings/<playlist_id>', methods=['GET'])
-def api_get_config_playlists(playlist_id):
-    config = current_app.config['APP_CONFIG']
-    playlist_config = read_playlist_config(config, playlist_id=playlist_id)
+def api_get_playlist_config(playlist_id):
+    playlist_config = read_config_one_playlist(playlist_id)
     return jsonify(
         {
             "success": True,
@@ -51,12 +46,18 @@ def api_get_config_playlists(playlist_id):
 
 @blueprint.route('/tic-api/playlists/settings/<playlist_id>/save', methods=['POST'])
 def api_set_config_playlists(playlist_id):
+    update_playlist(playlist_id, request.json)
+    return jsonify(
+        {
+            "success": True
+        }
+    )
+
+
+@blueprint.route('/tic-api/playlists/<playlist_id>/delete', methods=['DELETE'])
+def api_delete_playlist(playlist_id):
     config = current_app.config['APP_CONFIG']
-    # Save settings
-    config.update_settings(request.json)
-    config.save_settings()
-    # Update playlists
-    configure_playlist_networks(config)
+    delete_playlist(config, playlist_id)
     return jsonify(
         {
             "success": True
@@ -75,17 +76,16 @@ def api_update_playlist(playlist_id):
     )
 
 
-@blueprint.route('/tic-api/playlists/settings/<playlist_id>/delete', methods=['DELETE'])
-def api_delete_config_playlists(playlist_id):
+##### TODO: Migrate to SQLite
+
+
+@blueprint.route('/tic-api/playlists/streams', methods=['GET'])
+def api_get_all_playlist_streams():
     config = current_app.config['APP_CONFIG']
-    # Remove playlist from channels
-    prune_playlist_from_channel_sources(config, playlist_id)
-    # Remove playlist from settings
-    delete_playlist(config, playlist_id)
-    # Save settings
-    config.save_settings()
+    playlist_streams = read_streams_from_all_playlists(config)
     return jsonify(
         {
-            "success": True
+            "success": True,
+            "data":    playlist_streams
         }
     )
