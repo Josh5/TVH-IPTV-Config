@@ -1,0 +1,17 @@
+.git
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+
+# dev / testing directories
+/config
+/frontend/test_js/**
+
+# venv
+env
+venv
+
+# Editor directories and files
+.vscode
+.idea

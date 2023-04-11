@@ -6,14 +6,14 @@ from importlib import import_module
 
 
 def register_blueprints(app):
-    module = import_module('tvh_iptv_config.api.routes')
-    import_module('tvh_iptv_config.api.routes_playlists')
-    import_module('tvh_iptv_config.api.routes_epgs')
+    module = import_module('backend.api.routes')
+    import_module('backend.api.routes_playlists')
+    import_module('backend.api.routes_epgs')
     app.register_blueprint(module.blueprint)
 
 # def register_blueprints(app):
 #     for module_name in ['routes', 'routes_playlists']:
-#         module = import_module('tvh_iptv_config.api.{}'.format(module_name))
+#         module = import_module('api.{}'.format(module_name))
 #         app.register_blueprint(module.blueprint)
 
 def create_app(config):

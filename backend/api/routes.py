@@ -4,7 +4,7 @@ import os
 
 from lib.epg import read_channels_config, update_custom_epg, remove_channel_from_channels_config
 from lib.tvheadend import read_tvh_config, configure_channel_muxes, map_all_services
-from tvh_iptv_config.api import blueprint
+from backend.api import blueprint
 from flask import request, jsonify, redirect, send_from_directory, current_app
 
 frontend_dir = os.path.join(os.path.dirname(os.path.abspath(os.path.dirname(__file__))), 'frontend')
@@ -13,17 +13,17 @@ static_assets = os.path.join(frontend_dir, 'dist', 'spa')
 
 @blueprint.route('/')
 def index():
-    return redirect('/tic-web')
+    return redirect('/tic-web/')
 
 
-@blueprint.route('/tic-web')
+@blueprint.route('/tic-web/')
 def serve_index():
-    return send_from_directory(static_assets, 'index.html')
+    return send_from_directory(current_app.config['ASSETS_ROOT'], 'index.html')
 
 
 @blueprint.route('/tic-web/<path:path>')
 def serve_static(path):
-    return send_from_directory(static_assets, path)
+    return send_from_directory(current_app.config['ASSETS_ROOT'], path)
 
 
 @blueprint.route('/tic-web/epg.xml')

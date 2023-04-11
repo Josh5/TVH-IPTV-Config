@@ -2,7 +2,7 @@
 # -*- coding:utf-8 -*-
 
 from lib.epg import read_epgs_config, read_channels_from_all_epgs, read_channels_from_epg_cache, import_epg_data
-from tvh_iptv_config.api import blueprint
+from backend.api import blueprint
 from flask import request, jsonify, current_app
 
 

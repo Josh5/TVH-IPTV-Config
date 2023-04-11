@@ -5,7 +5,7 @@ import os
 from lib.epg import prune_playlist_from_channel_sources
 from lib.playlist import read_playlist_config, read_streams_from_all_playlists, import_playlist_data, delete_playlist
 from lib.tvheadend import configure_playlist_networks
-from tvh_iptv_config.api import blueprint
+from backend.api import blueprint
 from flask import request, jsonify, current_app
 
 # epg = os.path.join(os.path.dirname(os.path.abspath(os.path.dirname(__file__))), 'frontend')

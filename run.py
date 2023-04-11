@@ -6,7 +6,7 @@ from flask_minify import Minify
 from sys import exit
 
 from lib.config import config_dict
-from tvh_iptv_config import create_app
+from backend import create_app
 
 # WARNING: Don't run with debug turned on in production!
 DEBUG = (os.getenv('FLASK_DEBUG', 'False').capitalize() == 'True')

@@ -3,6 +3,7 @@ import os
 import yaml
 from mergedeep import merge
 
+frontend_dir = os.path.join(os.path.dirname(os.path.abspath(os.path.dirname(__file__))), 'frontend')
 
 def get_home_dir():
     home_dir = os.environ.get('HOME_DIR')
@@ -120,7 +121,7 @@ class FlaskConfig(object):
     SECRET_KEY = os.getenv('SECRET_KEY', 'S#perS3crEt_007')
 
     # Assets Management
-    ASSETS_ROOT = os.getenv('ASSETS_ROOT', '/static/assets')
+    ASSETS_ROOT = os.getenv('ASSETS_ROOT', os.path.join(frontend_dir, 'dist', 'spa'))
 
 
 class FlaskProductionConfig(FlaskConfig):
