@@ -29,9 +29,9 @@
               <q-item
                 v-for="(epg, index) in listOfEpgs"
                 v-bind:key="index"
-                :class="epg.enabled ? '' : 'bg-grey'">
+                :class="epg.enabled ? '' : 'bg-grey-3'">
                 <q-item-section avatar>
-                  <q-icon name="dvr"/>
+                  <q-icon name="calendar_month"/>
                   <!--                  <q-img src="playlist_play"/>-->
                 </q-item-section>
 

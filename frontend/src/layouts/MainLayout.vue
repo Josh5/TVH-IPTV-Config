@@ -65,7 +65,7 @@ const linksList = [
   {
     title: 'EPGs',
     caption: 'Configure a list of EPG sources',
-    icon: 'dvr',
+    icon: 'calendar_month',
     link: '/epgs'
   },
   {

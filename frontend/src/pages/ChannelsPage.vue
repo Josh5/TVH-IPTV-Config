@@ -77,7 +77,8 @@
                   <q-item
                     :key="index"
                     class="q-px-none rounded-borders"
-                    active-class="library-plugin-flow-item">
+                    :class="element.enabled ? '' : 'bg-grey-3'"
+                    clickable>
 
                     <!--START DRAGGABLE HANDLE-->
                     <q-item-section avatar class="q-px-sm q-mx-sm handle">
@@ -92,12 +93,12 @@
                     <q-separator inset vertical class="gt-xs"/>
 
                     <!--START CHANNEL NUMBER-->
-                    <q-item-section side class="q-px-sm q-mx-sm" style="max-width: 90px;"
+                    <q-item-section class="q-px-sm q-mx-sm" style="max-width:80px;"
                                     @click="showChannelNumberMod(index)">
                       <q-item-label lines="1" class="text-left">
                         <span class="q-ml-sm">Channel</span>
                       </q-item-label>
-                      <q-item-label caption lines="1" class="text-center q-ml-sm">
+                      <q-item-label caption lines="1" class="text-left q-ml-sm">
                         {{ element.number }}
                       </q-item-label>
                     </q-item-section>
@@ -106,7 +107,7 @@
                     <q-separator inset vertical class="gt-xs"/>
 
                     <!--START NAME / DESCRIPTION-->
-                    <q-item-section top class="q-mx-md">
+                    <q-item-section top class="q-mx-md" @click="openChannelSettings(element.id)">
                       <q-item-label lines="1" class="text-left">
                         <q-avatar rounded size="35px">
                           <q-img :src="element.logo_url" class="" style="max-width: 30px;"/>
@@ -130,7 +131,7 @@
                     <q-separator inset vertical class="gt-xs"/>
 
                     <!--START EPG DETAILS-->
-                    <q-item-section class="q-px-sm q-mx-sm">
+                    <q-item-section class="q-px-sm q-mx-sm" @click="openChannelSettings(element.id)">
                       <q-item-label lines="1" class="text-left">
                         <span class="q-ml-sm">Guide</span>
                       </q-item-label>

@@ -29,7 +29,7 @@
               <q-item
                 v-for="(playlist, index) in listOfPlaylists"
                 v-bind:key="index"
-                :class="playlist.enabled ? '' : 'bg-grey'">
+                :class="playlist.enabled ? '' : 'bg-grey-3'">
                 <q-item-section avatar class="q-px-sm q-mx-sm">
                   <q-avatar rounded>
                     <q-icon name="playlist_play" class="" style="max-width: 30px;"/>
