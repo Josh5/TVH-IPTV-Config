@@ -86,6 +86,11 @@
                   type="QCheckbox"/>
                 <q-checkbox v-model="enabled" label="Enabled"/>
               </div>
+
+              <q-separator class="q-my-lg"/>
+
+              <!--START DETAILS CONFIG-->
+              <h5 class="q-mb-none">Channel Details:</h5>
               <div class="q-gutter-sm">
                 <q-skeleton
                   v-if="number === null"
@@ -135,8 +140,12 @@
                   @keyup.tab="addTag"
                 />
               </div>
+              <!--END DETAILS CONFIG-->
+
+              <q-separator class="q-my-lg"/>
 
               <!--START EPG CONFIG-->
+              <h5 class="q-mb-none">Programme Guide:</h5>
               <div class="q-gutter-sm">
                 <q-skeleton
                   v-if="epgSource === null"
@@ -171,7 +180,10 @@
               </div>
               <!--END EPG CONFIG-->
 
+              <q-separator class="q-my-lg"/>
+
               <!--START SOURCES CONFIG-->
+              <h5 class="q-mb-none">Channel Sources:</h5>
               <div class="q-gutter-sm">
                 <q-list
                   bordered
@@ -191,7 +203,7 @@
                       <q-item
                         :key="index"
                         class="q-px-none rounded-borders"
-                        active-class="library-plugin-flow-item">
+                        active-class="">
 
                         <!--START DRAGGABLE HANDLE-->
                         <q-item-section avatar class="q-px-sm q-mx-sm handle">
@@ -236,9 +248,9 @@
                         <q-item-section side class="q-mr-md">
                           <div class="text-grey-8 q-gutter-xs">
                             <!--                        <q-btn class="gt-xs" size="12px" flat dense round icon="delete"/>-->
-                            <q-btn size="12px" flat dense round icon="tune"
-                                   @click="openChannelSettings(element.number)">
-                              <q-tooltip class="bg-white text-primary">Edit</q-tooltip>
+                            <q-btn size="12px" flat dense round color="negative" icon="delete"
+                                   @click="removeChannelSourceFromList(element)">
+                              <q-tooltip class="bg-white text-primary">Remove this source</q-tooltip>
                             </q-btn>
                           </div>
                         </q-item-section>
@@ -259,78 +271,6 @@
                     @click="selectChannelSourceFromList">
                   </q-btn>
                 </q-bar>
-
-
-                <!--                <q-skeleton
-                                  v-if="name === null"
-                                  type="QInput"/>
-                                <q-badge color="secondary" multi-line>
-                                  Model: "{{ channelSources }}"
-                                </q-badge>-->
-                <!--                <q-input
-                                  v-else
-                                  v-model="name"
-                                  label="Sources"
-                                />-->
-                <!--                <q-select
-                                  filled
-                                  multiple
-                                  use-input
-                                  use-chips
-                                  stack-label
-                                  input-debounce="0"
-                                  label="Simple filter"
-                                  v-model="channelSources"
-                                  :options="channelSourceOptions"
-                                  style="width: 250px"
-                                >
-                                  <template v-slot:no-option>
-                                    <q-item>
-                                      <q-item-section class="text-grey">
-                                        No results
-                                      </q-item-section>
-                                    </q-item>
-                                  </template>
-                                </q-select>-->
-
-                <!--                <q-select
-                                  filled
-                                  use-input
-                                  input-debounce="0"
-                                  label="Hide selected"
-                                  v-model="channelSources"
-                                  :options="channelSourceOptions"
-                                  @filter="filterChannelSourcesFn"
-                                  style="width: 250px"
-                                  behavior="menu"
-                                  emit-value
-                                >
-                                  <template v-slot:no-option>
-                                    <q-item>
-                                      <q-item-section class="text-grey">
-                                        No results
-                                      </q-item-section>
-                                    </q-item>
-                                  </template>
-                                </q-select>-->
-
-                <!--                <q-select
-                                  filled
-                                  multiple
-                                  use-chips
-                                  v-model="channelSources"
-                                  :options="channelSourceOptions"
-                                  label="Standard"
-                                  @filter="filterChannelSourcesFn"
-                                >
-                                  <template v-slot:no-option>
-                                    <q-item>
-                                      <q-item-section class="text-grey">
-                                        No results
-                                      </q-item-section>
-                                    </q-item>
-                                  </template>
-                                </q-select>-->
               </div>
               <!--END SOURCES CONFIG-->
 
@@ -408,6 +348,7 @@ export default {
     show() {
       this.$refs.channelInfoDialogRef.show();
       this.fetchEpgData();
+      this.fetchPlaylistData();
       if (this.channelId) {
         this.fetchData();
         return
@@ -423,6 +364,7 @@ export default {
       this.epgChannelOptions = []
       this.epgChannel = ''
 
+      this.listOfPlaylists = []
       this.listOfChannelSources = []
 
       this.channelSourceOptions = []
@@ -456,6 +398,7 @@ export default {
         this.tags = response.data.data.tags
         // Fetch data for EPG
         this.epgSource = response.data.data.guide.epg_id
+        this.epgSourceName = response.data.data.guide.epg_name
         this.epgChannel = response.data.data.guide.channel_id
         // Fetch list of channel sources and pipe to a list ordered by the 'priority'
         this.listOfChannelSources = Object.keys(response.data.data.sources)
@@ -503,6 +446,22 @@ export default {
         this.updateCurrentEpgChannelOptions()
       });
     },
+    fetchPlaylistData: function () {
+      axios({
+        method: 'get',
+        url: '/tic-api/playlists/get'
+      }).then((response) => {
+        this.listOfPlaylists = response.data.data
+      }).catch(() => {
+        this.$q.notify({
+          color: 'negative',
+          position: 'top',
+          message: "Failed to fetch the list of playlists",
+          icon: 'report_problem',
+          actions: [{icon: 'close', color: 'white'}]
+        })
+      });
+    },
     updateCurrentEpgChannelOptions: function () {
       this.epgChannelDefaultOptions = this.epgChannelAllOptions[this.epgSource]
       this.epgChannelOptions = this.epgChannelAllOptions[this.epgSource]
@@ -522,9 +481,13 @@ export default {
         sources[source['id']] = {
           'priority': (i + 1),
           'playlist_id': source['playlist_id'],
+          'playlist_name': source['playlist_name'],
           'stream_name': source['stream_name'],
         }
       }
+      const epgInfo = this.epgSourceOptions.find((item) => {
+        return item.value === this.epgSource
+      })
       let data = {
         channels: {
           [channelId]: {
@@ -534,6 +497,7 @@ export default {
             tags: this.tags,
             guide: {
               epg_id: this.epgSource,
+              epg_name: epgInfo.label,
               channel_id: this.epgChannel,
             },
             sources: sources,
@@ -596,27 +560,6 @@ export default {
         })
       });
     },
-
-    selectChannelSourceFromList: function () {
-      this.$q.dialog({
-        component: ChannelStreamSelectorDialog,
-        componentProps: {
-          hidePlugins: [],
-        },
-      }).onOk((payload) => {
-        if (typeof payload.selectedStreams !== 'undefined' && payload.selectedStreams !== null) {
-          // Add selected stream to list
-          let enabledStreams = structuredClone(this.listOfChannelSources)
-          for (const i in payload.selectedStreams) {
-            enabledStreams.push(payload.selectedStreams[i]);
-          }
-          this.listOfChannelSources = enabledStreams;
-          // Save the current settings
-          //this.save()
-        }
-      }).onDismiss(() => {
-      })
-    },
     addTag: function () {
       if (this.newTag) {
         this.tags[this.tags.length] = this.newTag;
@@ -635,13 +578,50 @@ export default {
         const needle = val.toLowerCase()
         this.epgChannelOptions = this.epgChannelDefaultOptions.filter(v => v.label.toLowerCase().indexOf(needle) > -1)
       })
-    }
+    },
+    selectChannelSourceFromList: function () {
+      this.$q.dialog({
+        component: ChannelStreamSelectorDialog,
+        componentProps: {
+          hideStreams: [],
+        },
+      }).onOk((payload) => {
+        if (typeof payload.selectedStreams !== 'undefined' && payload.selectedStreams !== null) {
+          // Add selected stream to list
+          let enabledStreams = structuredClone(this.listOfChannelSources)
+          for (const i in payload.selectedStreams) {
+            // Check if this sources is already added...
+            const foundItem = enabledStreams.find((item) => {
+              return (item.playlist_id === payload.selectedStreams[i].playlist_id && item.stream_name === payload.selectedStreams[i].stream_name)
+            })
+            if (foundItem) {
+              // Value already exists
+              console.warn("Channel source already exists")
+              continue
+            }
+            // Fetch the playlist_name of this source
+            let playlistName = this.listOfPlaylists[payload.selectedStreams[i].playlist_id].name
+            enabledStreams.push({
+              playlist_id: payload.selectedStreams[i].playlist_id,
+              playlist_name: playlistName,
+              stream_name: payload.selectedStreams[i].stream_name,
+            });
+          }
+          this.listOfChannelSources = enabledStreams;
+          // NOTE: Do not save the current settings here! We want to be able to undo these changes.
+        }
+      }).onDismiss(() => {
+      })
+    },
+    removeChannelSourceFromList: function (element) {
+      this.listOfChannelSources = this.listOfChannelSources.filter(item => item.id !== element.id);
+    },
   },
   computed: {
     dragOptions() {
       return {
         animation: 100,
-        group: "pluginFlow",
+        group: "channelStreams",
         disabled: false,
         ghostClass: "ghost",
         direction: "vertical",
@@ -661,71 +641,5 @@ export default {
 </script>
 
 <style>
-
-span.plugin-changelog * {
-  margin-top: 0;
-  margin-bottom: 0;
-}
-
-span.plugin-description {
-  width: 100%;
-}
-
-span.plugin-description p {
-  margin-bottom: 5px;
-}
-
-span.plugin-description h2,
-span.plugin-description h3,
-span.plugin-description h4,
-span.plugin-description h5,
-span.plugin-description h6 {
-  margin-top: 10px;
-  margin-bottom: 0;
-}
-
-span.plugin-description ul {
-  margin-top: 10px;
-  margin-bottom: 10px;
-}
-
-span.plugin-description pre {
-  border: inset thin;
-  padding: 10px;
-}
-
-.body--light span.plugin-description pre {
-  background: #EEE;
-}
-
-.body--dark span.plugin-description pre {
-  background: #222;
-}
-
-span.plugin-description hr {
-  margin-top: 10px;
-  margin-bottom: 10px;
-}
-
-.checkbox-hint {
-  line-height: 1;
-  font-size: 12px;
-  min-height: 20px;
-  color: rgba(0, 0, 0, 0.54);
-  padding: 8px 12px 0;
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
-}
-
-.q-list--dark .checkbox-hint {
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.sub-setting {
-  margin-left: 30px;
-  padding-top: 8px;
-  padding-left: 8px;
-  border-left: solid thin var(--q-primary);
-}
 
 </style>

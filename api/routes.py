@@ -13,7 +13,7 @@ static_assets = os.path.join(frontend_dir, 'dist', 'spa')
 
 @blueprint.route('/')
 def index():
-    return redirect('/tvh-ui/tvheadend')
+    return redirect('/tic-web')
 
 
 @blueprint.route('/tic-web')

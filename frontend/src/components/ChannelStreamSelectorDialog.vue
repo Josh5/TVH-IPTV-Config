@@ -104,19 +104,19 @@
                 title="Streams"
                 :rows="rows"
                 :columns="columns"
+                :visible-columns="visibleColumns"
                 :filter="filter"
-                :loading="loading"
                 virtual-scroll
                 v-model:pagination="pagination"
                 :rows-per-page-options="[0]"
+                :loading="loading"
+                :row-key="genRowIndex"
                 :selected-rows-label="getSelectedString"
                 v-model:selected="selected"
-                :visible-columns="visibleColumns"
                 selection="multiple"
+
                 no-data-label="I didn't find anything for you"
                 no-results-label="The filter didn't uncover any results"
-                :key="tableKey"
-                item-key="index"
               >
                 <template v-slot:top-right>
                   <q-input borderless dense debounce="300" v-model="filter" placeholder="Search">
@@ -154,7 +154,7 @@ import axios from "axios";
 import {ref} from "vue";
 
 const columns = [
-  {name: 'stream_name', required: true, align: 'left', label: 'Name', field: 'stream_name', sortable: false},
+  {name: 'name', required: true, align: 'left', label: 'Name', field: 'name', sortable: false},
   {name: 'playlist_id', required: true, align: 'left', label: 'Playlist', field: 'playlist_id', sortable: false},
 ]
 const pagination = ref({
@@ -168,7 +168,7 @@ export default {
       type: String,
       default: ' --- header --- '
     },
-    hidePlugins: {
+    hideStreams: {
       type: Array
     }
   },
@@ -200,7 +200,7 @@ export default {
         returnItems.push({
           'playlist_id': selected['playlist_id'],
           'playlist_name': '',
-          'stream_name': selected['stream_name'],
+          'stream_name': selected['name'],
         })
       }
       this.$emit('ok', {selectedStreams: returnItems})
@@ -218,43 +218,39 @@ export default {
         this.rows = []
         this.rows = Object.entries(response.data.data)
           .flatMap(([playlist_id, names]) =>
-            names.map(stream_name => ({stream_name, playlist_id}))
+            names.map(name => ({name, playlist_id}))
           );
         this.loading = false
-      }).catch(() => {
-        this.loading = false
-        this.$q.notify({
-          color: 'negative',
-          position: 'top',
-          message: 'Failed to fetch the master playlist streams list',
-          icon: 'report_problem',
-          actions: [{icon: 'close', color: 'white'}]
-        })
       });
     },
     getSelectedString: function () {
       return this.selected.length === 0 ? '' : `${this.selected.length} record${this.selected.length > 1 ? 's' : ''} selected of ${this.rows.length}`
-    }
-
-  },
-  computed: {
-    tableKey() {
-      return index => index; // use the list index as the key
+    },
+    genRowIndex: function (row) {
+      //console.log(row)
+      return `${row.playlist_id}-${row.name}`
     }
   },
+  //computed: {
+  //  tableKey() {
+  //    return index => index; // use the list index as the key
+  //  }
+  //},
   data: function () {
     return {
       maximizedToggle: true,
       currentPlugin: ref(null),
       plugins: ref([]),
 
-      loading: ref(false),
+      columns,
+      rows: ref([]),
+
+      visibleColumns: ref(['calories', 'playlist_id', 'fat', 'carbs', 'protein', 'sodium', 'calcium', 'iron']),
       filter: ref(''),
       selected: ref([]),
-      columns,
-      rows: [],
-      visibleColumns: ref(['name', 'playlist']),
       pagination,
+      loading: ref(false),
+
     }
   }
 }

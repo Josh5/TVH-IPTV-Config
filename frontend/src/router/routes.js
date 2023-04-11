@@ -5,9 +5,6 @@ const routes = [
     children: [
       {path: '', component: () => import('pages/TvheadendPage.vue')}
     ],
-    /*beforeEnter() {
-      location.href = '/tvheadend'
-    }*/
   },
   {
     name: 'tvheadend',
@@ -39,13 +36,6 @@ const routes = [
     component: () => import('layouts/MainLayout.vue'),
     children: [
       {path: '', component: () => import('pages/ChannelsPage.vue')}
-    ]
-  },
-  {
-    path: '/test',
-    component: () => import('layouts/MainLayout.vue'),
-    children: [
-      {path: '', component: () => import('pages/IndexPage.vue')}
     ]
   },
 

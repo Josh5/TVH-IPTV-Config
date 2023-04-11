@@ -95,16 +95,10 @@
                     <q-item-section side class="q-px-sm q-mx-sm" style="max-width: 90px;"
                                     @click="showChannelNumberMod(index)">
                       <q-item-label lines="1" class="text-left">
-                        <!--                        <q-input dense color="primary" label="Number"
-                                                         v-model="element.number"
-                                                         @input="onInput" @keyup.enter="onEnter($event, $el)"/>-->
-                        <q-item-label lines="1" class="text-left">
-                          <span class="text-weight-medium q-ml-sm">{{ element.number }}</span>
-                        </q-item-label>
-                        <q-tooltip
-                          anchor="bottom middle" self="center middle"
-                          class="bg-white text-primary">Channel Number
-                        </q-tooltip>
+                        <span class="q-ml-sm">Channel</span>
+                      </q-item-label>
+                      <q-item-label caption lines="1" class="text-center q-ml-sm">
+                        {{ element.number }}
                       </q-item-label>
                     </q-item-section>
                     <!--END CHANNEL NUMBER-->
@@ -121,8 +115,8 @@
                         <span class="text-weight-medium q-ml-sm">{{ element.name }}</span>
                       </q-item-label>
                       <q-item-label caption lines="1" class="text-left q-ml-sm">
-                        <!--TODO: Limit length of description-->
-                        {{ element.name }}
+                        Tags: {{ element.tags }}
+                        | Sources: {{ Object.keys(element.sources).map(key => element.sources[key].playlist_name) }}
                       </q-item-label>
                       <q-tooltip
                         anchor="center middle"
@@ -132,6 +126,25 @@
                       </q-tooltip>
                     </q-item-section>
                     <!--END NAME / DESCRIPTION-->
+
+                    <q-separator inset vertical class="gt-xs"/>
+
+                    <!--START EPG DETAILS-->
+                    <q-item-section class="q-px-sm q-mx-sm">
+                      <q-item-label lines="1" class="text-left">
+                        <span class="q-ml-sm">Guide</span>
+                      </q-item-label>
+                      <q-item-label caption lines="1" class="text-left q-ml-sm">
+                        {{ element.guide.epg_name }} - {{ element.guide.channel_id }}
+                      </q-item-label>
+                      <q-tooltip
+                        anchor="center middle"
+                        self="center middle"
+                        class="bg-white text-primary lt-sm">
+                        {{ element.name }}
+                      </q-tooltip>
+                    </q-item-section>
+                    <!--END EPG DETAILS-->
 
                     <q-separator inset vertical class="gt-xs"/>
 

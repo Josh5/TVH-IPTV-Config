@@ -55,7 +55,7 @@ module.exports = configure(function (ctx) {
 
       // transpile: false,
       // Set the root public path to /tic-web/*
-      publicPath: '/',
+      publicPath: '/tic-web/',
 
       // Add dependencies for transpiling with Babel (Array of string/regex)
       // (from node_modules, which are by default not transpiled).
