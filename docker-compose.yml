@@ -6,6 +6,6 @@ services:
     ports:
       - "5080:5080"
     environment:
-      - DEBUG=True
+      - DEBUG=False
     volumes:
       - ./config:/home/app
