@@ -354,7 +354,7 @@ export default {
         return
       }
       this.enabled = true
-      this.number = (this.newChannelNumber ? this.newChannelNumber : '');
+      this.number = (this.newChannelNumber ? this.newChannelNumber : 0);
       this.name = ''
       this.logoUrl = ''
       this.tags = []
@@ -484,6 +484,7 @@ export default {
         logo_url: this.logoUrl,
         connections: this.connections,
         tags: this.tags,
+        number: (this.number ? this.number : 0),
         guide: {
           epg_id: this.epgSourceId,
           epg_name: this.epgSourceName,

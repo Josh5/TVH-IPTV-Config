@@ -8,6 +8,9 @@ from lib.config import write_yaml, read_yaml
 
 
 def download_playlist_file(url, output):
+    print(f"Downloading Playlist from url - '{url}'")
+    if not os.path.exists(os.path.dirname(output)):
+        os.makedirs(os.path.dirname(output))
     headers = {
         'User-Agent': 'VLC/3.0.0-git LibVLC/3.0.0-gi',
     }

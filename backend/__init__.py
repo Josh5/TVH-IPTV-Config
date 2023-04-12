@@ -4,6 +4,7 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from importlib import import_module
+from backend.api import tasks
 
 db = SQLAlchemy()
 
@@ -20,12 +21,6 @@ def register_blueprints(app):
     app.register_blueprint(module.blueprint)
 
 
-# def register_blueprints(app):
-#     for module_name in ['routes', 'routes_playlists']:
-#         module = import_module('api.{}'.format(module_name))
-#         app.register_blueprint(module.blueprint)
-
-
 def configure_database(app):
     @app.before_first_request
     def initialize_database():
@@ -36,6 +31,11 @@ def configure_database(app):
         db.session.remove()
 
 
+def start_scheduler(app):
+    tasks.scheduler.init_app(app)
+    tasks.scheduler.start()
+
+
 def create_app(config):
     app = Flask(__name__)
     app.config.from_object(config)
@@ -44,5 +44,7 @@ def create_app(config):
     register_blueprints(app)
 
     configure_database(app)
+
+    start_scheduler(app)
 
     return app

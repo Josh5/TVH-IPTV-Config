@@ -91,6 +91,11 @@ def import_playlist_data(config, playlist_id):
     write_yaml(playlist_yaml_file, remote_playlist_data)
 
 
+def import_playlist_data_for_all_playlists(config):
+    for playlist in db.session.query(Playlist).all():
+        import_playlist_data(config, playlist.id)
+
+
 def read_stream_data_from_playlist(config, playlist_id):
     return read_data_from_playlist_cache(config, playlist_id)
 

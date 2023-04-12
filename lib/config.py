@@ -50,40 +50,14 @@ class Config:
 
     def create_default_settings_yaml(self):
         self.settings = {
-            "tvheadend": {
-                "host": "",
-                "port": 9981,
-            },
-            "playlists": {
-                "playlist_1": {
-                    "enabled":     True,
-                    "name":        "MyPlaylist",
-                    "url":         "",
-                    "connections": 1,
-                },
-            },
-            "epg":       {
-                "epg_1": {
-                    "enabled": True,
-                    "name":    "MyEPG",
-                    "url":     "",
-                },
-            },
-            "channels":  {
-                "1000": {
-                    "enabled": True,
-                    "name":    "First Channel",
-                    "Sources": [
-                        {
-                            "playlist":    "playlist_1",
-                            "stream_name": "123456_stream_name",
-                        }
-                    ],
-                    "Guide":   {
-                        "epg":        "epg_1",
-                        "channel_id": "123456_channel_id",
-                    }
-                },
+            "settings": {
+                "tvheadend":                {},
+                "default_ffmpeg_pipe_args": "-hide_banner -loglevel error "
+                                            "-probesize 10M -analyzeduration 0 -fpsprobesize 0 "
+                                            "-i [URL] -c copy -metadata service_name=[SERVICE_NAME] "
+                                            "-f mpegts pipe:1",
+                "refresh_schedule":         0000,
+
             }
         }
         self.write_settings_yaml(self.settings)
@@ -114,10 +88,15 @@ class Config:
 class FlaskConfig(object):
     basedir = os.path.abspath(os.path.dirname(__file__))
     config_path = os.path.join(get_home_dir(), '.tvh_iptv_config')
+    if not os.path.exists(config_path):
+        os.makedirs(config_path)
 
     # Configure SQLite DB
     SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(config_path, 'db.sqlite3')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+    # Configure scheduler
+    SCHEDULER_API_ENABLED = True
 
     # App configuration
     APP_CONFIG = Config()

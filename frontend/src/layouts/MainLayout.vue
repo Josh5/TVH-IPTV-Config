@@ -15,7 +15,7 @@
           TVH IPTV Config
         </q-toolbar-title>
 
-        <div>Quasar v{{ $q.version }}</div>
+        <div><span class="q-ml-sm text-weight-bold">EPG URL:</span> {{ epgUrl }}</div>
       </q-toolbar>
     </q-header>
 
@@ -87,6 +87,7 @@ export default defineComponent({
     const leftDrawerOpen = ref(false)
 
     return {
+      epgUrl: `${window.location.origin}/tic-web/epg.xml`,
       essentialLinks: linksList,
       leftDrawerOpen,
       toggleLeftDrawer() {

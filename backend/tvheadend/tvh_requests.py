@@ -21,6 +21,7 @@ api_hardware_tree = "hardware/tree"
 api_list_all_channels = "channel/grid"
 api_services_mapper = "service/mapper/save"
 api_services_list = "service/list"
+api_int_epggrab_run = "epggrab/internal/rerun"
 
 network_template = {
     "enabled":      True,
@@ -201,6 +202,23 @@ class TVHeadend:
         except json.JSONDecodeError:
             json_list = {}
         return json_list
+
+    def run_internal_epg_grabber(self):
+        url = f"{self.api_url}/{api_int_epggrab_run}"
+        self.__post(url, payload={'rerun': 1})
+
+    def list_all_channels(self):
+        url = f"{self.api_url}/{api_list_all_channels}"
+        data = {"sort": "services", "dir": "ASC", "all": 1}
+        response = self.__post(url, payload=data)
+        try:
+            json_list = json.loads(response)
+        except json.JSONDecodeError:
+            json_list = {"entries": []}
+        return json_list["entries"]
+
+    def delete_channels(self, chan_uuid):
+        self.idnode_delete(chan_uuid)
 
 
 def get_tvh(config):

@@ -5,8 +5,8 @@ from backend.api import blueprint
 from flask import request, jsonify, current_app
 
 from backend.channels import read_config_all_channels, add_new_channel, read_config_one_channel, update_channel, \
-    publish_channel_muxes, map_all_services, delete_channel
-from backend.epgs import build_custom_epg
+    publish_channel_muxes, map_all_services, delete_channel, cleanup_old_channels
+from backend.epgs import build_custom_epg, run_tvh_epg_grabbers
 
 
 @blueprint.route('/tic-api/channels/get', methods=['GET'])
@@ -85,11 +85,15 @@ def api_publish_channels():
     config = current_app.config['APP_CONFIG']
     # Generate 'epg.xml' file in .tvh_iptv_config directory
     build_custom_epg(config)
+    # Trigger an update in TVH to fetch the latest EPG
+    run_tvh_epg_grabbers(config)
     # Configure TVH with muxes
     publish_channel_muxes(config)
     # Map all services
     # TODO: Create a thread that watches for new services every 60 seconds and maps them automatically
     map_all_services(config)
+    # Clear out old channels
+    cleanup_old_channels(config)
     return jsonify(
         {
             "success": True,

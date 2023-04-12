@@ -95,7 +95,7 @@ def add_new_channel(config, data):
 
     # Programme Guide
     guide_info = data.get('guide', {})
-    if guide_info:
+    if guide_info.get('epg_id'):
         channel_guide_source = db.session.query(Epg).filter(Epg.id == guide_info['epg_id']).one()
         channel.guide_id = channel_guide_source.id
         channel.guide_name = guide_info['epg_name']
@@ -145,7 +145,7 @@ def update_channel(config, channel_id, data):
 
     # Programme Guide
     guide_info = data.get('guide', {})
-    if guide_info:
+    if guide_info.get('epg_id'):
         channel_guide_source = db.session.query(Epg).filter(Epg.id == guide_info['epg_id']).one()
         channel.guide_id = channel_guide_source.id
         channel.guide_name = guide_info['epg_name']
@@ -229,7 +229,7 @@ def publish_channel_muxes(config):
                     continue
                 # Check if MUX exists with a matching UUID and create it if not
                 mux_uuid = source.tvh_uuid
-                scan_state = 0
+                run_mux_scan = False
                 if mux_uuid:
                     found = False
                     for mux in tvh.list_all_muxes():
@@ -240,7 +240,7 @@ def publish_channel_muxes(config):
                 if not mux_uuid:
                     # No mux exists, create one
                     mux_uuid = tvh.network_mux_create(net_uuid)
-                    scan_state = 1
+                    run_mux_scan = True
                 # Update mux
                 service_name = f"{source.playlist.name} - {source.playlist_stream_name}"
                 iptv_url = generate_iptv_url(
@@ -254,7 +254,6 @@ def publish_channel_muxes(config):
                     .get('tvg-logo', '')
                 mux_conf = {
                     'enabled':        1,
-                    'scan_state':     scan_state,
                     'uuid':           mux_uuid,
                     'iptv_url':       iptv_url,
                     'iptv_icon':      iptv_icon_url,
@@ -263,6 +262,8 @@ def publish_channel_muxes(config):
                     'channel_number': result.number,
                     'iptv_epgid':     result.number
                 }
+                if run_mux_scan:
+                    mux_conf['scan_state'] = 1
                 tvh.idnode_save(mux_conf)
                 # Save network UUID against playlist in settings
                 source.tvh_uuid = mux_uuid
@@ -281,3 +282,10 @@ def delete_channel_muxes(config, mux_uuid):
 def map_all_services(config):
     tvh = get_tvh(config)
     tvh.map_all_services_to_channels()
+
+
+def cleanup_old_channels(config):
+    tvh = get_tvh(config)
+    for channel in tvh.list_all_channels():
+        if channel.get('name') == "{name-not-set}":
+            tvh.delete_channels(channel.get('uuid'))

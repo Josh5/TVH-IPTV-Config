@@ -270,38 +270,16 @@ export default defineComponent({
         lastNumber = parseInt(item.number)
       }
     },
-    fixNumberIncrementOld: function (list) {
-      let sortedList = list.sort((a, b) => a.number - b.number);
-      let lastNumber = 0;
-      let newList = []
-      for (let i = 0; i < list.length; i++) {
-        const item = list[i];
-        if (parseInt(item.number) === parseInt(lastNumber)) {
-          item.number++;
-          newList.push(item)
-        } else if (parseInt(item.number) > parseInt(lastNumber)) {
-          newList.push(item)
-        } else if (parseInt(item.number) < parseInt(lastNumber)) {
-          item.number = (lastNumber + 1);
-          newList.push(item)
-        } else {
-          console.error("--- Missed item ---")
-          console.error(lastNumber)
-          console.error(item.number)
-          console.error((item.number === lastNumber))
-          console.error("-------------------")
-        }
-        lastNumber = item.number;
-      }
-      return newList;
-    },
     fixNumberIncrement: function (list) {
       let sortedList = list.sort((a, b) => a.number - b.number);
-      let lastNumber = 0;
+      let lastNumber = 999;
       let newList = []
       for (let i = 0; i < sortedList.length; i++) {
         const item = sortedList[i];
-        if (parseInt(item.number) === parseInt(lastNumber)) {
+        if (isNaN(item.number)) {
+          item.number = (lastNumber + 1);
+          newList.push(item)
+        } else if (parseInt(item.number) === parseInt(lastNumber)) {
           item.number++;
           newList.push(item)
         } else if (parseInt(item.number) > parseInt(lastNumber)) {

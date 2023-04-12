@@ -5,13 +5,16 @@ __pycache__
 *.pyd
 
 # dev / testing directories
-/config
+/config*
 /frontend/test_js/**
 
 # venv
 env
 venv
 
-# Editor directories and files
+# migrations
+migrations
+
+# editor directories and files
 .vscode
 .idea

@@ -96,9 +96,6 @@
                         </q-list>-->
 
             <div class="q-pa-md">
-              <div class="q-mt-md">
-                Selected: {{ JSON.stringify(selected) }}
-              </div>
               <q-table
                 flat bordered
                 title="Streams"

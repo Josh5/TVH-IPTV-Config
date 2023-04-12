@@ -4,6 +4,7 @@ import os
 import xml.etree.ElementTree as ET
 from backend import db
 from backend.models import Epg, Channel
+from backend.tvheadend.tvh_requests import get_tvh
 from lib.config import read_yaml
 from lib.epg import parse_xmltv_for_programmes_for_channel
 
@@ -75,6 +76,11 @@ def import_epg_data(config, epg_id):
     # Parse the XMLTV file for channels and cache them
     from lib.epg import parse_xmltv_for_channels
     parse_xmltv_for_channels(config, epg_id)
+
+
+def import_epg_data_for_all_epgs(config):
+    for epg in db.session.query(Epg).all():
+        import_epg_data(config, epg.id)
 
 
 # --- Cache ---
@@ -154,3 +160,9 @@ def build_custom_epg(config):
     ET.indent(output_tree, space="\t", level=0)
     custom_epg_file = os.path.join(config.config_path, "epg.xml")
     output_tree.write(custom_epg_file, encoding='UTF-8', xml_declaration=True)
+
+
+def run_tvh_epg_grabbers(config):
+    # Trigger a re-grab of the EPG in TVH
+    tvh = get_tvh(config)
+    tvh.run_internal_epg_grabber()
