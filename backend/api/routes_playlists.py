@@ -24,7 +24,8 @@ def api_get_playlists_list():
 
 @blueprint.route('/tic-api/playlists/new', methods=['POST'])
 def api_add_new_playlist():
-    add_new_playlist(request.json)
+    config = current_app.config['APP_CONFIG']
+    add_new_playlist(config, request.json)
     return jsonify(
         {
             "success": True
@@ -45,7 +46,8 @@ def api_get_playlist_config(playlist_id):
 
 @blueprint.route('/tic-api/playlists/settings/<playlist_id>/save', methods=['POST'])
 def api_set_config_playlists(playlist_id):
-    update_playlist(playlist_id, request.json)
+    config = current_app.config['APP_CONFIG']
+    update_playlist(config, playlist_id, request.json)
     return jsonify(
         {
             "success": True

@@ -4,7 +4,9 @@
 from backend.api import blueprint
 from flask import request, jsonify, current_app
 
-from backend.channels import read_config_all_channels, add_new_channel, read_config_one_channel, update_channel
+from backend.channels import read_config_all_channels, add_new_channel, read_config_one_channel, update_channel, \
+    publish_channel_muxes, map_all_services, delete_channel
+from backend.epgs import build_custom_epg
 
 
 @blueprint.route('/tic-api/channels/get', methods=['GET'])
@@ -59,9 +61,37 @@ def api_set_config_multiple_channels():
     config = current_app.config['APP_CONFIG']
     for channel_id in request.json.get('channels', {}):
         channel = request.json['channels'][channel_id]
-        update_channel(config, channel_id, channel, commit=True)
+        update_channel(config, channel_id, channel)
     return jsonify(
         {
             "success": True
+        }
+    )
+
+
+@blueprint.route('/tic-api/channels/settings/<channel_id>/delete', methods=['DELETE'])
+def api_delete_config_channels(channel_id):
+    config = current_app.config['APP_CONFIG']
+    delete_channel(config, channel_id)
+    return jsonify(
+        {
+            "success": True
+        }
+    )
+
+
+@blueprint.route('/tic-api/channels/publish', methods=['POST'])
+def api_publish_channels():
+    config = current_app.config['APP_CONFIG']
+    # Generate 'epg.xml' file in .tvh_iptv_config directory
+    build_custom_epg(config)
+    # Configure TVH with muxes
+    publish_channel_muxes(config)
+    # Map all services
+    # TODO: Create a thread that watches for new services every 60 seconds and maps them automatically
+    map_all_services(config)
+    return jsonify(
+        {
+            "success": True,
         }
     )

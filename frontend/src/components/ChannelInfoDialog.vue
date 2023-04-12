@@ -249,7 +249,7 @@
                           <div class="text-grey-8 q-gutter-xs">
                             <!--                        <q-btn class="gt-xs" size="12px" flat dense round icon="delete"/>-->
                             <q-btn size="12px" flat dense round color="negative" icon="delete"
-                                   @click="removeChannelSourceFromList(element)">
+                                   @click="removeChannelSourceFromList(index)">
                               <q-tooltip class="bg-white text-primary">Remove this source</q-tooltip>
                             </q-btn>
                           </div>
@@ -601,8 +601,8 @@ export default {
       }).onDismiss(() => {
       })
     },
-    removeChannelSourceFromList: function (element) {
-      this.listOfChannelSources = this.listOfChannelSources.filter(item => item.id !== element.id);
+    removeChannelSourceFromList: function (index) {
+      this.listOfChannelSources.splice(index, 1);
     },
   },
   computed: {

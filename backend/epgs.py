@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
 import os
-
+import xml.etree.ElementTree as ET
 from backend import db
-from backend.models import Epg
+from backend.models import Epg, Channel
 from lib.config import read_yaml
+from lib.epg import parse_xmltv_for_programmes_for_channel
 
 
 def read_config_all_epgs():
@@ -90,3 +91,66 @@ def read_channels_from_all_epgs(config):
     for epg in db.session.query(Epg).all():
         epgs_channels[epg.id] = read_channels_from_epg_cache(config, epg.id)
     return epgs_channels
+
+
+def build_custom_epg(config):
+    # Create the root <tv> element of the output XMLTV file
+    output_root = ET.Element('tv')
+
+    # Set the attributes for the output root element
+    output_root.set('generator-info-name', 'TVH-IPTV-Config')
+    output_root.set('source-info-name', 'TVH-IPTV-Config - v0.1')
+
+    # Read programmes from cached source EPG
+    configured_channels = []
+    discovered_programmes = []
+    # for key in settings.get('channels', {}):
+    for result in db.session.query(Channel).all():
+        if result.enabled:
+            # Populate a channels list
+            configured_channels.append({
+                'channel_id':   result.number,
+                'display_name': result.name,
+                'logo_url':     result.logo_url,
+            })
+            epg_id = result.guide_id
+            channel_id = result.guide_channel_id
+            discovered_programmes.append({
+                'channel':    result.number,
+                'programmes': parse_xmltv_for_programmes_for_channel(config, epg_id, channel_id)
+            })
+
+    # Loop over all configured channels
+    for channel_info in configured_channels:
+        # Create a <channel> element for a TV channel
+        channel = ET.SubElement(output_root, 'channel')
+        channel.set('id', str(channel_info['channel_id']))
+        # Add a <display-name> element to the <channel> element
+        display_name = ET.SubElement(channel, 'display-name')
+        display_name.text = channel_info['display_name']
+        # Add a <icon> element to the <channel> element
+        icon = ET.SubElement(channel, 'icon')
+        icon.set('src', channel_info['logo_url'])
+
+    # Loop through all <programme> elements returned
+    for channel_programme_info in discovered_programmes:
+        for programme in channel_programme_info.get('programmes', []):
+            # Create a <programme> element for the output file and copy the attributes from the input programme
+            output_programme = ET.SubElement(output_root, 'programme')
+            output_programme.attrib = programme.attrib
+            # Set the channel number here
+            output_programme.set('channel', str(channel_programme_info['channel']))
+            # Loop through all child elements of the input programme and copy them to the output programme
+            for child in programme:
+                # Skip the <channel> element, which is already set by the output_programme.attrib line
+                if child.tag == 'channel':
+                    continue
+                # Copy all other child elements to the output programme
+                output_child = ET.SubElement(output_programme, child.tag)
+                output_child.text = child.text
+
+    # Create an XML file and write the output root element to it
+    output_tree = ET.ElementTree(output_root)
+    ET.indent(output_tree, space="\t", level=0)
+    custom_epg_file = os.path.join(config.config_path, "epg.xml")
+    output_tree.write(custom_epg_file, encoding='UTF-8', xml_declaration=True)

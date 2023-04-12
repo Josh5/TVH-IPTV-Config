@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
-import os
 
 from sqlalchemy.orm import joinedload
 from sqlalchemy import and_
 from backend import db
 from backend.models import Channel, ChannelTag, Epg, ChannelSource, Playlist
 from backend.playlists import read_stream_data_from_playlist
+from backend.tvheadend.tvh_requests import get_tvh
+from lib.playlist import read_data_from_playlist_cache, generate_iptv_url
 
 
 def read_config_all_channels():
@@ -112,15 +113,16 @@ def add_new_channel(config, data):
             playlist_stream_url=stream_data['url'],
         )
         new_sources.append(channel_source)
-    channel.sources.clear()
-    channel.sources = new_sources
+    if new_sources:
+        channel.sources.clear()
+        channel.sources = new_sources
 
     # Add new row and commit
     db.session.add(channel)
     db.session.commit()
 
 
-def update_channel(config, channel_id, data, commit=True):
+def update_channel(config, channel_id, data):
     channel = db.session.query(Channel).where(Channel.id == channel_id).one()
     channel.enabled = data.get('enabled')
     channel.name = data.get('name')
@@ -150,6 +152,7 @@ def update_channel(config, channel_id, data, commit=True):
         channel.guide_channel_id = guide_info['channel_id']
 
     # Sources
+    new_source_ids = []
     new_sources = []
     for source_info in data.get('sources', []):
         channel_source = db.session.query(ChannelSource) \
@@ -158,21 +161,123 @@ def update_channel(config, channel_id, data, commit=True):
                          ChannelSource.playlist_stream_name == source_info['stream_name']
                          )) \
             .one_or_none()
+        if channel_source:
+            new_source_ids.append(channel_source.id)
         if not channel_source:
             playlist_info = db.session.query(Playlist).filter(Playlist.id == source_info['playlist_id']).one()
             streams = read_stream_data_from_playlist(config, playlist_info.id)
             stream_data = streams.get(source_info['stream_name'])
             channel_source = ChannelSource(
-                channel_id=channel.id,
                 playlist_id=playlist_info.id,
                 playlist_stream_name=source_info['stream_name'],
                 playlist_stream_url=stream_data['url'],
             )
-            db.session.add(channel_source)
         new_sources.append(channel_source)
-    channel.sources.clear()
-    channel.sources = new_sources
+    # Remove all old entries in the channel_sources table
+    current_sources = db.session.query(ChannelSource).filter_by(channel_id=channel.id)
+    for source in current_sources:
+        if source.id not in new_source_ids:
+            if source.tvh_uuid:
+                # Delete mux from TVH
+                delete_channel_muxes(config, source.tvh_uuid)
+            db.session.delete(source)
+    if new_sources:
+        channel.sources.clear()
+        channel.sources = new_sources
 
     # Commit
-    if commit:
-        db.session.commit()
+    db.session.commit()
+
+
+def delete_channel(config, channel_id):
+    channel = db.session.query(Channel).where(Channel.id == channel_id).one()
+    # Remove all source entries in the channel_sources table
+    current_sources = db.session.query(ChannelSource).filter_by(channel_id=channel.id)
+    for source in current_sources:
+        if source.tvh_uuid:
+            # Delete mux from TVH
+            delete_channel_muxes(config, source.tvh_uuid)
+        db.session.delete(source)
+    # Remove from DB
+    db.session.delete(channel)
+    db.session.commit()
+
+
+def publish_channel_muxes(config):
+    tvh = get_tvh(config)
+    # TODO: Add support for settings priority
+    # Loop over configured channels
+    existing_uuids = []
+    results = db.session.query(Channel) \
+        .options(joinedload(Channel.tags), joinedload(Channel.sources).subqueryload(ChannelSource.playlist)) \
+        .all()
+    for result in results:
+        if result.enabled:
+            print(f"Configuring MUX for channel '{result.name}'")
+            # Create/update a network in TVH for each enabled playlist line
+            for source in result.sources:
+                playlist_entries = read_data_from_playlist_cache(config, source.playlist_id)
+                if not playlist_entries:
+                    print("No playlist is configured")
+                    continue
+                # playlist_info = settings['playlists'][source['playlist_id']]
+                # Write playlist to TVH Network
+                net_uuid = source.playlist.tvh_uuid
+                if not net_uuid:
+                    # Show error
+                    print("Playlist is not configured on TVH")
+                    continue
+                # Check if MUX exists with a matching UUID and create it if not
+                mux_uuid = source.tvh_uuid
+                scan_state = 0
+                if mux_uuid:
+                    found = False
+                    for mux in tvh.list_all_muxes():
+                        if mux.get('uuid') == mux_uuid:
+                            found = True
+                    if not found:
+                        mux_uuid = None
+                if not mux_uuid:
+                    # No mux exists, create one
+                    mux_uuid = tvh.network_mux_create(net_uuid)
+                    scan_state = 1
+                # Update mux
+                service_name = f"{source.playlist.name} - {source.playlist_stream_name}"
+                iptv_url = generate_iptv_url(
+                    config,
+                    url=playlist_entries[source.playlist_stream_name]['url'],
+                    service_name=service_name,
+                )
+                iptv_icon_url = playlist_entries \
+                    .get(source.playlist_stream_name, {}) \
+                    .get('attributes', {}) \
+                    .get('tvg-logo', '')
+                mux_conf = {
+                    'enabled':        1,
+                    'scan_state':     scan_state,
+                    'uuid':           mux_uuid,
+                    'iptv_url':       iptv_url,
+                    'iptv_icon':      iptv_icon_url,
+                    'iptv_sname':     result.name,
+                    'iptv_muxname':   service_name,
+                    'channel_number': result.number,
+                    'iptv_epgid':     result.number
+                }
+                tvh.idnode_save(mux_conf)
+                # Save network UUID against playlist in settings
+                source.tvh_uuid = mux_uuid
+                db.session.commit()
+                # Append to list of current network UUIDs
+                existing_uuids.append(mux_uuid)
+
+    #  TODO: Remove any muxes that are not managed. DONT DO THIS UNTIL THINGS ARE ALL WORKING!
+
+
+def delete_channel_muxes(config, mux_uuid):
+    tvh = get_tvh(config)
+    tvh.delete_mux(mux_uuid)
+
+
+def map_all_services(config):
+    tvh = get_tvh(config)
+    tvh.map_all_services_to_channels()
