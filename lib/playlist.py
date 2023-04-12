@@ -34,15 +34,6 @@ def parse_playlist(path):
     return discovered_streams
 
 
-def read_streams_from_all_playlists(config):
-    settings = config.read_settings()
-    playlist_channels = {}
-    for key in settings['playlists']:
-        playlist_data = read_data_from_playlist_cache(config, key)
-        playlist_channels[key] = list(playlist_data.keys())
-    return playlist_channels
-
-
 def read_data_from_playlist_cache(config, playlist_id):
     return read_yaml(os.path.join(config.config_path, 'cache', 'playlists', f"{playlist_id}.yml"))
 

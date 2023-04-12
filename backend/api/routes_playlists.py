@@ -3,8 +3,7 @@
 import os
 
 from backend.playlists import read_config_all_playlists, add_new_playlist, read_config_one_playlist, update_playlist, \
-    delete_playlist, import_playlist_data
-from lib.playlist import read_streams_from_all_playlists
+    delete_playlist, import_playlist_data, read_stream_names_from_all_playlists
 from backend.api import blueprint
 from flask import request, jsonify, current_app
 
@@ -76,13 +75,10 @@ def api_update_playlist(playlist_id):
     )
 
 
-##### TODO: Migrate to SQLite
-
-
 @blueprint.route('/tic-api/playlists/streams', methods=['GET'])
 def api_get_all_playlist_streams():
     config = current_app.config['APP_CONFIG']
-    playlist_streams = read_streams_from_all_playlists(config)
+    playlist_streams = read_stream_names_from_all_playlists(config)
     return jsonify(
         {
             "success": True,

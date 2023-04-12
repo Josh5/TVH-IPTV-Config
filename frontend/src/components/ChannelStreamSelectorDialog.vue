@@ -227,15 +227,9 @@ export default {
       return this.selected.length === 0 ? '' : `${this.selected.length} record${this.selected.length > 1 ? 's' : ''} selected of ${this.rows.length}`
     },
     genRowIndex: function (row) {
-      //console.log(row)
       return `${row.playlist_id}-${row.name}`
     }
   },
-  //computed: {
-  //  tableKey() {
-  //    return index => index; // use the list index as the key
-  //  }
-  //},
   data: function () {
     return {
       maximizedToggle: true,

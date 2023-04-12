@@ -16,6 +16,7 @@ def register_blueprints(app):
     module = import_module('backend.api.routes')
     import_module('backend.api.routes_playlists')
     import_module('backend.api.routes_epgs')
+    import_module('backend.api.routes_channels')
     app.register_blueprint(module.blueprint)
 
 
@@ -39,5 +40,9 @@ def create_app(config):
     app = Flask(__name__)
     app.config.from_object(config)
     register_extensions(app)
+
     register_blueprints(app)
+
+    configure_database(app)
+
     return app

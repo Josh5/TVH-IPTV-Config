@@ -336,12 +336,10 @@ export default defineComponent({
     fetchChannels: function () {
       // Fetch current settings
       axios({
-        method: 'get',
+        method: 'GET',
         url: '/tic-api/channels/get'
       }).then((response) => {
-        this.listOfChannels = Object.keys(response.data.data)
-          .map((key) => ({id: key, ...response.data.data[key]}))
-          .sort((a, b) => a.number - b.number);
+        this.listOfChannels = response.data.data.sort((a, b) => a.number - b.number);
       }).catch(() => {
         this.$q.notify({
           color: 'negative',
@@ -409,7 +407,7 @@ export default defineComponent({
       }
       axios({
         method: 'post',
-        url: '/tic-api/save-settings',
+        url: '/tic-api/channels/settings/multiple/save',
         data: data
       }).then((response) => {
         // Reload from backend

@@ -5,7 +5,7 @@ import os
 from backend import db
 from backend.models import Playlist
 from lib.config import write_yaml
-from lib.playlist import parse_playlist
+from lib.playlist import parse_playlist, read_data_from_playlist_cache
 
 
 def read_config_all_playlists():
@@ -80,3 +80,15 @@ def import_playlist_data(config, playlist_id):
     remote_playlist_data = parse_playlist(m3u_file)
     playlist_yaml_file = os.path.join(config.config_path, 'cache', 'playlists', f"{playlist_id}.yml")
     write_yaml(playlist_yaml_file, remote_playlist_data)
+
+
+def read_stream_data_from_playlist(config, playlist_id):
+    return read_data_from_playlist_cache(config, playlist_id)
+
+
+def read_stream_names_from_all_playlists(config):
+    playlist_channels = {}
+    for result in db.session.query(Playlist).all():
+        streams = read_stream_data_from_playlist(config, result.id)
+        playlist_channels[result.id] = list(streams.keys())
+    return playlist_channels

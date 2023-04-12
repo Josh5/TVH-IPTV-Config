@@ -2,7 +2,8 @@
 # -*- coding:utf-8 -*-
 import os
 
-from lib.epg import read_channels_config, update_custom_epg, remove_channel_from_channels_config
+from lib.channels import read_channels_config, remove_channel_from_channels_config, update_channel_config
+from lib.epg import update_custom_epg
 from lib.tvheadend import read_tvh_config, configure_channel_muxes, map_all_services
 from backend.api import blueprint
 from flask import request, jsonify, redirect, send_from_directory, current_app
@@ -68,21 +69,11 @@ def api_get_config_tvheadend():
     )
 
 
-@blueprint.route('/tic-api/channels/get', methods=['GET'])
-def api_get_channels():
-    config = current_app.config['APP_CONFIG']
-    channels_config = read_channels_config(config)
-    return jsonify(
-        {
-            "success": True,
-            "data":    channels_config
-        }
-    )
-
-
 @blueprint.route('/tic-api/channels/publish', methods=['POST'])
 def api_publish_channels():
     config = current_app.config['APP_CONFIG']
+    # Generate 'epg.xml' file in .tvh_iptv_config directory
+    update_custom_epg(config)
     # Configure TVH with muxes
     configure_channel_muxes(config)
     # Map all services
@@ -95,39 +86,11 @@ def api_publish_channels():
     )
 
 
-@blueprint.route('/tic-api/channels/settings/<channel_number>', methods=['GET'])
-def api_get_config_channels(channel_number):
-    config = current_app.config['APP_CONFIG']
-    channel_config = read_channels_config(config, channel_number=channel_number)
-    return jsonify(
-        {
-            "success": True,
-            "data":    channel_config
-        }
-    )
-
-
-@blueprint.route('/tic-api/channels/settings/<channel_number>/save', methods=['POST'])
-def api_set_config_channels(channel_number):
-    config = current_app.config['APP_CONFIG']
-    # Save settings
-    config.update_settings(request.json)
-    config.save_settings()
-    # # Update custom epg
-    # update_custom_epg(config)
-    # TODO: Trigger an update of the EPG config in TVheadend
-    return jsonify(
-        {
-            "success": True
-        }
-    )
-
-
-@blueprint.route('/tic-api/channels/settings/<channel_number>/delete', methods=['DELETE'])
-def api_delete_config_channels(channel_number):
+@blueprint.route('/tic-api/channels/settings/<channel_id>/delete', methods=['DELETE'])
+def api_delete_config_channels(channel_id):
     config = current_app.config['APP_CONFIG']
     # Remove channel
-    remove_channel_from_channels_config(config, channel_number)
+    remove_channel_from_channels_config(config, channel_id)
     # Save settings
     config.save_settings()
     return jsonify(

@@ -148,11 +148,11 @@
               <h5 class="q-mb-none">Programme Guide:</h5>
               <div class="q-gutter-sm">
                 <q-skeleton
-                  v-if="epgSource === null"
+                  v-if="epgSourceOptions === null"
                   type="QInput"/>
                 <q-select
                   v-else
-                  v-model="epgSource"
+                  v-model="epgSourceId"
                   :options="epgSourceOptions"
                   emit-value
                   map-options
@@ -162,7 +162,7 @@
               </div>
               <div class="q-gutter-sm">
                 <q-skeleton
-                  v-if="epgChannel === null || epgChannelOptions === null"
+                  v-if="epgSourceId === null || epgChannelOptions === null"
                   type="QInput"/>
                 <q-select
                   v-else
@@ -329,7 +329,7 @@ export default {
       tags: ref(null),
       newTag: ref(''),
       epgSourceOptions: ref(null),
-      epgSource: ref(null),
+      epgSourceId: ref(null),
       epgChannelAllOptions: ref(null),
       epgChannelDefaultOptions: ref(null),
       epgChannelOptions: ref(null),
@@ -359,7 +359,8 @@ export default {
       this.logoUrl = ''
       this.tags = []
       this.epgSourceOptions = []
-      this.epgSource = ''
+      this.epgSourceId = ''
+      this.epgSourceName = ''
       this.epgChannelDefaultOptions = []
       this.epgChannelOptions = []
       this.epgChannel = ''
@@ -397,14 +398,11 @@ export default {
         this.logoUrl = response.data.data.logo_url
         this.tags = response.data.data.tags
         // Fetch data for EPG
-        this.epgSource = response.data.data.guide.epg_id
+        this.epgSourceId = response.data.data.guide.epg_id
         this.epgSourceName = response.data.data.guide.epg_name
         this.epgChannel = response.data.data.guide.channel_id
         // Fetch list of channel sources and pipe to a list ordered by the 'priority'
-        this.listOfChannelSources = Object.keys(response.data.data.sources)
-          .map((key) => ({id: key, ...response.data.data.sources[key]}))
-          .sort((a, b) => a.priority - b.priority);
-
+        this.listOfChannelSources = response.data.data.sources.sort((a, b) => a.priority - b.priority);
         // Enable saving the form
         this.canSave = true;
       });
@@ -416,11 +414,12 @@ export default {
         url: '/tic-api/epgs/get'
       }).then((response) => {
         this.epgSourceOptions = []
-        for (let epg in response.data.data) {
+        for (let i in response.data.data) {
+          let epg = response.data.data[i]
           this.epgSourceOptions.push(
             {
-              label: response.data.data[epg].name,
-              value: epg,
+              label: epg.name,
+              value: epg.id,
             }
           );
         }
@@ -463,53 +462,41 @@ export default {
       });
     },
     updateCurrentEpgChannelOptions: function () {
-      this.epgChannelDefaultOptions = this.epgChannelAllOptions[this.epgSource]
-      this.epgChannelOptions = this.epgChannelAllOptions[this.epgSource]
+      if (this.epgSourceId) {
+        this.epgChannelDefaultOptions = this.epgChannelAllOptions[this.epgSourceId]
+        this.epgChannelOptions = this.epgChannelAllOptions[this.epgSourceId]
+      }
     },
     save: function () {
-      let channelId = this.channelId
-      if (!channelId) {
-        channelId = (Math.random() + 1).toString(36).substring(5);
-      }
-      // Re-create sources object in the order of priority
-      let sources = {}
-      for (let i = 0; i < this.listOfChannelSources.length; i++) {
-        let source = this.listOfChannelSources[i]
-        if (!source.hasOwnProperty("id")) {
-          source['id'] = (Math.random() + 1).toString(36).substring(5);
-        }
-        sources[source['id']] = {
-          'priority': (i + 1),
-          'playlist_id': source['playlist_id'],
-          'playlist_name': source['playlist_name'],
-          'stream_name': source['stream_name'],
-        }
-      }
       const epgInfo = this.epgSourceOptions.find((item) => {
-        return item.value === this.epgSource
+        return item.value === this.epgSourceId
       })
+      if (epgInfo) {
+        this.epgSourceName = epgInfo.label
+      }
+      let url = '/tic-api/channels/new'
+      if (this.channelId) {
+        url = `/tic-api/channels/settings/${this.channelId}/save`
+      }
       let data = {
-        channels: {
-          [channelId]: {
-            enabled: this.enabled,
-            name: this.name,
-            logo_url: this.logoUrl,
-            tags: this.tags,
-            guide: {
-              epg_id: this.epgSource,
-              epg_name: epgInfo.label,
-              channel_id: this.epgChannel,
-            },
-            sources: sources,
-          }
-        }
+        enabled: this.enabled,
+        name: this.name,
+        logo_url: this.logoUrl,
+        connections: this.connections,
+        tags: this.tags,
+        guide: {
+          epg_id: this.epgSourceId,
+          epg_name: this.epgSourceName,
+          channel_id: this.epgChannel,
+        },
+        sources: this.listOfChannelSources,
       }
       if (this.newChannelNumber) {
-        data.channels[channelId].number = this.newChannelNumber
+        data.number = this.newChannelNumber
       }
       axios({
         method: 'POST',
-        url: `/tic-api/channels/settings/${channelId}/save`,
+        url: url,
         data: data
       }).then((response) => {
         // Save success, show feedback
@@ -599,11 +586,12 @@ export default {
               console.warn("Channel source already exists")
               continue
             }
-            // Fetch the playlist_name of this source
-            let playlistName = this.listOfPlaylists[payload.selectedStreams[i].playlist_id].name
+            const playlistDetails = this.listOfPlaylists.find((item) => {
+              return parseInt(item.id) === parseInt(payload.selectedStreams[i].playlist_id)
+            })
             enabledStreams.push({
               playlist_id: payload.selectedStreams[i].playlist_id,
-              playlist_name: playlistName,
+              playlist_name: playlistDetails.name,
               stream_name: payload.selectedStreams[i].stream_name,
             });
           }
@@ -631,8 +619,8 @@ export default {
     }
   },
   watch: {
-    epgSource(value) {
-      if (value.length > 0 && this.epgChannelAllOptions) {
+    epgSourceId(value) {
+      if (value && this.epgChannelAllOptions) {
         this.updateCurrentEpgChannelOptions()
       }
     }

@@ -36,19 +36,6 @@ def read_epgs_config(config, epg_id=None):
     return settings['epgs'].get(epg_id, {})
 
 
-def read_channels_from_all_epgs(config):
-    settings = config.read_settings()
-    epgs_channels = {}
-    for key in settings['epgs']:
-        epgs_channels[key] = read_channels_from_epg_cache(config, key)
-    return epgs_channels
-
-
-def read_channels_from_epg_cache(config, epg_id):
-    epg_cache = read_yaml(os.path.join(config.config_path, 'cache', 'epgs', f"{epg_id}.yml"))
-    return epg_cache.get('channels', [])
-
-
 def parse_xmltv_for_channels(config, epg_id):
     xmltv_file = os.path.join(config.config_path, 'cache', 'epgs', f"{epg_id}.xml")
     if not os.path.exists(xmltv_file):

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
-from backend.epgs import read_config_all_epgs, add_new_epg, read_config_one_epg, update_epg, delete_epg, import_epg_data
-from lib.epg import read_channels_from_all_epgs, read_channels_from_epg_cache
+from backend.epgs import read_config_all_epgs, add_new_epg, read_config_one_epg, update_epg, delete_epg, \
+    import_epg_data, read_channels_from_all_epgs, read_channels_from_epg_cache
 from backend.api import blueprint
 from flask import request, jsonify, current_app
 
@@ -71,8 +71,6 @@ def api_update_epg(epg_id):
         }
     )
 
-
-##### TODO: Migrate to SQLite
 
 @blueprint.route('/tic-api/epgs/channels', methods=['GET'])
 def api_get_all_epg_channels():
