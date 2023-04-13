@@ -5,9 +5,6 @@ import os
 from backend.api import blueprint
 from flask import request, jsonify, redirect, send_from_directory, current_app
 
-frontend_dir = os.path.join(os.path.dirname(os.path.abspath(os.path.dirname(__file__))), 'frontend')
-static_assets = os.path.join(frontend_dir, 'dist', 'spa')
-
 
 @blueprint.route('/')
 def index():

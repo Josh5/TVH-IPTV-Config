@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
 import os
+import re
 import xml.etree.ElementTree as ET
 from backend import db
 from backend.models import Epg, Channel
@@ -113,17 +114,16 @@ def build_custom_epg(config):
     # for key in settings.get('channels', {}):
     for result in db.session.query(Channel).all():
         if result.enabled:
+            channel_id = f"{result.number}_{re.sub(r'[^a-zA-Z0-9]', '', result.name)}"
             # Populate a channels list
             configured_channels.append({
-                'channel_id':   result.number,
+                'channel_id':   channel_id,
                 'display_name': result.name,
                 'logo_url':     result.logo_url,
             })
-            epg_id = result.guide_id
-            channel_id = result.guide_channel_id
             discovered_programmes.append({
-                'channel':    result.number,
-                'programmes': parse_xmltv_for_programmes_for_channel(config, epg_id, channel_id)
+                'channel':    channel_id,
+                'programmes': parse_xmltv_for_programmes_for_channel(config, result.guide_id, result.guide_channel_id)
             })
 
     # Loop over all configured channels
