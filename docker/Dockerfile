@@ -30,7 +30,27 @@ RUN \
 # | |  | |/ ___ \ | || |\  |
 # |_|  |_/_/   \_\___|_| \_|
 #
-FROM python:3.9
+#FROM python:3.9
+FROM ghcr.io/linuxserver/baseimage-alpine:3.17
+
+# set version label
+ARG BUILD_DATE
+ARG VERSION
+LABEL build_version="Version:- ${VERSION} Build-date:- ${BUILD_DATE}"
+LABEL maintainer="Josh.5 <jsunnex@gmail.com>"
+
+# environment settings
+ENV HOME="/config"
+
+RUN \
+    echo "**** install runtime packages ****" \
+        && apk add --no-cache \
+            ffmpeg \
+            ffmpeg4-libs \
+            python3 \
+            py3-pip \
+    && \
+    echo
 
 # set environment variables
 ENV PYTHONDONTWRITEBYTECODE 1
@@ -38,37 +58,15 @@ ENV PYTHONUNBUFFERED 1
 ENV FLASK_APP run.py
 ENV DEBUG True
 
-# Create a runtime user
-RUN \
-    echo "*** create app user and make our folders ***" \
-        && groupmod -g 1000 users \
-        && useradd -u 1000 -U -d /home/app -s /bin/false app \
-        && usermod -G users app \
-        && mkdir -p \
-            /home/app \
-            /app \
-        && chown -Rv app:app \
-            /home/app \
-            /app \
-    && \
-    echo
-
 # Install python dependencies
 COPY requirements.txt .
 RUN python3 -m pip install --upgrade pip
 RUN python3 -m pip install --no-cache-dir -r requirements.txt
 
-
-# Set working directory to the /app path and switch to the 'app' user
-WORKDIR /app
-USER app
-
 # Install project
-COPY --from=frontend_build_stage --chown=app:app /build/dist/spa /app/frontend/dist/spa
+COPY docker/overlay/ /
+COPY --from=frontend_build_stage /build/dist/spa /app/frontend/dist/spa
 COPY backend /app/backend
 COPY lib /app/lib
 COPY run.py /app/run.py
 COPY gunicorn-cfg.py /app/gunicorn-cfg.py
-
-# Execute gunicorn for main process
-CMD ["gunicorn", "--config", "gunicorn-cfg.py", "run:app"]

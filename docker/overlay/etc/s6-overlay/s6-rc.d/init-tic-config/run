@@ -1,0 +1,10 @@
+#!/usr/bin/with-contenv bash
+# shellcheck shell=bash
+
+# make folders
+mkdir -p \
+    /config
+
+# permissions
+echo "Setting permissions"
+lsiown -R abc:abc /config

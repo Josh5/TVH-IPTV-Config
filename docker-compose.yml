@@ -1,11 +1,30 @@
 version: "3.8"
 services:
-  app:
-    container_name: tvh_iptv_config_app
-    build: .
+  tvh_iptv:
+    container_name: tvh_iptv_config
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
     ports:
       - "9985:9985"
     environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Pacific/Auckland
       - DEBUG=False
-    # volumes:
-    #   - ./config:/home/app
+    volumes:
+      - ./config:/config
+  tvheadend:
+    image: lscr.io/linuxserver/tvheadend:latest
+    container_name: tvheadend
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Pacific/Auckland
+    volumes:
+      - ./config:/config
+      - ./config/recordings:/recordings
+    ports:
+      - 9981:9981
+      - 9982:9982
+    restart: unless-stopped
