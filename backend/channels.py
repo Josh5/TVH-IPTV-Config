@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
+import re
 
 from sqlalchemy.orm import joinedload
 from sqlalchemy import and_
@@ -252,6 +253,7 @@ def publish_channel_muxes(config):
                     .get(source.playlist_stream_name, {}) \
                     .get('attributes', {}) \
                     .get('tvg-logo', '')
+                channel_id = f"{result.number}_{re.sub(r'[^a-zA-Z0-9]', '', result.name)}"
                 mux_conf = {
                     'enabled':        1,
                     'uuid':           mux_uuid,
@@ -260,7 +262,7 @@ def publish_channel_muxes(config):
                     'iptv_sname':     result.name,
                     'iptv_muxname':   service_name,
                     'channel_number': result.number,
-                    'iptv_epgid':     result.number
+                    'iptv_epgid':     channel_id
                 }
                 if run_mux_scan:
                     mux_conf['scan_state'] = 1
