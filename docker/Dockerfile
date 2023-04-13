@@ -30,7 +30,6 @@ RUN \
 # | |  | |/ ___ \ | || |\  |
 # |_|  |_/_/   \_\___|_| \_|
 #
-#FROM python:3.9
 FROM ghcr.io/linuxserver/baseimage-alpine:3.17
 
 # set version label
