@@ -61,7 +61,8 @@ class TVHeadend:
         self.admin_password = admin_password
         self.timeout = 5
         self.session = requests.Session()
-        self.session.auth = (admin_username, admin_password)
+        if self.admin_username and self.admin_password:
+            self.session.auth = (admin_username, admin_password)
         self.default_headers = {}
 
     def __get(self, url, payload=None):
