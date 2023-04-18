@@ -37,18 +37,16 @@ def parse_playlist(path):
     return discovered_streams
 
 
-def read_data_from_playlist_cache(config, playlist_id):
-    return read_yaml(os.path.join(config.config_path, 'cache', 'playlists', f"{playlist_id}.yml"))
-
-
 def generate_iptv_url(config, url='', service_name=''):
-    settings = config.read_settings()
-    ffmpeg_args = settings['settings']['default_ffmpeg_pipe_args']
-    ffmpeg_args = ffmpeg_args.replace("[URL]", url)
-    service_name = re.sub('[^a-zA-Z0-9 \n\.]', '', service_name)
-    service_name = re.sub('\s', '-', service_name)
-    ffmpeg_args = ffmpeg_args.replace("[SERVICE_NAME]", service_name.lower())
-    return f"pipe://ffmpeg {ffmpeg_args}"
+    if not url.startswith('pipe://'):
+        settings = config.read_settings()
+        ffmpeg_args = settings['settings']['default_ffmpeg_pipe_args']
+        ffmpeg_args = ffmpeg_args.replace("[URL]", url)
+        service_name = re.sub('[^a-zA-Z0-9 \n\.]', '', service_name)
+        service_name = re.sub('\s', '-', service_name)
+        ffmpeg_args = ffmpeg_args.replace("[SERVICE_NAME]", service_name.lower())
+        url = f"pipe://ffmpeg {ffmpeg_args}"
+    return url
 
 
 def read_playlist_config(config, playlist_id=None):
