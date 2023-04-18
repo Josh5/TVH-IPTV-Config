@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
 import os
+from pprint import pprint
 
 from backend import db
-from backend.models import Playlist
+from backend.models import Playlist, PlaylistChannels
 from backend.tvheadend.tvh_requests import get_tvh, network_template
-from lib.config import write_yaml
-from lib.playlist import parse_playlist, read_data_from_playlist_cache
+from lib.playlist import parse_playlist
 
 
 def read_config_all_playlists():
@@ -65,7 +65,7 @@ def delete_playlist(config, playlist_id):
     playlist = db.session.query(Playlist).where(Playlist.id == playlist_id).one()
     net_uuid = playlist.tvh_uuid
     # Remove from TVH
-    delete_playlist_network(config, net_uuid)
+    delete_playlist_network_in_tvh(config, net_uuid)
     # Remove cached copy of playlist
     cache_files = [
         os.path.join(config.config_path, 'cache', 'playlists', f"{playlist_id}.m3u"),
@@ -79,6 +79,45 @@ def delete_playlist(config, playlist_id):
     db.session.commit()
 
 
+def store_playlist_channels(playlist_id, playlist_data):
+    items = []
+    for key in playlist_data:
+        data = playlist_data[key]
+        items.append(
+            PlaylistChannels(
+                playlist_id=playlist_id,
+                name=data['name'],
+                url=data['url'],
+                channel_id=data.get('attributes', {}).get('channel-id'),
+                group_title=data.get('attributes', {}).get('group-title'),
+                tvg_chno=data.get('attributes', {}).get('tvg-chno'),
+                tvg_id=data.get('attributes', {}).get('tvg-id'),
+                tvg_logo=data.get('attributes', {}).get('tvg-logo'),
+            )
+        )
+    # Delete all existing playlist channels
+    stmt = PlaylistChannels.__table__.delete().where(PlaylistChannels.playlist_id == playlist_id)
+    db.session.execute(stmt)
+    # Save all new
+    db.session.bulk_save_objects(items)
+    db.session.commit()
+
+
+def fetch_playlist_channels(playlist_id):
+    return_list = []
+    for result in db.session.query(PlaylistChannels).where(PlaylistChannels.playlist_id == playlist_id).all():
+        return_list.append({
+            'name':        result.name,
+            'url':         result.url,
+            'channel_id':  result.channel_id,
+            'group_title': result.group_title,
+            'tvg_chno':    result.tvg_chno,
+            'tvg_id':      result.tvg_id,
+            'tvg_logo':    result.tvg_logo,
+        })
+    return return_list
+
+
 def import_playlist_data(config, playlist_id):
     playlist = read_config_one_playlist(playlist_id)
     # Download playlist data and save to YAML cache file
@@ -87,8 +126,7 @@ def import_playlist_data(config, playlist_id):
     download_playlist_file(playlist['url'], m3u_file)
     # Parse the M3U file and cache the data in a YAML file for faster parsing
     remote_playlist_data = parse_playlist(m3u_file)
-    playlist_yaml_file = os.path.join(config.config_path, 'cache', 'playlists', f"{playlist_id}.yml")
-    write_yaml(playlist_yaml_file, remote_playlist_data)
+    store_playlist_channels(playlist_id, remote_playlist_data)
 
 
 def import_playlist_data_for_all_playlists(config):
@@ -96,19 +134,16 @@ def import_playlist_data_for_all_playlists(config):
         import_playlist_data(config, playlist.id)
 
 
-def read_stream_data_from_playlist(config, playlist_id):
-    return read_data_from_playlist_cache(config, playlist_id)
-
-
-def read_stream_names_from_all_playlists(config):
+def read_stream_names_from_all_playlists():
     playlist_channels = {}
-    for result in db.session.query(Playlist).all():
-        streams = read_stream_data_from_playlist(config, result.id)
-        playlist_channels[result.id] = list(streams.keys())
+    for result in db.session.query(PlaylistChannels).all():
+        if result.playlist_id not in playlist_channels:
+            playlist_channels[result.playlist_id] = []
+        playlist_channels[result.playlist_id].append(result.name)
     return playlist_channels
 
 
-def delete_playlist_network(config, net_uuid):
+def delete_playlist_network_in_tvh(config, net_uuid):
     tvh = get_tvh(config)
     tvh.delete_network(net_uuid)
 

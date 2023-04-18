@@ -79,8 +79,7 @@ def api_update_playlist(playlist_id):
 
 @blueprint.route('/tic-api/playlists/streams', methods=['GET'])
 def api_get_all_playlist_streams():
-    config = current_app.config['APP_CONFIG']
-    playlist_streams = read_stream_names_from_all_playlists(config)
+    playlist_streams = read_stream_names_from_all_playlists()
     return jsonify(
         {
             "success": True,
