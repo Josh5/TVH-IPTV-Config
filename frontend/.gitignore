@@ -5,6 +5,7 @@ node_modules
 # Quasar core related directories
 .quasar
 /dist
+/tvh_admin*
 
 # Cordova related directories and files
 /src-cordova/node_modules

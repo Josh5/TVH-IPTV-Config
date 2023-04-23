@@ -21,6 +21,26 @@ def serve_static(path):
     return send_from_directory(current_app.config['ASSETS_ROOT'], path)
 
 
+@blueprint.route('/tvh-admin/')
+def serve_tvh_admin():
+    return send_from_directory(current_app.config['TVH_ADMIN_ROOT'], 'index.html')
+
+
+@blueprint.route('/tvh-admin/<path:path>')
+def serve_tvh_admin_static(path):
+    return send_from_directory(current_app.config['TVH_ADMIN_ROOT'], path)
+
+
+@blueprint.route('/status.xml', defaults={'path': ''}, methods=['GET'])
+@blueprint.route('/api/', defaults={'path': ''}, methods=['GET'])
+@blueprint.route('/api/<path:path>', methods=['GET'])
+def proxy_get(path):
+    tvh_url = "http://localhost:9981"
+    from backend.tvheadend.tvh_requests import get_tvh
+    tvh = get_tvh(current_app.config['APP_CONFIG'])
+    return tvh.proxy_get(f'{tvh_url}/api/{path}')
+
+
 @blueprint.route('/tic-web/epg.xml')
 def serve_epg_static():
     config = current_app.config['APP_CONFIG']

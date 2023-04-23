@@ -107,6 +107,7 @@ class FlaskConfig(object):
 
     # Assets Management
     ASSETS_ROOT = os.getenv('ASSETS_ROOT', os.path.join(frontend_dir, 'dist', 'spa'))
+    TVH_ADMIN_ROOT = os.getenv('TVH_ADMIN_ROOT', os.path.join(frontend_dir, 'tvh_admin'))
 
 
 class FlaskProductionConfig(FlaskConfig):
