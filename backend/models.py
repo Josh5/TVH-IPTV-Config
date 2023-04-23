@@ -17,10 +17,54 @@ class Epg(db.Model):
     url = db.Column(db.String(500), index=True, unique=False)
 
     # Backref to all associated linked channels
+    epg_channels = db.relationship('EpgChannels', backref='guide', lazy=True)
     channels = db.relationship('Channel', backref='guide', lazy=True)
 
     def __repr__(self):
         return '<Epg {}>'.format(self.id)
+
+
+class EpgChannels(db.Model):
+    __tablename__ = "epg_channels"
+    id = db.Column(db.Integer, primary_key=True)
+
+    channel_id = db.Column(db.String(256), index=True, unique=False)
+    name = db.Column(db.String(500), index=True, unique=False)
+    icon_url = db.Column(db.String(500), index=False, unique=False)
+
+    # Link with an epg
+    epg_id = db.Column(db.Integer, db.ForeignKey('epgs.id'), nullable=False)
+
+    # Backref to all associated linked channels
+    epg_channel_programmes = db.relationship('EpgChannelProgrammes', backref='channel', lazy=True)
+
+    def __repr__(self):
+        return '<EpgChannels {}>'.format(self.id)
+
+
+class EpgChannelProgrammes(db.Model):
+    """
+        <programme start="20230423183001 +0100"0 stop="20230423190001 +100" start_timestamp="1682271001" stop_timestamp="1682272801" channel="some_channel_id" >
+            <title>Programme Title</title>
+            <desc>Programme description.</desc>
+        </programme>
+    """
+    __tablename__ = "epg_channel_programmes"
+    id = db.Column(db.Integer, primary_key=True)
+
+    channel_id = db.Column(db.String(256), index=True, unique=False)
+    title = db.Column(db.String(500), index=True, unique=False)
+    desc = db.Column(db.String(500), index=False, unique=False)
+    start = db.Column(db.String(256), index=False, unique=False)
+    stop = db.Column(db.String(256), index=False, unique=False)
+    start_timestamp = db.Column(db.String(256), index=False, unique=False)
+    stop_timestamp = db.Column(db.String(256), index=False, unique=False)
+
+    # Link with an epg channel
+    epg_channel_id = db.Column(db.Integer, db.ForeignKey('epg_channels.id'), nullable=False)
+
+    def __repr__(self):
+        return '<EpgChannelProgrammes {}>'.format(self.id)
 
 
 class Playlist(db.Model):

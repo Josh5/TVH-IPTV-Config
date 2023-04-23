@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
 from backend.epgs import read_config_all_epgs, add_new_epg, read_config_one_epg, update_epg, delete_epg, \
-    import_epg_data, read_channels_from_all_epgs, read_channels_from_epg_cache
+    import_epg_data, read_channels_from_all_epgs
 from backend.api import blueprint
 from flask import request, jsonify, current_app
 
@@ -76,18 +76,6 @@ def api_update_epg(epg_id):
 def api_get_all_epg_channels():
     config = current_app.config['APP_CONFIG']
     epgs_channels = read_channels_from_all_epgs(config)
-    return jsonify(
-        {
-            "success": True,
-            "data":    epgs_channels
-        }
-    )
-
-
-@blueprint.route('/tic-api/epgs/channels/<epg_id>', methods=['GET'])
-def api_get_channels_from_epg(epg_id):
-    config = current_app.config['APP_CONFIG']
-    epgs_channels = read_channels_from_epg_cache(config, epg_id)
     return jsonify(
         {
             "success": True,

@@ -104,9 +104,9 @@ def store_playlist_channels(playlist_id, playlist_data):
 
 
 def fetch_playlist_channels(playlist_id):
-    return_list = []
+    return_list = {}
     for result in db.session.query(PlaylistChannels).where(PlaylistChannels.playlist_id == playlist_id).all():
-        return_list.append({
+        return_list[result.name] = {
             'name':        result.name,
             'url':         result.url,
             'channel_id':  result.channel_id,
@@ -114,7 +114,7 @@ def fetch_playlist_channels(playlist_id):
             'tvg_chno':    result.tvg_chno,
             'tvg_id':      result.tvg_id,
             'tvg_logo':    result.tvg_logo,
-        })
+        }
     return return_list
 
 
@@ -125,8 +125,8 @@ def import_playlist_data(config, playlist_id):
     m3u_file = os.path.join(config.config_path, 'cache', 'playlists', f"{playlist_id}.m3u")
     download_playlist_file(playlist['url'], m3u_file)
     # Parse the M3U file and cache the data in a YAML file for faster parsing
-    remote_playlist_data = parse_playlist(m3u_file)
-    store_playlist_channels(playlist_id, remote_playlist_data)
+    playlist_data = parse_playlist(m3u_file)
+    store_playlist_channels(playlist_id, playlist_data)
 
 
 def import_playlist_data_for_all_playlists(config):

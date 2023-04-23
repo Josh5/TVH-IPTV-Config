@@ -3,8 +3,9 @@
 import os
 import re
 import xml.etree.ElementTree as ET
+from sqlalchemy.orm import joinedload
 from backend import db
-from backend.models import Epg, Channel
+from backend.models import Epg, Channel, EpgChannels
 from backend.tvheadend.tvh_requests import get_tvh
 from lib.config import read_yaml
 from lib.epg import parse_xmltv_for_programmes_for_channel
@@ -68,6 +69,25 @@ def delete_epg(config, epg_id):
             os.remove(f)
 
 
+def store_epg_channels(epg_id, epg_data):
+    items = []
+    for data in epg_data.get('channels', []):
+        items.append(
+            EpgChannels(
+                epg_id=epg_id,
+                channel_id=data['channel_id'],
+                name=data['display_name'],
+                icon_url=data['icon'],
+            )
+        )
+    # Delete all existing playlist channels
+    stmt = EpgChannels.__table__.delete().where(EpgChannels.epg_id == epg_id)
+    db.session.execute(stmt)
+    # Save all new
+    db.session.bulk_save_objects(items)
+    db.session.commit()
+
+
 def import_epg_data(config, epg_id):
     epg = read_config_one_epg(epg_id)
     # Download a new local copy of the EPG
@@ -76,7 +96,8 @@ def import_epg_data(config, epg_id):
     download_xmltv_epg(epg['url'], xmltv_file)
     # Parse the XMLTV file for channels and cache them
     from lib.epg import parse_xmltv_for_channels
-    parse_xmltv_for_channels(config, epg_id)
+    epg_data = parse_xmltv_for_channels(config, epg_id)
+    store_epg_channels(epg_id, epg_data)
 
 
 def import_epg_data_for_all_epgs(config):
@@ -84,20 +105,21 @@ def import_epg_data_for_all_epgs(config):
         import_epg_data(config, epg.id)
 
 
-# --- Cache ---
-# TODO: Migrate this data into the database to speed up requests
-
-def read_channels_from_epg_cache(config, epg_id):
-    yaml_file = os.path.join(config.config_path, 'cache', 'epgs', f"{epg_id}.yml")
-    epg_cache = read_yaml(yaml_file)
-    return epg_cache.get('channels', [])
-
-
 def read_channels_from_all_epgs(config):
     epgs_channels = {}
-    for epg in db.session.query(Epg).all():
-        epgs_channels[epg.id] = read_channels_from_epg_cache(config, epg.id)
+    for result in db.session.query(Epg).options(joinedload(Epg.epg_channels)).all():
+        epgs_channels[result.id] = []
+        for epg_channel in result.epg_channels:
+            epgs_channels[result.id].append({
+                "channel_id":   epg_channel.channel_id,
+                "display_name": epg_channel.name,
+                "icon":         epg_channel.icon_url,
+            })
     return epgs_channels
+
+
+# --- Cache ---
+# TODO: Migrate this data into the database to speed up requests
 
 
 def build_custom_epg(config):

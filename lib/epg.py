@@ -1,6 +1,7 @@
 import os
 import xml.etree.ElementTree as ET
 import xml.parsers.expat
+from types import NoneType
 
 import requests as requests
 
@@ -55,9 +56,9 @@ def parse_xmltv_for_channels(config, epg_id):
         channel_id = channel.get('id')
         display_name = channel.find('display-name').text
         icon = ''
-        icon_attrib = channel.find('icon')
-        if icon_attrib:
-            icon = icon_attrib.attrib.get('src', '')
+        icon_elem = channel.find('icon')
+        if not isinstance(icon_elem, NoneType):
+            icon = icon_elem.attrib.get('src', '')
         print(f"Channel ID: '{channel_id}', Display Name: '{display_name}', Icon: {icon}")
         epg_channels['channels'].append({
             'channel_id':   channel_id,
@@ -66,7 +67,7 @@ def parse_xmltv_for_channels(config, epg_id):
         })
     epg_yaml_file = os.path.join(config.config_path, 'cache', 'epgs', f"{epg_id}.yml")
     update_yaml(epg_yaml_file, epg_channels)
-    return channels
+    return epg_channels
 
 
 def parse_xmltv_for_programmes_for_channel(config, epg_id, channel_id):

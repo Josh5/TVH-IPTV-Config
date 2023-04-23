@@ -107,10 +107,11 @@ def add_new_channel(config, data):
     for source_info in data.get('sources', []):
         playlist_info = db.session.query(Playlist).filter(Playlist.id == source_info['playlist_id']).one()
         playlist_channels = fetch_playlist_channels(playlist_info.id)
+        playlist_channel = playlist_channels.get(source_info['channel_id'])
         channel_source = ChannelSource(
             playlist_id=playlist_info.id,
             playlist_stream_name=source_info['stream_name'],
-            playlist_stream_url=playlist_channels['url'],
+            playlist_stream_url=playlist_channel['url'],
         )
         new_sources.append(channel_source)
     if new_sources:
@@ -166,10 +167,11 @@ def update_channel(config, channel_id, data):
         if not channel_source:
             playlist_info = db.session.query(Playlist).filter(Playlist.id == source_info['playlist_id']).one()
             playlist_channels = fetch_playlist_channels(playlist_info.id)
+            playlist_channel = playlist_channels.get(source_info['channel_id'])
             channel_source = ChannelSource(
                 playlist_id=playlist_info.id,
                 playlist_stream_name=source_info['stream_name'],
-                playlist_stream_url=playlist_channels['url'],
+                playlist_stream_url=playlist_channel['url'],
             )
         new_sources.append(channel_source)
     # Remove all old entries in the channel_sources table
@@ -216,7 +218,8 @@ def publish_channel_muxes(config):
             # Create/update a network in TVH for each enabled playlist line
             for source in result.sources:
                 playlist_channels = fetch_playlist_channels(source.playlist_id)
-                if not playlist_channels:
+                playlist_channel = playlist_channels.get(source.channel_id)
+                if not playlist_channel:
                     print("No playlist is configured")
                     continue
                 # playlist_info = settings['playlists'][source['playlist_id']]
@@ -244,7 +247,7 @@ def publish_channel_muxes(config):
                 service_name = f"{source.playlist.name} - {source.playlist_stream_name}"
                 iptv_url = generate_iptv_url(
                     config,
-                    url=playlist_channels['url'],
+                    url=playlist_channel['url'],
                     service_name=service_name,
                 )
                 channel_id = f"{result.number}_{re.sub(r'[^a-zA-Z0-9]', '', result.name)}"
@@ -252,7 +255,7 @@ def publish_channel_muxes(config):
                     'enabled':        1,
                     'uuid':           mux_uuid,
                     'iptv_url':       iptv_url,
-                    'iptv_icon':      playlist_channels['tvg-logo'],
+                    'iptv_icon':      playlist_channel['tvg-logo'],
                     'iptv_sname':     result.name,
                     'iptv_muxname':   service_name,
                     'channel_number': result.number,
