@@ -48,14 +48,14 @@ def every_60_mins():
         update_tvh_muxes(app)
 
 
-@scheduler.task('interval', id='do_12_hours', hours=12, misfire_grace_time=900)
+@scheduler.task('cron', id='do_job_twice_a_day', hour='*/12', misfire_grace_time=900)
 def every_12_hours():
     with app.app_context():
         update_playlists(app)
         update_epgs(app)
 
 
-@scheduler.task('interval', id='do_24_hours', hours=24, misfire_grace_time=900)
+@scheduler.task('cron', id='do_job_once_a_day', minute='10', hour='0', misfire_grace_time=900)
 def every_24_hours():
     with app.app_context():
         rebuild_custom_epg(app)
