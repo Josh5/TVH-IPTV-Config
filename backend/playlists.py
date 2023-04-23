@@ -4,7 +4,7 @@ import os
 from pprint import pprint
 
 from backend import db
-from backend.models import Playlist, PlaylistChannels
+from backend.models import Playlist, PlaylistStreams
 from backend.tvheadend.tvh_requests import get_tvh, network_template
 from lib.playlist import parse_playlist
 
@@ -79,12 +79,12 @@ def delete_playlist(config, playlist_id):
     db.session.commit()
 
 
-def store_playlist_channels(playlist_id, playlist_data):
+def store_playlist_streams(playlist_id, playlist_data):
     items = []
     for key in playlist_data:
         data = playlist_data[key]
         items.append(
-            PlaylistChannels(
+            PlaylistStreams(
                 playlist_id=playlist_id,
                 name=data['name'],
                 url=data['url'],
@@ -96,16 +96,16 @@ def store_playlist_channels(playlist_id, playlist_data):
             )
         )
     # Delete all existing playlist channels
-    stmt = PlaylistChannels.__table__.delete().where(PlaylistChannels.playlist_id == playlist_id)
+    stmt = PlaylistStreams.__table__.delete().where(PlaylistStreams.playlist_id == playlist_id)
     db.session.execute(stmt)
     # Save all new
     db.session.bulk_save_objects(items)
     db.session.commit()
 
 
-def fetch_playlist_channels(playlist_id):
+def fetch_playlist_streams(playlist_id):
     return_list = {}
-    for result in db.session.query(PlaylistChannels).where(PlaylistChannels.playlist_id == playlist_id).all():
+    for result in db.session.query(PlaylistStreams).where(PlaylistStreams.playlist_id == playlist_id).all():
         return_list[result.name] = {
             'name':        result.name,
             'url':         result.url,
@@ -126,7 +126,7 @@ def import_playlist_data(config, playlist_id):
     download_playlist_file(playlist['url'], m3u_file)
     # Parse the M3U file and cache the data in a YAML file for faster parsing
     playlist_data = parse_playlist(m3u_file)
-    store_playlist_channels(playlist_id, playlist_data)
+    store_playlist_streams(playlist_id, playlist_data)
 
 
 def import_playlist_data_for_all_playlists(config):
@@ -135,11 +135,11 @@ def import_playlist_data_for_all_playlists(config):
 
 
 def read_stream_details_from_all_playlists():
-    playlist_channels = {
+    playlist_streams = {
         'streams': []
     }
-    for result in db.session.query(PlaylistChannels).all():
-        playlist_channels['streams'].append({
+    for result in db.session.query(PlaylistStreams).all():
+        playlist_streams['streams'].append({
             'id':            result.id,
             'playlist_id':   result.playlist_id,
             'playlist_name': result.playlist.name,
@@ -151,7 +151,7 @@ def read_stream_details_from_all_playlists():
             'tvg_id':        result.tvg_id,
             'tvg_logo':      result.tvg_logo,
         })
-    return playlist_channels
+    return playlist_streams
 
 
 def delete_playlist_network_in_tvh(config, net_uuid):

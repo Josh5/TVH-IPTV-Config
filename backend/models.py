@@ -79,14 +79,14 @@ class Playlist(db.Model):
 
     # Backref to all associated linked sources
     channel_sources = db.relationship('ChannelSource', backref='playlist', lazy=True)
-    playlist_channels = db.relationship('PlaylistChannels', backref='playlist', lazy=True)
+    playlist_streams = db.relationship('PlaylistStreams', backref='playlist', lazy=True)
 
     def __repr__(self):
         return '<Playlist {}>'.format(self.id)
 
 
-class PlaylistChannels(db.Model):
-    __tablename__ = "playlist_channels"
+class PlaylistStreams(db.Model):
+    __tablename__ = "playlist_streams"
     id = db.Column(db.Integer, primary_key=True)
 
     name = db.Column(db.String(500), index=True, unique=False)
@@ -101,7 +101,7 @@ class PlaylistChannels(db.Model):
     playlist_id = db.Column(db.Integer, db.ForeignKey('playlists.id'), nullable=False)
 
     def __repr__(self):
-        return '<PlaylistChannels {}>'.format(self.id)
+        return '<PlaylistStreams {}>'.format(self.id)
 
 
 channels_tags_association_table = db.Table(

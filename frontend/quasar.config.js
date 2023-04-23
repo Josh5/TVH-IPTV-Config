@@ -89,6 +89,7 @@ module.exports = configure(function (ctx) {
       port: 8080,
       proxy: {
         '/tic-api': 'http://localhost:5000',
+        '/tic-web/epg.xml': 'http://localhost:5000',
       },
       open: false // opens browser window automatically
     },
