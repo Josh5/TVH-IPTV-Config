@@ -196,7 +196,8 @@ export default {
         let selected = this.selected[i]
         returnItems.push({
           'playlist_id': selected['playlist_id'],
-          'playlist_name': '',
+          'playlist_name': selected['playlist_name'],
+          'channel_id': selected['channel_id'],
           'stream_name': selected['name'],
         })
       }
@@ -210,13 +211,9 @@ export default {
       this.loading = true
       axios({
         method: 'GET',
-        url: '/tic-api/playlists/streams',
+        url: '/tic-api/playlists/channels',
       }).then((response) => {
-        this.rows = []
-        this.rows = Object.entries(response.data.data)
-          .flatMap(([playlist_id, names]) =>
-            names.map(name => ({name, playlist_id}))
-          );
+        this.rows = response.data.data.channels
         this.loading = false
       });
     },

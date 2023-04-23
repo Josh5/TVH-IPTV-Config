@@ -134,6 +134,24 @@ def import_playlist_data_for_all_playlists(config):
         import_playlist_data(config, playlist.id)
 
 
+def read_channel_details_from_all_playlists():
+    playlist_channels = {
+        'channels': []
+    }
+    for result in db.session.query(PlaylistChannels).all():
+        playlist_channels['channels'].append({
+            'playlist_id':   result.playlist_id,
+            'playlist_name': result.playlist.name,
+            'name':          result.name,
+            'url':           result.url,
+            'channel_id':    result.channel_id,
+            'group_title':   result.group_title,
+            'tvg_chno':      result.tvg_chno,
+            'tvg_id':        result.tvg_id,
+            'tvg_logo':      result.tvg_logo,
+        })
+    return playlist_channels
+
 def read_stream_names_from_all_playlists():
     playlist_channels = {}
     for result in db.session.query(PlaylistChannels).all():
