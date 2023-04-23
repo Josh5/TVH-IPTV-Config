@@ -4,6 +4,7 @@ import os
 from pprint import pprint
 
 from backend import db
+from backend.ffmpeg import ffprobe_file
 from backend.models import Playlist, PlaylistStreams
 from backend.tvheadend.tvh_requests import get_tvh, network_template
 from lib.playlist import parse_playlist
@@ -198,3 +199,9 @@ def publish_playlist_networks(config):
         existing_uuids.append(net_uuid)
 
     #  TODO: Remove any networks that are not managed. DONT DO THIS UNTIL THINGS ARE ALL WORKING!
+
+
+def probe_playlist_stream(playlist_stream_id):
+    playlist_stream = db.session.query(PlaylistStreams).where(PlaylistStreams.id == playlist_stream_id).one()
+    probe_data = ffprobe_file(playlist_stream.url)
+    return probe_data

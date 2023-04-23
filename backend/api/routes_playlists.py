@@ -3,7 +3,7 @@
 import os
 
 from backend.playlists import read_config_all_playlists, add_new_playlist, read_config_one_playlist, update_playlist, \
-    delete_playlist, import_playlist_data, read_stream_details_from_all_playlists
+    delete_playlist, import_playlist_data, read_stream_details_from_all_playlists, probe_playlist_stream
 from backend.api import blueprint
 from flask import request, jsonify, current_app
 
@@ -88,12 +88,12 @@ def api_get_all_playlist_streams():
     )
 
 
-@blueprint.route('/tic-api/playlists/channels', methods=['GET'])
-def api_get_all_playlist_channels():
-    playlist_streams = read_channel_details_from_all_playlists()
+@blueprint.route('/tic-api/playlists/stream/probe/<playlist_stream_id>', methods=['GET'])
+def api_probe_playlist_stream(playlist_stream_id):
+    probe = probe_playlist_stream(playlist_stream_id)
     return jsonify(
         {
             "success": True,
-            "data":    playlist_streams
+            "data":    probe
         }
     )
