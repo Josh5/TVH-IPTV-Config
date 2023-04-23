@@ -10,9 +10,6 @@ __pycache__/
 env
 venv
 
-# migrations
-migrations
-
 # editor directories and files
 .vscode
 .idea
