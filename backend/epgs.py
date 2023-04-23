@@ -120,8 +120,6 @@ def read_channels_from_all_epgs(config):
 
 # --- Cache ---
 # TODO: Migrate this data into the database to speed up requests
-
-
 def build_custom_epg(config):
     # Create the root <tv> element of the output XMLTV file
     output_root = ET.Element('tv')

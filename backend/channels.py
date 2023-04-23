@@ -5,7 +5,7 @@ import re
 from sqlalchemy.orm import joinedload
 from sqlalchemy import and_
 from backend import db
-from backend.models import Channel, ChannelTag, Epg, ChannelSource, Playlist
+from backend.models import Channel, ChannelTag, Epg, ChannelSource, Playlist, EpgChannels, PlaylistChannels
 from backend.playlists import fetch_playlist_channels
 from backend.tvheadend.tvh_requests import get_tvh
 from lib.playlist import generate_iptv_url
@@ -79,7 +79,7 @@ def read_config_one_channel(channel_id):
     return return_item
 
 
-def add_new_channel(config, data):
+def add_new_channel(data, commit=True):
     channel = Channel(
         enabled=data.get('enabled'),
         name=data.get('name'),
@@ -99,7 +99,7 @@ def add_new_channel(config, data):
     if guide_info.get('epg_id'):
         channel_guide_source = db.session.query(Epg).filter(Epg.id == guide_info['epg_id']).one()
         channel.guide_id = channel_guide_source.id
-        channel.guide_name = guide_info['epg_name']
+        channel.guide_name = channel_guide_source.name
         channel.guide_channel_id = guide_info['channel_id']
 
     # Sources
@@ -107,7 +107,7 @@ def add_new_channel(config, data):
     for source_info in data.get('sources', []):
         playlist_info = db.session.query(Playlist).filter(Playlist.id == source_info['playlist_id']).one()
         playlist_channels = fetch_playlist_channels(playlist_info.id)
-        playlist_channel = playlist_channels.get(source_info['channel_id'])
+        playlist_channel = playlist_channels.get(source_info['stream_name'])
         channel_source = ChannelSource(
             playlist_id=playlist_info.id,
             playlist_stream_name=source_info['stream_name'],
@@ -120,7 +120,8 @@ def add_new_channel(config, data):
 
     # Add new row and commit
     db.session.add(channel)
-    db.session.commit()
+    if commit:
+        db.session.commit()
 
 
 def update_channel(config, channel_id, data):
@@ -187,6 +188,55 @@ def update_channel(config, channel_id, data):
         channel.sources = new_sources
 
     # Commit
+    db.session.commit()
+
+
+def add_bulk_channels(data):
+    channel_number = 1
+    for channel in data:
+        # Only insert a max of 100 channels at a time
+        if channel_number > 100:
+            break
+
+        # Build new channel data
+        new_channel_data = {
+            'enabled': True,
+            'tags':    [],
+            'sources': [],
+        }
+
+        # Fetch the playlist channel by ID
+        playlist_stream = db.session.query(PlaylistChannels).where(PlaylistChannels.id == channel['stream_id']).one()
+
+        # Auto assign the name
+        new_channel_data['name'] = playlist_stream.name
+        # Auto assign the image URL
+        new_channel_data['logo_url'] = playlist_stream.tvg_logo
+        # Auto assign the channel number to the lowest available number
+        new_channel_data['number'] = int(channel_number)
+        channel_number = channel_number + 1
+
+        # Find the best match for an EPG
+        epg_match = db.session.query(EpgChannels).filter(
+            EpgChannels.channel_id == playlist_stream.channel_id).one_or_none()
+        if epg_match:
+            new_channel_data['guide'] = {
+                'channel_id': epg_match.channel_id,
+                'epg_id':     1,
+                'epg_name':   epg_match.name,
+            }
+
+        # Apply the stream to the channel
+        new_channel_data['sources'].append({
+            'playlist_id':   channel['playlist_id'],
+            'playlist_name': playlist_stream.playlist.name,
+            'stream_name':   playlist_stream.name
+        })
+
+        # Create new channel from data
+        # TODO: Delay commit of transaction until all new channels are created
+        add_new_channel(new_channel_data, commit=False)
+
     db.session.commit()
 
 

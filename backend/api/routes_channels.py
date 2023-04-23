@@ -5,7 +5,7 @@ from backend.api import blueprint
 from flask import request, jsonify, current_app
 
 from backend.channels import read_config_all_channels, add_new_channel, read_config_one_channel, update_channel, \
-    publish_channel_muxes, map_all_services, delete_channel, cleanup_old_channels
+    publish_channel_muxes, map_all_services, delete_channel, cleanup_old_channels, add_bulk_channels
 from backend.epgs import build_custom_epg, run_tvh_epg_grabbers
 
 
@@ -22,8 +22,7 @@ def api_get_channels():
 
 @blueprint.route('/tic-api/channels/new', methods=['POST'])
 def api_add_new_channel():
-    config = current_app.config['APP_CONFIG']
-    add_new_channel(config, request.json)
+    add_new_channel(request.json)
     return jsonify(
         {
             "success": True
@@ -62,6 +61,16 @@ def api_set_config_multiple_channels():
     for channel_id in request.json.get('channels', {}):
         channel = request.json['channels'][channel_id]
         update_channel(config, channel_id, channel)
+    return jsonify(
+        {
+            "success": True
+        }
+    )
+
+
+@blueprint.route('/tic-api/channels/settings/multiple/add', methods=['POST'])
+def api_add_multiple_channels():
+    add_bulk_channels(request.json.get('channels', []))
     return jsonify(
         {
             "success": True

@@ -178,6 +178,7 @@ import {defineComponent, ref} from 'vue'
 import axios from "axios";
 import draggable from "vuedraggable";
 import ChannelInfoDialog from "components/ChannelInfoDialog.vue";
+import ChannelStreamSelectorDialog from "components/ChannelStreamSelectorDialog.vue";
 
 export default defineComponent({
   name: 'ChannelsPage',
@@ -334,8 +335,6 @@ export default defineComponent({
         channelId = null
         newChannelNumber = this.nextAvailableChannelNumber(this.listOfChannels)
       }
-      console.log(newChannelNumber)
-      console.log(this.listOfChannels)
       // Display the dialog
       this.$q.dialog({
         component: ChannelInfoDialog,
@@ -345,6 +344,52 @@ export default defineComponent({
         },
       }).onOk((payload) => {
         this.fetchChannels();
+      }).onDismiss(() => {
+      })
+    },
+    openChannelsImport: function () {
+      this.$q.dialog({
+        component: ChannelStreamSelectorDialog,
+        componentProps: {
+          hideStreams: [],
+        },
+      }).onOk((payload) => {
+        if (typeof payload.selectedStreams !== 'undefined' && payload.selectedStreams !== null) {
+          // Add selected stream to list
+        this.$q.loading.show()
+          // Send changes to backend
+          let data = {
+              channels: []
+          }
+          console.log(payload.selectedStreams)
+          for (const i in payload.selectedStreams) {
+            data.channels.push({
+                playlist_id: payload.selectedStreams[i].playlist_id,
+                playlist_name: payload.selectedStreams[i].playlist_name,
+                stream_id: payload.selectedStreams[i].id,
+                stream_name: payload.selectedStreams[i].stream_name,
+            });
+          }
+          axios({
+              method: 'POST',
+              url: '/tic-api/channels/settings/multiple/add',
+              data: data
+          }).then((response) => {
+              // Reload from backend
+              this.fetchChannels();
+              this.$q.loading.hide()
+          }).catch(() => {
+              // Notify failure
+              this.$q.notify({
+              color: 'negative',
+              position: 'top',
+              message: "An error was encountered while adding new channels.",
+              icon: 'report_problem',
+              actions: [{icon: 'close', color: 'white'}]
+              })
+              this.$q.loading.hide()
+          });
+        }
       }).onDismiss(() => {
       })
     },
@@ -384,7 +429,7 @@ export default defineComponent({
         data.channels[item.id] = item
       }
       axios({
-        method: 'post',
+        method: 'POST',
         url: '/tic-api/channels/settings/multiple/save',
         data: data
       }).then((response) => {

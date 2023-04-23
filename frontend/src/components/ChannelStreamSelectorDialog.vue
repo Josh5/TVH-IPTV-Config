@@ -130,6 +130,28 @@
                     <q-icon size="2em" :name="filter ? 'filter_b_and_w' : icon"/>
                   </div>
                 </template>
+
+                <template v-slot:body="props">
+                    <q-tr :props="props">
+                        <q-td auto-width>
+                            <q-checkbox v-model="props.selected" color="primary" />
+                        </q-td>
+                        <q-td key="name" :props="props">
+                            <q-avatar rounded>
+                                <img :src="props.row.tvg_logo" style="height:40px; width:auto; max-width:120px;"/>
+                            </q-avatar>
+                        </q-td>
+                        <q-td key="name" :props="props">
+                            {{ props.row.name }}
+                        </q-td>
+                        <q-td key="playlist_name" :props="props">
+                            <q-badge color="green">
+                                {{ props.row.playlist_name }}
+                            </q-badge>
+                        </q-td>
+                    </q-tr>
+                </template>
+
               </q-table>
 
             </div>
@@ -151,8 +173,9 @@ import axios from "axios";
 import {ref} from "vue";
 
 const columns = [
+  {name: 'tvg_logo', required: true, align: 'left', label: 'Logo', field: 'tvg_logo', sortable: false},
   {name: 'name', required: true, align: 'left', label: 'Name', field: 'name', sortable: false},
-  {name: 'playlist_id', required: true, align: 'left', label: 'Playlist', field: 'playlist_id', sortable: false},
+  {name: 'playlist_name', required: true, align: 'left', label: 'Playlist', field: 'playlist_name', sortable: false},
 ]
 const pagination = ref({
   rowsPerPage: 0
@@ -195,6 +218,7 @@ export default {
       for (const i in this.selected) {
         let selected = this.selected[i]
         returnItems.push({
+          'id': selected['id'],
           'playlist_id': selected['playlist_id'],
           'playlist_name': selected['playlist_name'],
           'channel_id': selected['channel_id'],
@@ -211,9 +235,9 @@ export default {
       this.loading = true
       axios({
         method: 'GET',
-        url: '/tic-api/playlists/channels',
+        url: '/tic-api/playlists/streams',
       }).then((response) => {
-        this.rows = response.data.data.channels
+        this.rows = response.data.data.streams
         this.loading = false
       });
     },
@@ -233,7 +257,7 @@ export default {
       columns,
       rows: ref([]),
 
-      visibleColumns: ref(['calories', 'playlist_id', 'fat', 'carbs', 'protein', 'sodium', 'calcium', 'iron']),
+      visibleColumns: ref(['name', 'playlist_name', 'logo']),
       filter: ref(''),
       selected: ref([]),
       pagination,
