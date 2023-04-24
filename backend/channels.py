@@ -3,7 +3,7 @@
 import re
 
 from sqlalchemy.orm import joinedload
-from sqlalchemy import and_
+from sqlalchemy import and_, func
 from backend import db
 from backend.models import Channel, ChannelTag, Epg, ChannelSource, Playlist, EpgChannels, PlaylistStreams
 from backend.playlists import fetch_playlist_streams
@@ -192,30 +192,24 @@ def update_channel(config, channel_id, data):
 
 
 def add_bulk_channels(data):
-    channel_number = 1
+    channel_number = db.session.query(func.max(Channel.number)).scalar()
     for channel in data:
-        # Only insert a max of 100 channels at a time
-        if channel_number > 100:
-            break
-
+        # Make this new channel the next highest
+        channel_number = channel_number + 1
         # Build new channel data
         new_channel_data = {
             'enabled': True,
             'tags':    [],
             'sources': [],
         }
-
         # Fetch the playlist channel by ID
         playlist_stream = db.session.query(PlaylistStreams).where(PlaylistStreams.id == channel['stream_id']).one()
-
         # Auto assign the name
         new_channel_data['name'] = playlist_stream.name
         # Auto assign the image URL
         new_channel_data['logo_url'] = playlist_stream.tvg_logo
-        # Auto assign the channel number to the lowest available number
+        # Auto assign the channel number to the next available number
         new_channel_data['number'] = int(channel_number)
-        channel_number = channel_number + 1
-
         # Find the best match for an EPG
         epg_match = db.session.query(EpgChannels).filter(EpgChannels.channel_id == playlist_stream.tvg_id).one_or_none()
         if epg_match:
@@ -224,18 +218,16 @@ def add_bulk_channels(data):
                 'epg_id':     1,
                 'epg_name':   epg_match.name,
             }
-
         # Apply the stream to the channel
         new_channel_data['sources'].append({
             'playlist_id':   channel['playlist_id'],
             'playlist_name': playlist_stream.playlist.name,
             'stream_name':   playlist_stream.name
         })
-
-        # Create new channel from data
-        # TODO: Delay commit of transaction until all new channels are created
+        # Create new channel from data.
+        # Delay commit of transaction until all new channels are created
         add_new_channel(new_channel_data, commit=False)
-
+    # Commit all new channels
     db.session.commit()
 
 
