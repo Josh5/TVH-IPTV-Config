@@ -254,6 +254,7 @@ def publish_channel_muxes(config):
     existing_uuids = []
     results = db.session.query(Channel) \
         .options(joinedload(Channel.tags), joinedload(Channel.sources).subqueryload(ChannelSource.playlist)) \
+        .order_by(Channel.number.asc()) \
         .all()
     for result in results:
         if result.enabled:

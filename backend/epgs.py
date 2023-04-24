@@ -132,7 +132,7 @@ def build_custom_epg(config):
     configured_channels = []
     discovered_programmes = []
     # for key in settings.get('channels', {}):
-    for result in db.session.query(Channel).all():
+    for result in db.session.query(Channel).order_by(Channel.number.asc()).all():
         if result.enabled:
             channel_id = f"{result.number}_{re.sub(r'[^a-zA-Z0-9]', '', result.name)}"
             # Populate a channels list
