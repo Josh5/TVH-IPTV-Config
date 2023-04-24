@@ -325,3 +325,5 @@ def cleanup_old_channels(config):
     for channel in tvh.list_all_channels():
         if channel.get('name') == "{name-not-set}":
             tvh.delete_channels(channel.get('uuid'))
+        elif not channel.get('services', []):
+            tvh.delete_channels(channel.get('uuid'))
