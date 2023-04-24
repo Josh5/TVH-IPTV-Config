@@ -193,6 +193,8 @@ def update_channel(config, channel_id, data):
 
 def add_bulk_channels(data):
     channel_number = db.session.query(func.max(Channel.number)).scalar()
+    if channel_number is None:
+        channel_number = 999
     for channel in data:
         # Make this new channel the next highest
         channel_number = channel_number + 1
