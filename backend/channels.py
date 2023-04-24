@@ -211,8 +211,8 @@ def add_bulk_channels(data):
         # Auto assign the channel number to the next available number
         new_channel_data['number'] = int(channel_number)
         # Find the best match for an EPG
-        epg_match = db.session.query(EpgChannels).filter(EpgChannels.channel_id == playlist_stream.tvg_id).one_or_none()
-        if epg_match:
+        epg_match = db.session.query(EpgChannels).filter(EpgChannels.channel_id == playlist_stream.tvg_id).first()
+        if epg_match is not None:
             new_channel_data['guide'] = {
                 'channel_id': epg_match.channel_id,
                 'epg_id':     1,

@@ -14,14 +14,14 @@ WORKDIR /build
 RUN \
     echo "** Install node dependencies **" \
         && npm ci \
-        && \
+    && \
     echo
 
 COPY ./frontend /build
 RUN \
     echo "** Build frontend **" \
         && npm run build \
-        && \
+    && \
     echo
 
 #  __  __    _    ___ _   _ 
