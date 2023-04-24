@@ -5,7 +5,7 @@
 # File Created: Tuesday, 11th April 2023 3:16:40 pm
 # Author: Josh.5 (jsunnex@gmail.com)
 # -----
-# Last Modified: Tuesday, 11th April 2023 3:18:35 pm
+# Last Modified: Monday, 24th April 2023 7:14:51 pm
 # Modified By: Josh.5 (jsunnex@gmail.com)
 ###
 
@@ -17,7 +17,7 @@ pushd "${project_root}/frontend" || exit 1
 
 
 # Build frontend backage
-npm install
+npm ci
 npm run build 
 
 
