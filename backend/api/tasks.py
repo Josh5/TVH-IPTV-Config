@@ -7,8 +7,9 @@ scheduler = APScheduler()
 
 def update_playlists(app):
     print("Updating Playlists")
+    config = app.config['APP_CONFIG']
     from backend.playlists import import_playlist_data_for_all_playlists
-    import_playlist_data_for_all_playlists(app.APP_CONFIG)
+    import_playlist_data_for_all_playlists(config)
 
 
 def update_epgs(app):

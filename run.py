@@ -49,7 +49,7 @@ def every_60_mins():
         update_tvh_muxes(app)
 
 
-@scheduler.task('cron', id='do_job_twice_a_day', hour='0/12', minute=5, misfire_grace_time=900)
+@scheduler.task('cron', id='do_job_twice_a_day', hour='0/12', minute=1, misfire_grace_time=900)
 def every_12_hours():
     print("Running noon/midnight scheduled task 'do_job_twice_a_day'")
     with app.app_context():
@@ -57,7 +57,7 @@ def every_12_hours():
         update_epgs(app)
 
 
-@scheduler.task('cron', id='do_job_once_a_day', hour=0, minute=1, misfire_grace_time=900)
+@scheduler.task('cron', id='do_job_once_a_day', hour=0, minute=10, misfire_grace_time=900)
 def every_24_hours():
     print("Running midnight scheduled task 'do_job_once_a_day'")
     with app.app_context():
