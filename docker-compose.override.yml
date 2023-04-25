@@ -1,0 +1,9 @@
+version: "3.8"
+services:
+  tvh_iptv:
+    environment:
+      - DEBUG=True
+      - FLASK_DEBUG=True
+    volumes:
+      - ./config:/config
+      - ./:/app

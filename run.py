@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
-
 import os
 
 from flask_migrate import Migrate
@@ -38,25 +37,29 @@ if DEBUG:
 
 @scheduler.task('interval', id='do_5_mins', minutes=5, misfire_grace_time=60)
 def every_5_mins():
+    print("Running 5 minute scheduled task 'do_5_mins'")
     with app.app_context():
         map_new_tvh_services(app)
 
 
 @scheduler.task('interval', id='do_60_mins', minutes=60, misfire_grace_time=300)
 def every_60_mins():
+    print("Running hourly scheduled task 'do_60_mins'")
     with app.app_context():
         update_tvh_muxes(app)
 
 
-@scheduler.task('cron', id='do_job_twice_a_day', hour='*/12', misfire_grace_time=900)
+@scheduler.task('cron', id='do_job_twice_a_day', hour='0/12', minute=5, misfire_grace_time=900)
 def every_12_hours():
+    print("Running noon/midnight scheduled task 'do_job_twice_a_day'")
     with app.app_context():
         update_playlists(app)
         update_epgs(app)
 
 
-@scheduler.task('cron', id='do_job_once_a_day', minute='10', hour='0', misfire_grace_time=900)
+@scheduler.task('cron', id='do_job_once_a_day', hour=0, minute=1, misfire_grace_time=900)
 def every_24_hours():
+    print("Running midnight scheduled task 'do_job_once_a_day'")
     with app.app_context():
         rebuild_custom_epg(app)
 

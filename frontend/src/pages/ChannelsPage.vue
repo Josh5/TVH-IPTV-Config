@@ -452,7 +452,6 @@ export default defineComponent({
       // Shift the channel number of item that was moved
       this.shiftChannelNumber(this.listOfChannels, movedItem.id)
       // Fix the channel numbering so there are no duplicates
-      //this.listOfChannels = this.fixNumberIncrementOld(this.listOfChannels)
       this.fixNumberIncrement(this.listOfChannels)
       // Save new channel layout
       this.saveChannel()
@@ -494,7 +493,6 @@ export default defineComponent({
       // Shift any conflicting numbers
       //this.shiftNumbers(this.listOfChannels, this.listOfChannels[this.editIndex].id)
       // Fix the channel numbering
-      //this.listOfChannels = this.fixNumberIncrementOld(this.listOfChannels)
       this.fixNumberIncrement(this.listOfChannels)
       // Save new channel layout
       this.saveChannel()
