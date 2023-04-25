@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
 import os
-from pprint import pprint
+import time
 
 from backend import db
 from backend.ffmpeg import ffprobe_file
 from backend.models import Playlist, PlaylistStreams
 from backend.tvheadend.tvh_requests import get_tvh, network_template
-from lib.playlist import parse_playlist
 
 
 def read_config_all_playlists():
@@ -80,28 +79,41 @@ def delete_playlist(config, playlist_id):
     db.session.commit()
 
 
-def store_playlist_streams(playlist_id, playlist_data):
+def store_playlist_streams(config, playlist_id):
+    m3u_file = os.path.join(config.config_path, 'cache', 'playlists', f"{playlist_id}.m3u")
+    if not os.path.exists(m3u_file):
+        # TODO: Add error logging here
+        print(f"No such file '{m3u_file}'")
+        return False
+    # Read cache file contents
+    with open(m3u_file, encoding="utf8", errors='ignore') as f:
+        contents = f.read()
+    from ipytv import playlist
+    pl = playlist.loads(contents)
+    # Delete all existing playlist streams
+    stmt = PlaylistStreams.__table__.delete().where(PlaylistStreams.playlist_id == playlist_id)
+    db.session.execute(stmt)
+    # Add an updated list of streams from the XML file to the DB
+    print(f"Updating list of available streams for playlist #{playlist_id} from path - '{m3u_file}'")
     items = []
-    for key in playlist_data:
-        data = playlist_data[key]
+    for stream in pl:
         items.append(
             PlaylistStreams(
                 playlist_id=playlist_id,
-                name=data['name'],
-                url=data['url'],
-                channel_id=data.get('attributes', {}).get('channel-id'),
-                group_title=data.get('attributes', {}).get('group-title'),
-                tvg_chno=data.get('attributes', {}).get('tvg-chno'),
-                tvg_id=data.get('attributes', {}).get('tvg-id'),
-                tvg_logo=data.get('attributes', {}).get('tvg-logo'),
+                name=stream.name,
+                url=stream.url,
+                channel_id=stream.attributes.get('channel-id'),
+                group_title=stream.attributes.get('group-title'),
+                tvg_chno=stream.attributes.get('tvg-chno'),
+                tvg_id=stream.attributes.get('tvg-id'),
+                tvg_logo=stream.attributes.get('tvg-logo'),
             )
         )
-    # Delete all existing playlist channels
-    stmt = PlaylistStreams.__table__.delete().where(PlaylistStreams.playlist_id == playlist_id)
-    db.session.execute(stmt)
     # Save all new
     db.session.bulk_save_objects(items)
+    # Commit all updates to playlist sources
     db.session.commit()
+    print(f"Successfully imported {len(items)} streams from path - '{m3u_file}'")
 
 
 def fetch_playlist_streams(playlist_id):
@@ -122,12 +134,19 @@ def fetch_playlist_streams(playlist_id):
 def import_playlist_data(config, playlist_id):
     playlist = read_config_one_playlist(playlist_id)
     # Download playlist data and save to YAML cache file
+    print(f"Downloading updated M3U file for playlist #{playlist_id} from url - '{playlist['url']}'")
+    start_time = time.time()
     from lib.playlist import download_playlist_file
     m3u_file = os.path.join(config.config_path, 'cache', 'playlists', f"{playlist_id}.m3u")
     download_playlist_file(playlist['url'], m3u_file)
+    execution_time = time.time() - start_time
+    print(f"Updated M3U file for playlist #{playlist_id} was downloaded in '{int(execution_time)}' seconds")
     # Parse the M3U file and cache the data in a YAML file for faster parsing
-    playlist_data = parse_playlist(m3u_file)
-    store_playlist_streams(playlist_id, playlist_data)
+    print(f"Importing updated data for playlist #{playlist_id}")
+    start_time = time.time()
+    store_playlist_streams(config, playlist_id)
+    execution_time = time.time() - start_time
+    print(f"Updated data for playlist #{playlist_id} was imported in '{int(execution_time)}' seconds")
 
 
 def import_playlist_data_for_all_playlists(config):
