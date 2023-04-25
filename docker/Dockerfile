@@ -52,10 +52,12 @@ RUN \
     echo
 
 # set environment variables
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
-ENV FLASK_APP run.py
-ENV DEBUG True
+ENV PYTHONDONTWRITEBYTECODE="1"
+ENV PYTHONUNBUFFERED="1"
+ENV FLASK_APP="/app/run.py"
+ENV FLASK_RUN_PORT="9985"
+ENV FLASK_RUN_HOST="0.0.0.0"
+ENV DEBUG="False"
 
 # Install python dependencies
 COPY requirements.txt .
@@ -68,4 +70,3 @@ COPY --from=frontend_build_stage /build/dist/spa /app/frontend/dist/spa
 COPY backend /app/backend
 COPY lib /app/lib
 COPY run.py /app/run.py
-COPY gunicorn-cfg.py /app/gunicorn-cfg.py

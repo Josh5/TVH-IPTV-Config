@@ -3,4 +3,4 @@
 
 exec \
     s6-notifyoncheck -d -n 300 -w 1000 -c "nc -z localhost 9985" \
-        s6-setuidgid abc /usr/bin/gunicorn --chdir /app --config /app/gunicorn-cfg.py run:app
+        s6-setuidgid abc /usr/bin/flask run
