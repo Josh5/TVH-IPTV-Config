@@ -5,6 +5,8 @@ import os
 from backend.api import blueprint
 from flask import request, jsonify, redirect, send_from_directory, current_app
 
+from backend.tvheadend.tvh_requests import configure_tvh
+
 
 @blueprint.route('/')
 def index():
@@ -44,6 +46,7 @@ def api_save_config():
     config = current_app.config['APP_CONFIG']
     config.update_settings(request.json)
     config.save_settings()
+    configure_tvh(config)
     return jsonify(
         {
             "success": True

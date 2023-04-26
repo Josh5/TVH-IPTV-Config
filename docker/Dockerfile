@@ -30,7 +30,7 @@ RUN \
 # | |  | |/ ___ \ | || |\  |
 # |_|  |_/_/   \_\___|_| \_|
 #
-FROM ghcr.io/linuxserver/baseimage-alpine:3.17
+FROM lscr.io/linuxserver/tvheadend:latest
 
 # set version label
 ARG BUILD_DATE

@@ -1,4 +1,5 @@
-version: "3.8"
+---
+version: "2.1"
 services:
   tvh_iptv:
     environment:
@@ -6,4 +7,5 @@ services:
       - FLASK_DEBUG=True
     volumes:
       - ./config:/config
+      - ./recordings:/recordings
       - ./:/app

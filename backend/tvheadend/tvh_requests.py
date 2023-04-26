@@ -5,6 +5,9 @@ import requests
 import json
 
 # TVheadend API URLs:
+api_config_save = "config/save"
+api_imagecache_config_save = "imagecache/config/save"
+api_epggrab_config_save = "epggrab/config/save"
 api_list_scanfile = "dvb/scanfile/list"
 api_create_network = "mpegts/network/create"
 api_view_networks = "mpegts/network/grid"
@@ -22,7 +25,19 @@ api_list_all_channels = "channel/grid"
 api_services_mapper = "service/mapper/save"
 api_services_list = "service/list"
 api_int_epggrab_run = "epggrab/internal/rerun"
+api_epggrab_list = "epggrab/module/list"
 
+tvh_config = {
+    "server_name": "TVH-IPTV",
+    "uilevel":     0
+}
+tvh_imagecache_config = {"enabled": True, "ignore_sslcert": True, "expire": 7, "ok_period": 168, "fail_period": 24}
+epggrab_config = {
+    "channel_rename":     False, "channel_renumber": False, "channel_reicon": False,
+    "epgdb_periodicsave": 0, "epgdb_saveafterimport": True,
+    "int_initial":        True, "cron": "25 */12 * * *",
+    "ota_initial":        False, "ota_cron": ""
+}
 network_template = {
     "enabled":      True,
     "networkname":  'NETWORK_NAME',
@@ -51,6 +66,15 @@ mux_template = {
     "iptv_buffer_limit": 0, "tsid_zero": False, "pmt_06_ac3": 0, "eit_tsid_nocheck": False, "sid_filter": 0,
     "iptv_respawn":      False, "iptv_kill": 0, "iptv_kill_timeout": 5, "iptv_env": "", "iptv_hdr": ""
 }
+default_recorder_profile_template = {
+    "pre-extra-time":               1,
+    "post-extra-time":              5,
+    "pathname":                     "$t/$t-$c-%F_%R$n.$x",
+    "clean-title":                  True,
+    "whitespace-in-title":          True,
+    "windows-compatible-filenames": False,
+    "skip-commercials":             False
+}
 
 
 class TVHeadend:
@@ -65,19 +89,23 @@ class TVHeadend:
             self.session.auth = (admin_username, admin_password)
         self.default_headers = {}
 
-    def __get(self, url, payload=None):
+    def __get(self, url, payload=None, rformat='content'):
         headers = self.default_headers
         r = self.session.get(url, headers=headers, params=payload, allow_redirects=False, timeout=self.timeout)
         if r.status_code == 200:
+            if rformat == 'json':
+                return r.json()
             return r.content
-        return {}
+        raise Exception(f"GET Failed to TVH API - CODE:{r.status_code} - CONTENT:{r.content}")
 
-    def __post(self, url, payload=None):
+    def __post(self, url, payload=None, rformat='content'):
         headers = self.default_headers
         r = self.session.post(url, headers=headers, data=payload, allow_redirects=False, timeout=self.timeout)
         if r.status_code == 200:
+            if rformat == 'json':
+                return r.json()
             return r.content
-        return {}
+        raise Exception(f"POST Failed to TVH API - CODE:{r.status_code} - CONTENT:{r.content}")
 
     def __json(self, url, payload=None):
         headers = self.default_headers
@@ -85,13 +113,13 @@ class TVHeadend:
         r = self.session.post(url, headers=headers, json=payload, allow_redirects=False, timeout=self.timeout)
         if r.status_code == 200:
             return r.json()
-        return {}
+        raise Exception(f"JSON Failed to TVH API - CODE:{r.status_code} - CONTENT:{r.content}")
 
     def idnode_load(self, data):
         url = f"{self.api_url}/{api_idnode_load}"
         response = self.__post(url, payload=data)
         try:
-            json_list = json.loads(response)["entries"]
+            json_list = json.loads(response)
         except json.JSONDecodeError:
             json_list = {"entries": []}
         return json_list
@@ -103,6 +131,41 @@ class TVHeadend:
     def idnode_delete(self, node_uuid):
         url = f"{self.api_url}/{api_idnode_delete}"
         self.__post(url, payload={"uuid": node_uuid})
+
+    def save_tvh_config(self, node):
+        url = f"{self.api_url}/{api_config_save}"
+        self.__post(url, payload={"node": json.dumps(node)})
+
+    def save_imagecache_config(self, node):
+        url = f"{self.api_url}/{api_imagecache_config_save}"
+        self.__post(url, payload={"node": json.dumps(node)})
+
+    def save_epggrab_config(self, node):
+        url = f"{self.api_url}/{api_epggrab_config_save}"
+        self.__post(url, payload={"node": json.dumps(node)})
+
+    def disable_all_epg_grabbers(self):
+        url = f"{self.api_url}/{api_epggrab_list}"
+        response = self.__get(url, payload={}, rformat='json')
+        for grabber in response.get('entries', []):
+            self.idnode_save({"enabled": False, "uuid": grabber['uuid']})
+
+    def enable_xmltv_url_epg_grabber(self):
+        url = f"{self.api_url}/{api_epggrab_list}"
+        response = self.__get(url, payload={}, rformat='json')
+        for grabber in response.get('entries', []):
+            if grabber['title'] == "Internal: XMLTV: XMLTV URL grabber":
+                node = {"enabled": True, "priority": 1, "dn_chnum": 1, "uuid": grabber['uuid'],
+                        "args":    "http://127.0.0.1:9985/tic-web/epg.xml"}
+                self.idnode_save(node)
+
+    def configure_default_recorder_profile(self):
+        response = self.idnode_load({'enum': 1, 'class': 'dvrconfig'})
+        for profile in response.get('entries', []):
+            if profile['val'] == "(Default profile)":
+                node = default_recorder_profile_template.copy()
+                node['uuid'] = profile['key']
+                self.idnode_save(node)
 
     def list_premade_scanfiles(self, adapter_type):
         url = f"{self.api_url}/{api_list_scanfile}"
@@ -229,3 +292,19 @@ def get_tvh(config):
     tvh_username = settings['settings']['tvheadend']['username']
     tvh_password = settings['settings']['tvheadend']['password']
     return TVHeadend(tvh_host, tvh_port, tvh_username, tvh_password)
+
+
+def configure_tvh(config):
+    tvh = get_tvh(config)
+    # Update Base Config
+    tvh.save_tvh_config(tvh_config)
+    # Update Image Cache Config
+    tvh.save_imagecache_config(tvh_imagecache_config)
+    # Configure EPG Grab Config
+    tvh.save_epggrab_config(epggrab_config)
+    # Disable all EPG grabbers
+    tvh.disable_all_epg_grabbers()
+    # Enable XMLTV URL grabber
+    tvh.enable_xmltv_url_epg_grabber()
+    # Configure the default recorder profile
+    tvh.configure_default_recorder_profile()

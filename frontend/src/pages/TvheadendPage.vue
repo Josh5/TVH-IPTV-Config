@@ -137,7 +137,7 @@ export default defineComponent({
         }
       }
       axios({
-        method: 'post',
+        method: 'POST',
         url: '/tic-api/save-settings',
         data: data
       }).then((response) => {

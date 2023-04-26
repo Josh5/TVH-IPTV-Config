@@ -81,8 +81,9 @@ class Config:
         self.write_settings_yaml(self.settings)
 
     def update_settings(self, updated_settings):
+        if self.settings is None:
+            self.settings = self.read_config_yaml()
         merge(self.settings, updated_settings)
-        # self.settings.
 
 
 class FlaskConfig(object):
