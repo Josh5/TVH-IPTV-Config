@@ -5,6 +5,13 @@ from flask_apscheduler import APScheduler
 scheduler = APScheduler()
 
 
+def configure_tvh_with_defaults(app):
+    print("Configuring TVH")
+    config = app.config['APP_CONFIG']
+    from backend.tvheadend.tvh_requests import configure_tvh
+    configure_tvh(config)
+
+
 def update_playlists(app):
     print("Updating Playlists")
     config = app.config['APP_CONFIG']
