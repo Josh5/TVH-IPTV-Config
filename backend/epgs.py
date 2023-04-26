@@ -266,17 +266,22 @@ def build_custom_epg(config):
             # Create a <programme> element for the output file and copy the attributes from the input programme
             output_programme = ET.SubElement(output_root, 'programme')
             # Build programmes from DB data (manually create attributes etc.
-            output_programme.set('start', epg_channel_programme.start)
-            output_programme.set('stop', epg_channel_programme.stop)
-            output_programme.set('start_timestamp', epg_channel_programme.start_timestamp)
-            output_programme.set('stop_timestamp', epg_channel_programme.stop_timestamp)
+            if epg_channel_programme.start:
+                output_programme.set('start', epg_channel_programme.start)
+            if epg_channel_programme.stop:
+                output_programme.set('stop', epg_channel_programme.stop)
+            if epg_channel_programme.start_timestamp:
+                output_programme.set('start_timestamp', epg_channel_programme.start_timestamp)
+            if epg_channel_programme.stop_timestamp:
+                output_programme.set('stop_timestamp', epg_channel_programme.stop_timestamp)
             # Set the "channel" ident here
             output_programme.set('channel', str(channel_programmes_data.get('channel')))
             # Loop through all child elements of the input programme and copy them to the output programme
             for child in ['title', 'desc']:
-                # Copy all other child elements to the output programme
-                output_child = ET.SubElement(output_programme, child)
-                output_child.text = getattr(epg_channel_programme, child)
+                # Copy all other child elements to the output programme if they exist
+                if getattr(epg_channel_programme, child):
+                    output_child = ET.SubElement(output_programme, child)
+                    output_child.text = getattr(epg_channel_programme, child)
     # Create an XML file and write the output root element to it
     output_tree = ET.ElementTree(output_root)
     ET.indent(output_tree, space="\t", level=0)
