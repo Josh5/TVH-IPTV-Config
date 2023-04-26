@@ -24,7 +24,7 @@
     <q-card
       v-touch-swipe.touch.left.right="hide"
       :style="$q.platform.is.mobile ? 'max-width: 100vw;' : 'max-width: 95vw;'"
-      style="width:700px;">
+      style="width:1000px;">
 
       <q-card-section class="bg-card-head">
         <div class="row items-center no-wrap">
@@ -95,15 +95,16 @@
 
                         </q-list>-->
 
-            <div class="q-pa-md">
+            <div class="q-pa-none">
               <q-table
+                ref="tableRef"
+                :style="tableStyle"
                 flat bordered
                 title="Streams"
                 :rows="rows"
                 :columns="columns"
                 :visible-columns="visibleColumns"
                 :filter="filter"
-                virtual-scroll
                 v-model:pagination="pagination"
                 :rows-per-page-options="[0]"
                 :loading="loading"
@@ -111,6 +112,8 @@
                 :selected-rows-label="getSelectedString"
                 v-model:selected="selected"
                 selection="multiple"
+                binary-state-sort
+                @request="fetchStreamsList"
 
                 no-data-label="I didn't find anything for you"
                 no-results-label="The filter didn't uncover any results"
@@ -136,12 +139,12 @@
                         <q-td auto-width>
                             <q-checkbox v-model="props.selected" color="primary" />
                         </q-td>
-                        <q-td key="name" :props="props">
+                        <q-td key="name" :props="props" style="max-width: 60px;">
                             <q-avatar rounded>
                                 <img :src="props.row.tvg_logo" style="height:40px; width:auto; max-width:120px;"/>
                             </q-avatar>
                         </q-td>
-                        <q-td key="name" :props="props">
+                        <q-td key="name" :props="props" style="max-width: 200px; white-space: normal; word-wrap: break-word;">
                             {{ props.row.name }}
                         </q-td>
                         <q-td key="playlist_name" :props="props">
@@ -177,9 +180,6 @@ const columns = [
   {name: 'name', required: true, align: 'left', label: 'Name', field: 'name', sortable: false},
   {name: 'playlist_name', required: true, align: 'left', label: 'Playlist', field: 'playlist_name', sortable: false},
 ]
-const pagination = ref({
-  rowsPerPage: 0
-})
 
 export default {
   name: 'ChannelStreamSelectorDialog',
@@ -201,7 +201,10 @@ export default {
     // (don't change its name --> "show")
     show() {
       this.$refs.channelStreamSelectorDialogRef.show();
-      this.fetchStreamsList();
+      this.fetchStreamsList({
+        pagination: this.pagination,
+        filter: this.filter
+      });
     },
 
     // following method is REQUIRED
@@ -228,16 +231,62 @@ export default {
       this.$emit('ok', {selectedStreams: returnItems})
       this.$emit('hide')
     },
+    fetchStreamsList: function (props) {
+      const { page, rowsPerPage, sortBy, descending } = props.pagination
+      const filter = props.filter
 
-    fetchStreamsList: function () {
+      // Show loading animation
+      this.loading = true;
+
+      // get all rows if "All" (0) is selected
+      const fetchCount = rowsPerPage === 0 ? pagination.value.rowsNumber : rowsPerPage
+
+      // calculate starting row of data
+      const startRow = (page - 1) * rowsPerPage
+
+      // Fetch from server
+      let data = {
+        start: startRow,
+        length: fetchCount,
+        search_value: filter,
+        order_by: sortBy,
+        order_direction: descending ? 'desc' : 'asc',
+      }
       // Fetch from server
       this.rows = []
-      this.loading = true
       axios({
-        method: 'GET',
+        method: 'POST',
         url: '/tic-api/playlists/streams',
+        data: data
       }).then((response) => {
-        this.rows = response.data.data.streams
+        // update rowsCount with appropriate value
+        this.pagination.rowsNumber = response.data.data.records_filtered;
+
+        // Set returned data from server results
+        const returnedData = [];
+        for (let i = 0; i < response.data.data.streams.length; i++) {
+          let stream = response.data.data.streams[i];
+          returnedData[i] = {
+            id: stream.id,
+            channel_id: stream.channel_id,
+            name: stream.name,
+            url: stream.url,
+            playlist_id: stream.playlist_id,
+            playlist_name: stream.playlist_name,
+            tvg_logo: stream.tvg_logo,
+          }
+        }
+
+        // clear out existing data and add new
+        this.rows.splice(0, this.rows.length, ...returnedData);
+
+        // update local pagination object
+        this.pagination.page = page;
+        this.pagination.rowsPerPage = rowsPerPage;
+        this.pagination.sortBy = sortBy;
+        this.pagination.descending = descending;
+
+        // Hide loading animation
         this.loading = false
       });
     },
@@ -246,6 +295,13 @@ export default {
     },
     genRowIndex: function (row) {
       return `${row.playlist_id}-${row.name}`
+    }
+  },
+  computed: {
+    tableStyle() {
+        const dialogHeight = this.$refs.channelStreamSelectorDialogRef.$el.offsetHeight;
+        const tableHeight = (dialogHeight - 150)
+        return `height:${tableHeight}px;`
     }
   },
   data: function () {
@@ -260,7 +316,13 @@ export default {
       visibleColumns: ref(['name', 'playlist_name', 'logo']),
       filter: ref(''),
       selected: ref([]),
-      pagination,
+      pagination: ref({
+        sortBy: 'name',
+        descending: true,
+        page: 1,
+        rowsPerPage: 15,
+        rowsNumber: 10
+      }),
       loading: ref(false),
 
     }

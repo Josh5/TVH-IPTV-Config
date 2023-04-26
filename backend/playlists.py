@@ -2,6 +2,9 @@
 # -*- coding:utf-8 -*-
 import os
 import time
+from operator import attrgetter
+from sqlalchemy import or_
+from sqlalchemy.orm import joinedload
 
 from backend import db
 from backend.ffmpeg import ffprobe_file
@@ -172,6 +175,59 @@ def read_stream_details_from_all_playlists():
             'tvg_logo':      result.tvg_logo,
         })
     return playlist_streams
+
+
+def read_filtered_stream_details_from_all_playlists(request_json):
+    results = {
+        'streams':          [],
+        'records_total':    0,
+        'records_filtered': 0,
+    }
+    query = db.session.query(PlaylistStreams)
+    # Get total records count
+    results['records_total'] = query.count()
+    # Filter results by search value
+    search_value = request_json.get('search_value')
+    if search_value:
+        playlist_rows = (
+            db.session.query(Playlist)
+            .where(Playlist.name.contains(search_value))
+            .all()
+        )
+        query = query.options(joinedload(PlaylistStreams.playlist)).where(
+            or_(PlaylistStreams.name.contains(search_value),
+                PlaylistStreams.playlist_id.in_([p.id for p in playlist_rows])))
+    # Record filtered records count
+    results['records_filtered'] = query.count()
+    # Get order by
+    order_by_column = request_json.get('order_by')
+    if not order_by_column:
+        order_by_column = 'name'
+    if request_json.get('order_direction', 'desc') == 'asc':
+        order_by = attrgetter(order_by_column)(PlaylistStreams).asc()
+    else:
+        order_by = attrgetter(order_by_column)(PlaylistStreams).desc()
+    query = query.order_by(order_by)
+    # Limit query results
+    length = request_json.get('length', 0)
+    start = request_json.get('start', 0)
+    if length:
+        query = query.limit(length).offset(start)
+    # Fetch filtered results
+    for result in query.all():
+        results['streams'].append({
+            'id':            result.id,
+            'playlist_id':   result.playlist_id,
+            'playlist_name': result.playlist.name,
+            'name':          result.name,
+            'url':           result.url,
+            'channel_id':    result.channel_id,
+            'group_title':   result.group_title,
+            'tvg_chno':      result.tvg_chno,
+            'tvg_id':        result.tvg_id,
+            'tvg_logo':      result.tvg_logo,
+        })
+    return results
 
 
 def delete_playlist_network_in_tvh(config, net_uuid):
