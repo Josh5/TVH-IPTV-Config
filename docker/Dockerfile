@@ -20,7 +20,7 @@ RUN \
 COPY ./frontend /build
 RUN \
     echo "** Build frontend **" \
-        && npm run build \
+        && npm run build:publish \
     && \
     echo
 
