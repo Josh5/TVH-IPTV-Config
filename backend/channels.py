@@ -275,6 +275,9 @@ def publish_channel_muxes(config):
                     for mux in tvh.list_all_muxes():
                         if mux.get('uuid') == mux_uuid:
                             found = True
+                            if mux.get('scan_result') == 2:
+                                # Scan failed last time, re-run it
+                                run_mux_scan = True
                     if not found:
                         mux_uuid = None
                 if not mux_uuid:
