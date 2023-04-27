@@ -49,7 +49,7 @@ jobs:
         run: |
           echo  "GITHUB_REF:${GITHUB_REF}"
           echo  "GITHUB_REPOSITORY:${GITHUB_REPOSITORY}"
-          DOCKER_IMAGE=docker.io/josh5/tvh-iptv-config
+          DOCKER_IMAGE=docker.io/josh5/tvh-iptv
           VERSION_TAG=${GITHUB_REF#refs/*/}
 
           DOCKER_TAGS=""
@@ -69,7 +69,7 @@ jobs:
           fi
 
           DOCKER_PUSH="true"
-          if [[ ${DOCKER_IMAGE} != 'docker.io/josh5/tvh-iptv-config' ]]; then
+          if [[ ${DOCKER_IMAGE} != 'docker.io/josh5/tvh-iptv' ]]; then
             DOCKER_PUSH="false"
           fi
           if [[ ${VERSION_TAG%/merge} =~ "pr-"* ]]; then
