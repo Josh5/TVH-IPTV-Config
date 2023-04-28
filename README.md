@@ -11,9 +11,9 @@ Tvheadend IPTV Config
 [![GitHub pull requests](https://img.shields.io/github/issues-pr-raw/Josh5/TVH-IPTV-Config?color=009dc7&logo=github&logoColor=%23403d3d&style=flat-square)](https://github.com/Josh5/TVH-IPTV-Config/pulls?q=is%3Aopen+is%3Apr)
 [![GitHub closed pull requests](https://img.shields.io/github/issues-pr-closed-raw/Josh5/TVH-IPTV-Config?color=009dc7&logo=github&logoColor=%23403d3d&style=flat-square)](https://github.com/Josh5/TVH-IPTV-Config/pulls?q=is%3Apr+is%3Aclosed)
 
-[![Docker Stars](https://img.shields.io/docker/stars/josh5/tvh-iptv-config?color=009dc7&logo=docker&logoColor=%23403d3d&style=for-the-badge)](https://hub.docker.com/r/josh5/tvh-iptv-config)
-[![Docker Pulls](https://img.shields.io/docker/pulls/josh5/tvh-iptv-config?color=009dc7&logo=docker&logoColor=%23403d3d&style=for-the-badge)](https://hub.docker.com/r/josh5/tvh-iptv-config)
-[![Docker Image Size (tag)](https://img.shields.io/docker/image-size/josh5/tvh-iptv-config/latest?color=009dc7&label=docker%20image%20size&logo=docker&logoColor=%23403d3d&style=for-the-badge)](https://hub.docker.com/r/josh5/tvh-iptv-config)
+[![Docker Stars](https://img.shields.io/docker/stars/josh5/tvh-iptv?color=009dc7&logo=docker&logoColor=%23403d3d&style=for-the-badge)](https://hub.docker.com/r/josh5/tvh-iptv)
+[![Docker Pulls](https://img.shields.io/docker/pulls/josh5/tvh-iptv?color=009dc7&logo=docker&logoColor=%23403d3d&style=for-the-badge)](https://hub.docker.com/r/josh5/tvh-iptv)
+[![Docker Image Size (tag)](https://img.shields.io/docker/image-size/josh5/tvh-iptv/latest?color=009dc7&label=docker%20image%20size&logo=docker&logoColor=%23403d3d&style=for-the-badge)](https://hub.docker.com/r/josh5/tvh-iptv)
 
 
 

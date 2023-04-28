@@ -2,7 +2,7 @@
 version: "2.1"
 services:
   tvh_iptv:
-    image: josh5/tvh-iptv-config:latest
+    image: josh5/tvh-iptv:latest
     container_name: tvh_iptv
     build:
       context: .
