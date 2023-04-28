@@ -251,7 +251,7 @@ def publish_channel_muxes(config):
     tvh = get_tvh(config)
     # TODO: Add support for settings priority
     # Loop over configured channels
-    existing_uuids = []
+    managed_uuids = []
     results = db.session.query(Channel) \
         .options(joinedload(Channel.tags), joinedload(Channel.sources).subqueryload(ChannelSource.playlist)) \
         .order_by(Channel.number.asc()) \
@@ -309,9 +309,12 @@ def publish_channel_muxes(config):
                 source.tvh_uuid = mux_uuid
                 db.session.commit()
                 # Append to list of current network UUIDs
-                existing_uuids.append(mux_uuid)
+                managed_uuids.append(mux_uuid)
 
-    #  TODO: Remove any muxes that are not managed. DONT DO THIS UNTIL THINGS ARE ALL WORKING!
+    #  Remove any muxes that are not managed.
+    for existing_mux in tvh.list_all_muxes():
+        if existing_mux.get('uuid') not in managed_uuids:
+            tvh.delete_mux(existing_mux.get('uuid'))
 
 
 def delete_channel_muxes(config, mux_uuid):
