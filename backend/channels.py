@@ -5,7 +5,8 @@ import re
 from sqlalchemy.orm import joinedload
 from sqlalchemy import and_, func
 from backend import db
-from backend.models import Channel, ChannelTag, Epg, ChannelSource, Playlist, EpgChannels, PlaylistStreams
+from backend.models import Channel, ChannelTag, Epg, ChannelSource, Playlist, EpgChannels, PlaylistStreams, \
+    channels_tags_association_table
 from backend.playlists import fetch_playlist_streams
 from backend.tvheadend.tvh_requests import get_tvh
 from lib.playlist import generate_iptv_url
@@ -87,6 +88,7 @@ def add_new_channel(config, data, commit=True):
         number=data.get('number'),
     )
     # Add tags
+    channel.tags.clear()
     for tag_name in data.get('tags', []):
         channel_tag = db.session.query(ChannelTag).filter(ChannelTag.name == tag_name).one_or_none()
         if not channel_tag:
@@ -147,7 +149,6 @@ def update_channel(config, channel_id, data):
             channel_tag = ChannelTag(name=tag_name)
             db.session.add(channel_tag)
         new_tags.append(channel_tag)
-    channel.tags.clear()
     channel.tags = new_tags
 
     # Programme Guide
@@ -252,8 +253,16 @@ def delete_channel(config, channel_id):
             # Delete mux from TVH
             delete_channel_muxes(config, source.tvh_uuid)
         db.session.delete(source)
-    # Remove from DB
-    db.session.delete(channel)
+    # Clear out association table. This fixes an issue where if multiple similar entries ended up in that table,
+    # no more updates could be made to the channel.
+    #   > sqlalchemy.orm.exc.StaleDataError:
+    #   > DELETE statement on table 'channels_tags_group' expected to delete 1 row(s); Only 2 were matched.
+    stmt = channels_tags_association_table.delete().where(
+        channels_tags_association_table.c.channel_id == channel_id
+    )
+    db.session.execute(stmt)
+    # Remove channel from DB
+    # db.session.delete(channel)
     db.session.commit()
 
 
