@@ -177,7 +177,7 @@ import {ref} from "vue";
 
 const columns = [
   {name: 'tvg_logo', required: true, align: 'left', label: 'Logo', field: 'tvg_logo', sortable: false},
-  {name: 'name', required: true, align: 'left', label: 'Name', field: 'name', sortable: false},
+  {name: 'name', required: true, align: 'left', label: 'Name', field: 'name', sortable: true},
   {name: 'playlist_name', required: true, align: 'left', label: 'Playlist', field: 'playlist_name', sortable: false},
 ]
 
@@ -318,7 +318,7 @@ export default {
       selected: ref([]),
       pagination: ref({
         sortBy: 'name',
-        descending: true,
+        descending: false,
         page: 1,
         rowsPerPage: 15,
         rowsNumber: 10
