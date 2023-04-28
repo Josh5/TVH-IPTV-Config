@@ -5,7 +5,8 @@ from backend.api import blueprint
 from flask import request, jsonify, current_app
 
 from backend.channels import read_config_all_channels, add_new_channel, read_config_one_channel, update_channel, \
-    publish_channel_muxes, map_all_services, delete_channel, cleanup_old_channels, add_bulk_channels
+    publish_channel_muxes, map_all_services, delete_channel, cleanup_old_channels, add_bulk_channels, \
+    publish_bulk_channels_to_tvh
 from backend.epgs import build_custom_epg, run_tvh_epg_grabbers
 
 
@@ -22,7 +23,8 @@ def api_get_channels():
 
 @blueprint.route('/tic-api/channels/new', methods=['POST'])
 def api_add_new_channel():
-    add_new_channel(request.json)
+    config = current_app.config['APP_CONFIG']
+    add_new_channel(config, request.json)
     return jsonify(
         {
             "success": True
@@ -45,9 +47,6 @@ def api_get_channel_config(channel_id):
 def api_set_config_channels(channel_id):
     config = current_app.config['APP_CONFIG']
     update_channel(config, channel_id, request.json)
-    # # Update custom epg
-    # update_custom_epg(config)
-    # TODO: Trigger an update of the EPG config in TVheadend
     return jsonify(
         {
             "success": True
@@ -70,7 +69,8 @@ def api_set_config_multiple_channels():
 
 @blueprint.route('/tic-api/channels/settings/multiple/add', methods=['POST'])
 def api_add_multiple_channels():
-    add_bulk_channels(request.json.get('channels', []))
+    config = current_app.config['APP_CONFIG']
+    add_bulk_channels(config, request.json.get('channels', []))
     return jsonify(
         {
             "success": True
@@ -96,6 +96,8 @@ def api_publish_channels():
     build_custom_epg(config)
     # Trigger an update in TVH to fetch the latest EPG
     run_tvh_epg_grabbers(config)
+    # Configure TVH with the list of channels
+    publish_bulk_channels_to_tvh(config)
     # Configure TVH with muxes
     publish_channel_muxes(config)
     # Map all services

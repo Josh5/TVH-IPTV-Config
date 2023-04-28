@@ -119,6 +119,7 @@ class Channel(db.Model):
     name = db.Column(db.String(500), index=True, unique=False)
     logo_url = db.Column(db.String(500), index=True, unique=False)
     number = db.Column(db.Integer, index=True, unique=False)
+    tvh_uuid = db.Column(db.String(500), index=True, unique=False)
 
     # Link with a guide
     guide_id = db.Column(db.Integer, db.ForeignKey('epgs.id'))

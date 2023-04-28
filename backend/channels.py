@@ -79,7 +79,7 @@ def read_config_one_channel(channel_id):
     return return_item
 
 
-def add_new_channel(data, commit=True):
+def add_new_channel(config, data, commit=True):
     channel = Channel(
         enabled=data.get('enabled'),
         name=data.get('name'),
@@ -117,6 +117,11 @@ def add_new_channel(data, commit=True):
     if new_sources:
         channel.sources.clear()
         channel.sources = new_sources
+
+    # Publish changes to TVH
+    channel_uuid = publish_channel_to_tvh(config, channel)
+    # Save network UUID against playlist in settings
+    channel.tvh_uuid = channel_uuid
 
     # Add new row and commit
     db.session.add(channel)
@@ -187,11 +192,16 @@ def update_channel(config, channel_id, data):
         channel.sources.clear()
         channel.sources = new_sources
 
+    # Publish changes to TVH
+    channel_uuid = publish_channel_to_tvh(config, channel)
+    # Save network UUID against playlist in settings
+    channel.tvh_uuid = channel_uuid
+
     # Commit
     db.session.commit()
 
 
-def add_bulk_channels(data):
+def add_bulk_channels(config, data):
     channel_number = db.session.query(func.max(Channel.number)).scalar()
     if channel_number is None:
         channel_number = 999
@@ -228,7 +238,7 @@ def add_bulk_channels(data):
         })
         # Create new channel from data.
         # Delay commit of transaction until all new channels are created
-        add_new_channel(new_channel_data, commit=False)
+        add_new_channel(config, new_channel_data, commit=False)
     # Commit all new channels
     db.session.commit()
 
@@ -245,6 +255,56 @@ def delete_channel(config, channel_id):
     # Remove from DB
     db.session.delete(channel)
     db.session.commit()
+
+
+def publish_channel_to_tvh(config, channel):
+    tvh = get_tvh(config)
+    # Check if channel exists with a matching UUID and create it if not
+    channel_uuid = channel.tvh_uuid
+    if channel_uuid:
+        found = False
+        for tvh_channel in tvh.list_all_channels():
+            if tvh_channel.get('uuid') == channel_uuid:
+                found = True
+        if not found:
+            channel_uuid = None
+    if not channel_uuid:
+        # No channel exists, create one
+        channel_uuid = tvh.create_channel(channel.name, channel.number, channel.logo_url)
+    channel_conf = {
+        'enabled': True,
+        'uuid':    channel_uuid,
+        "name":    channel.name,
+        "number":  channel.number,
+        "icon":    channel.logo_url
+    }
+    # TODO: Add channel tags
+    # channel_conf["tags"] = result.name
+    tvh.idnode_save(channel_conf)
+    return channel_uuid
+
+
+def publish_bulk_channels_to_tvh(config):
+    tvh = get_tvh(config)
+    # Loop over configured channels
+    managed_uuids = []
+    results = db.session.query(Channel) \
+        .options(joinedload(Channel.tags), joinedload(Channel.sources).subqueryload(ChannelSource.playlist)) \
+        .order_by(Channel.number.asc()) \
+        .all()
+    # Fetch existing channels
+    for result in results:
+        channel_uuid = publish_channel_to_tvh(config, result)
+        # Save network UUID against playlist in settings
+        result.tvh_uuid = channel_uuid
+        db.session.commit()
+        # Append to list of current network UUIDs
+        managed_uuids.append(channel_uuid)
+
+    #  Remove any muxes that are not managed.
+    for existing_channel in tvh.list_all_channels():
+        if existing_channel.get('uuid') not in managed_uuids:
+            tvh.delete_channels(existing_channel.get('uuid'))
 
 
 def publish_channel_muxes(config):
@@ -331,6 +391,4 @@ def cleanup_old_channels(config):
     tvh = get_tvh(config)
     for channel in tvh.list_all_channels():
         if channel.get('name') == "{name-not-set}":
-            tvh.delete_channels(channel.get('uuid'))
-        elif not channel.get('services', []):
             tvh.delete_channels(channel.get('uuid'))

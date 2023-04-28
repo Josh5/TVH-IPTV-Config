@@ -22,6 +22,7 @@ api_idnode_save = "idnode/save"
 api_idnode_delete = "idnode/delete"
 api_hardware_tree = "hardware/tree"
 api_list_all_channels = "channel/grid"
+api_create_channel = "channel/create"
 api_services_mapper = "service/mapper/save"
 api_services_list = "service/list"
 api_int_epggrab_run = "epggrab/internal/rerun"
@@ -49,6 +50,15 @@ network_template = {
     "bouquet":      False, "max_bandwidth": 0, "nid": 0, "ignore_chnum": True, "satip_source": 0,
     "charset":      "", "use_libav": False, "scan_create": False, "spriority": 1, "icon_url": "",
     "idlescan":     False, "sid_chnum": False, "localtime": 0, "service_sid": 0, "remove_scrambled": True
+}
+channel_template = {
+    "enabled":      True,
+    "name":         "CHANNEL_NAME",
+    "number":       "CHANNEL_NUMBER",
+    "tags":         "CHANNEL_TAGS",
+    "icon":         "CHANNEL_ICON",
+    "services":     "", "autoname": False, "epgauto": True, "epglimit": 0, "epggrab": "", "dvr_pre_time": 0,
+    "dvr_pst_time": 0, "remote_timeshift": False, "epg_running": 0, "epg_parent": ""
 }
 mux_template = {
     "uuid":              "MUX_UUID",
@@ -280,6 +290,21 @@ class TVHeadend:
         except json.JSONDecodeError:
             json_list = {"entries": []}
         return json_list["entries"]
+
+    def create_channel(self, channel_name, channel_number, logo_url):
+        url = f"{self.api_url}/{api_create_channel}"
+        channel_conf = channel_template.copy()
+        channel_conf["name"] = channel_name
+        channel_conf["number"] = channel_number
+        channel_conf["icon"] = logo_url
+        # Send request to server
+        post_data = {"conf": json.dumps(channel_conf)}
+        response = self.__get(url, payload=post_data)
+        try:
+            json_list = json.loads(response)
+        except json.JSONDecodeError:
+            json_list = {}
+        return json_list.get('uuid')
 
     def delete_channels(self, chan_uuid):
         self.idnode_delete(chan_uuid)

@@ -7,7 +7,7 @@ from flask_minify import Minify
 from sys import exit
 
 from backend.api.tasks import scheduler, update_playlists, map_new_tvh_services, update_epgs, rebuild_custom_epg, \
-    update_tvh_muxes, configure_tvh_with_defaults
+    update_tvh_muxes, configure_tvh_with_defaults, update_tvh_channels
 from lib.config import config_dict
 from backend import create_app, db
 
@@ -47,6 +47,7 @@ def every_5_mins():
 def every_60_mins():
     print("Running hourly scheduled task 'do_60_mins'")
     with app.app_context():
+        update_tvh_channels(app)
         update_tvh_muxes(app)
 
 

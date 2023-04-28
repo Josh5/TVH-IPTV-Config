@@ -34,6 +34,13 @@ def rebuild_custom_epg(app):
     run_tvh_epg_grabbers(config)
 
 
+def update_tvh_channels(app):
+    print("Updating channels in TVH")
+    config = app.config['APP_CONFIG']
+    from backend.channels import publish_bulk_channels_to_tvh
+    publish_bulk_channels_to_tvh(config)
+
+
 def update_tvh_muxes(app):
     print("Updating muxes in TVH")
     config = app.config['APP_CONFIG']
