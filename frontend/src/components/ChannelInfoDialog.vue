@@ -402,7 +402,7 @@ export default {
         this.epgSourceName = response.data.data.guide.epg_name
         this.epgChannel = response.data.data.guide.channel_id
         // Fetch list of channel sources and pipe to a list ordered by the 'priority'
-        this.listOfChannelSources = response.data.data.sources.sort((a, b) => a.priority - b.priority);
+        this.listOfChannelSources = response.data.data.sources.sort((a, b) => b.priority - a.priority);
         // Enable saving the form
         this.canSave = true;
       });

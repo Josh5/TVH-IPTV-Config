@@ -60,7 +60,7 @@ def read_config_one_channel(channel_id):
             sources.append({
                 'playlist_id':   source.playlist_id,
                 'playlist_name': source.playlist.name,
-                'priority':      1,
+                'priority':      source.priority,
                 'stream_name':   source.playlist_stream_name,
             })
         return_item = {
@@ -162,6 +162,7 @@ def update_channel(config, channel_id, data):
     # Sources
     new_source_ids = []
     new_sources = []
+    priority = len(data.get('sources', []))
     for source_info in data.get('sources', []):
         channel_source = db.session.query(ChannelSource) \
             .filter(and_(ChannelSource.channel_id == channel.id,
@@ -180,6 +181,10 @@ def update_channel(config, channel_id, data):
                 playlist_stream_name=source_info['stream_name'],
                 playlist_stream_url=playlist_stream['url'],
             )
+        # Update source priority (higher means higher priority
+        channel_source.priority = priority
+        priority -= 1
+        # Append to list of new sources
         new_sources.append(channel_source)
     # Remove all old entries in the channel_sources table
     current_sources = db.session.query(ChannelSource).filter_by(channel_id=channel.id)
@@ -379,7 +384,8 @@ def publish_channel_muxes(config):
                     'iptv_sname':     result.name,
                     'iptv_muxname':   service_name,
                     'channel_number': result.number,
-                    'iptv_epgid':     channel_id
+                    'iptv_epgid':     channel_id,
+                    "priority":       source.priority, "spriority": source.priority,
                 }
                 if run_mux_scan:
                     mux_conf['scan_state'] = 1
