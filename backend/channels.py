@@ -16,6 +16,7 @@ def read_config_all_channels():
     return_list = []
     for result in db.session.query(Channel) \
             .options(joinedload(Channel.tags), joinedload(Channel.sources).subqueryload(ChannelSource.playlist)) \
+            .order_by(Channel.id) \
             .all():
         tags = []
         for tag in result.tags:
@@ -50,6 +51,7 @@ def read_config_one_channel(channel_id):
     result = db.session.query(Channel) \
         .options(joinedload(Channel.tags), joinedload(Channel.sources).subqueryload(ChannelSource.playlist)) \
         .filter(Channel.id == channel_id) \
+        .order_by(Channel.id) \
         .one()
     if result:
         tags = []
@@ -306,7 +308,7 @@ def publish_bulk_channels_to_tvh(config):
     managed_uuids = []
     results = db.session.query(Channel) \
         .options(joinedload(Channel.tags), joinedload(Channel.sources).subqueryload(ChannelSource.playlist)) \
-        .order_by(Channel.number.asc()) \
+        .order_by(Channel.id, Channel.number.asc()) \
         .all()
     # Fetch existing channels
     print("Publishing all channels to TVH")
@@ -333,7 +335,7 @@ def publish_channel_muxes(config):
     managed_uuids = []
     results = db.session.query(Channel) \
         .options(joinedload(Channel.tags), joinedload(Channel.sources).subqueryload(ChannelSource.playlist)) \
-        .order_by(Channel.number.asc()) \
+        .order_by(Channel.id, Channel.number.asc()) \
         .all()
     existing_muxes = tvh.list_all_muxes()
     for result in results:
