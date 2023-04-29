@@ -68,5 +68,6 @@ RUN python3 -m pip install --no-cache-dir -r requirements.txt
 COPY docker/overlay/ /
 COPY --from=frontend_build_stage /build/dist/spa /app/frontend/dist/spa
 COPY backend /app/backend
+COPY migrations /app/migrations
 COPY lib /app/lib
 COPY run.py /app/run.py
