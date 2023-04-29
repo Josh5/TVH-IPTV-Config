@@ -26,7 +26,7 @@ def read_config_all_channels():
             sources.append({
                 'playlist_id':   source.playlist_id,
                 'playlist_name': source.playlist.name,
-                'priority':      1,
+                'priority':      source.priority,
                 'stream_name':   source.playlist_stream_name,
             })
         return_list.append({
@@ -330,7 +330,6 @@ def publish_bulk_channels_to_tvh(config):
 
 def publish_channel_muxes(config):
     tvh = get_tvh(config)
-    # TODO: Add support for settings priority
     # Loop over configured channels
     managed_uuids = []
     results = db.session.query(Channel) \
