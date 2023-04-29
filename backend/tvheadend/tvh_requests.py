@@ -306,7 +306,7 @@ class TVHeadend:
             json_list = {}
         return json_list.get('uuid')
 
-    def delete_channels(self, chan_uuid):
+    def delete_channel(self, chan_uuid):
         self.idnode_delete(chan_uuid)
 
 

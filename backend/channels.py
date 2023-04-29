@@ -267,6 +267,7 @@ def delete_channel(config, channel_id):
 
 
 def publish_channel_to_tvh(config, channel):
+    print(f"Publishing channel to TVH - {channel.name}")
     tvh = get_tvh(config)
     # Check if channel exists with a matching UUID and create it if not
     channel_uuid = channel.tvh_uuid
@@ -302,6 +303,7 @@ def publish_bulk_channels_to_tvh(config):
         .order_by(Channel.number.asc()) \
         .all()
     # Fetch existing channels
+    print("Publishing all channels to TVH")
     for result in results:
         channel_uuid = publish_channel_to_tvh(config, result)
         # Save network UUID against playlist in settings
@@ -311,9 +313,11 @@ def publish_bulk_channels_to_tvh(config):
         managed_uuids.append(channel_uuid)
 
     #  Remove any muxes that are not managed.
+    print("Cleaning up TVH channels not managed by TVH-IPTV-Config")
     for existing_channel in tvh.list_all_channels():
         if existing_channel.get('uuid') not in managed_uuids:
-            tvh.delete_channels(existing_channel.get('uuid'))
+            print(f"Removing TVH channel UUID - {existing_channel.get('uuid')}")
+            tvh.delete_channel(existing_channel.get('uuid'))
 
 
 def publish_channel_muxes(config):
@@ -392,12 +396,14 @@ def delete_channel_muxes(config, mux_uuid):
 
 
 def map_all_services(config):
+    print("Executing TVH Map all service")
     tvh = get_tvh(config)
     tvh.map_all_services_to_channels()
 
 
 def cleanup_old_channels(config):
+    print("Cleaning up old TVH channels")
     tvh = get_tvh(config)
     for channel in tvh.list_all_channels():
         if channel.get('name') == "{name-not-set}":
-            tvh.delete_channels(channel.get('uuid'))
+            tvh.delete_channel(channel.get('uuid'))
