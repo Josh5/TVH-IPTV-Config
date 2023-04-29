@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
+import time
 
 from backend.api import blueprint
 from flask import request, jsonify, current_app
@@ -96,6 +97,8 @@ def api_publish_channels():
     build_custom_epg(config)
     # Trigger an update in TVH to fetch the latest EPG
     run_tvh_epg_grabbers(config)
+    # Sleep for a second for TVH to start the download (makes things much faster)
+    time.sleep(1)
     # Configure TVH with the list of channels
     publish_bulk_channels_to_tvh(config)
     # Configure TVH with muxes

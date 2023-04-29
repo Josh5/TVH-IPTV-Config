@@ -61,13 +61,12 @@ channel_template = {
     "dvr_pst_time": 0, "remote_timeshift": False, "epg_running": 0, "epg_parent": ""
 }
 mux_template = {
-    "uuid":              "MUX_UUID",
     "iptv_url":          "IPTV_URL",
     "iptv_icon":         "ICON",
     "iptv_sname":        "SERVICE_NAME",
     "iptv_muxname":      "NETWORK - SERVICE_NAME",
-    "channel_number":    "CHANNEL_NUMBER",
-    "iptv_epgid":        "CHANNEL_NUMBER",
+    "channel_number":    "0",
+    "iptv_epgid":        "0",
     "iptv_tags":         "",
     "enabled":           0,
     "epg":               1, "epg_module_id": "", "use_libav": 0, "iptv_atsc": False, "scan_state": 0, "charset": "",
@@ -87,7 +86,7 @@ default_recorder_profile_template = {
 }
 
 
-class TVHeadend:
+class Tvheadend:
 
     def __init__(self, host, port, admin_username, admin_password):
         self.api_url = f"http://{host}:{port}/api"
@@ -106,7 +105,7 @@ class TVHeadend:
             if rformat == 'json':
                 return r.json()
             return r.content
-        raise Exception(f"GET Failed to TVH API - CODE:{r.status_code} - CONTENT:{r.content}")
+        raise Exception(f"GET Failed to TVH API - CODE:{r.status_code} - CONTENT:{r.content} - PAYLOAD:{payload}")
 
     def __post(self, url, payload=None, rformat='content'):
         headers = self.default_headers
@@ -115,7 +114,7 @@ class TVHeadend:
             if rformat == 'json':
                 return r.json()
             return r.content
-        raise Exception(f"POST Failed to TVH API - CODE:{r.status_code} - CONTENT:{r.content}")
+        raise Exception(f"POST Failed to TVH API - CODE:{r.status_code} - CONTENT:{r.content} - PAYLOAD:{payload}")
 
     def __json(self, url, payload=None):
         headers = self.default_headers
@@ -198,9 +197,8 @@ class TVHeadend:
 
     def list_cur_networks(self):
         url = f"{self.api_url}/{api_view_networks}"
-        post_data = {}
-        post_data["sort"] = "networkname"
-        post_data["dir"] = "ASC"
+        post_data = {"start":    "0", "limit": "999999999", "sort": "networkname", "dir": "ASC", "groupBy": "false",
+                     "groupDir": "ASC"}
         response = self.__post(url, payload=post_data)
         try:
             json_list = json.loads(response)
@@ -227,11 +225,9 @@ class TVHeadend:
     def delete_network(self, net_uuid):
         self.idnode_delete(net_uuid)
 
-    def list_all_muxes(self, sort="name"):
+    def list_all_muxes(self):
         url = f"{self.api_url}/{api_view_muxes}"
-        post_data = {}
-        post_data["sort"] = sort
-        post_data["dir"] = "ASC"
+        post_data = {"start": "0", "limit": "999999999", "sort": "name", "dir": "ASC"}
         response = self.__post(url, payload=post_data)
         try:
             json_list = json.loads(response)
@@ -251,12 +247,14 @@ class TVHeadend:
         return json_list.get('uuid')
 
     def delete_mux(self, mux_uuid):
-        self.idnode_delete(mux_uuid)
+        url = f"{self.api_url}/{api_idnode_delete}"
+        self.__get(url, payload={"uuid": mux_uuid})
 
     def list_all_services(self):
         url = f"{self.api_url}/{api_list_all_services}"
-        data = {"sort": "svcname", "dir": "ASC"}
-        response = self.__post(url, payload=data)
+        post_data = {"start":    "0", "limit": "999999999", "sort": "svcname", "dir": "ASC", "groupBy": "false",
+                     "groupDir": "ASC"}
+        response = self.__post(url, payload=post_data)
         try:
             json_list = json.loads(response)
         except json.JSONDecodeError:
@@ -283,8 +281,8 @@ class TVHeadend:
 
     def list_all_channels(self):
         url = f"{self.api_url}/{api_list_all_channels}"
-        data = {"sort": "services", "dir": "ASC", "all": 1}
-        response = self.__post(url, payload=data)
+        post_data = {"start": "0", "limit": "999999999", "sort": "services", "dir": "ASC", "all": 1}
+        response = self.__post(url, payload=post_data)
         try:
             json_list = json.loads(response)
         except json.JSONDecodeError:
@@ -307,7 +305,8 @@ class TVHeadend:
         return json_list.get('uuid')
 
     def delete_channel(self, chan_uuid):
-        self.idnode_delete(chan_uuid)
+        url = f"{self.api_url}/{api_idnode_delete}"
+        self.__get(url, payload={"uuid": chan_uuid})
 
 
 def get_tvh(config):
@@ -316,7 +315,7 @@ def get_tvh(config):
     tvh_port = settings['settings']['tvheadend']['port']
     tvh_username = settings['settings']['tvheadend']['username']
     tvh_password = settings['settings']['tvheadend']['password']
-    return TVHeadend(tvh_host, tvh_port, tvh_username, tvh_password)
+    return Tvheadend(tvh_host, tvh_port, tvh_username, tvh_password)
 
 
 def configure_tvh(config):

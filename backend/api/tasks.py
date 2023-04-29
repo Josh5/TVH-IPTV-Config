@@ -34,6 +34,13 @@ def rebuild_custom_epg(app):
     run_tvh_epg_grabbers(config)
 
 
+def update_tvh_networks(app):
+    print("Updating channels in TVH")
+    config = app.config['APP_CONFIG']
+    from backend.playlists import publish_playlist_networks
+    publish_playlist_networks(config)
+
+
 def update_tvh_channels(app):
     print("Updating channels in TVH")
     config = app.config['APP_CONFIG']
