@@ -29,8 +29,14 @@ def update_epgs(app):
 def rebuild_custom_epg(app):
     print("Rebuilding custom EPG")
     config = app.config['APP_CONFIG']
-    from backend.epgs import build_custom_epg, run_tvh_epg_grabbers
+    from backend.epgs import build_custom_epg
     build_custom_epg(config)
+
+
+def update_tvh_epg(app):
+    print("Triggering update of TVH EPG")
+    config = app.config['APP_CONFIG']
+    from backend.epgs import run_tvh_epg_grabbers
     run_tvh_epg_grabbers(config)
 
 
