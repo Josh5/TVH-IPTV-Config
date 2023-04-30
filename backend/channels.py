@@ -269,7 +269,7 @@ def delete_channel(config, channel_id):
     )
     db.session.execute(stmt)
     # Remove channel from DB
-    # db.session.delete(channel)
+    db.session.delete(channel)
     db.session.commit()
 
 
