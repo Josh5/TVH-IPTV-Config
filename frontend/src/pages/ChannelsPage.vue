@@ -24,16 +24,6 @@
                   label="Import Channels from playlist"/>
               </q-btn-group>
             </div>
-            <div class="col-auto" style="max-width: 400px">
-              <q-btn-group>
-                <q-btn
-                  @click="publishToTvheadend()"
-                  class=""
-                  color="primary"
-                  icon-right="save"
-                  label="Publish to TVheadend"/>
-              </q-btn-group>
-            </div>
           </div>
         </q-card-section>
 
@@ -356,68 +346,42 @@ export default defineComponent({
       }).onOk((payload) => {
         if (typeof payload.selectedStreams !== 'undefined' && payload.selectedStreams !== null) {
           // Add selected stream to list
-        this.$q.loading.show()
+          this.$q.loading.show()
           // Send changes to backend
           let data = {
-              channels: []
+            channels: []
           }
           console.log(payload.selectedStreams)
           for (const i in payload.selectedStreams) {
             data.channels.push({
-                playlist_id: payload.selectedStreams[i].playlist_id,
-                playlist_name: payload.selectedStreams[i].playlist_name,
-                stream_id: payload.selectedStreams[i].id,
-                stream_name: payload.selectedStreams[i].stream_name,
+              playlist_id: payload.selectedStreams[i].playlist_id,
+              playlist_name: payload.selectedStreams[i].playlist_name,
+              stream_id: payload.selectedStreams[i].id,
+              stream_name: payload.selectedStreams[i].stream_name,
             });
           }
           axios({
-              method: 'POST',
-              url: '/tic-api/channels/settings/multiple/add',
-              data: data
+            method: 'POST',
+            url: '/tic-api/channels/settings/multiple/add',
+            data: data
           }).then((response) => {
-              // Reload from backend
-              this.fetchChannels();
-              this.$q.loading.hide()
+            // Reload from backend
+            this.fetchChannels();
+            this.$q.loading.hide()
           }).catch(() => {
-              // Notify failure
-              this.$q.notify({
+            // Notify failure
+            this.$q.notify({
               color: 'negative',
               position: 'top',
               message: "An error was encountered while adding new channels.",
               icon: 'report_problem',
               actions: [{icon: 'close', color: 'white'}]
-              })
-              this.$q.loading.hide()
+            })
+            this.$q.loading.hide()
           });
         }
       }).onDismiss(() => {
       })
-    },
-    publishToTvheadend: function () {
-      // Publish the channels list to TVheadend
-      this.$q.loading.show()
-      axios({
-        method: 'POST',
-        url: '/tic-api/channels/publish'
-      }).then((response) => {
-        this.$q.loading.hide()
-        this.$q.notify({
-          color: 'positive',
-          position: 'top',
-          icon: 'cloud_done',
-          message: 'Applied',
-          timeout: 200
-        })
-      }).catch(() => {
-        this.$q.loading.hide()
-        this.$q.notify({
-          color: 'negative',
-          position: 'top',
-          message: "Failed to apply configuration to TVheadend",
-          icon: 'report_problem',
-          actions: [{icon: 'close', color: 'white'}]
-        })
-      });
     },
     saveChannel: function () {
       // Send changes to backend

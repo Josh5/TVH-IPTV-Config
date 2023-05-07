@@ -1,8 +1,69 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
+import threading
+from queue import Queue
 from flask_apscheduler import APScheduler
 
 scheduler = APScheduler()
+
+
+class TaskQueueBroker:
+    __instance = None
+    __lock = threading.Lock()
+
+    def __init__(self):
+        if TaskQueueBroker.__instance is not None:
+            raise Exception("Singleton instance already exists!")
+        else:
+            # Create the singleton instance
+            TaskQueueBroker.__instance = self
+            # Create the queue
+            self.__running_task = None
+            self.__task_queue = Queue()
+            self.__task_names = set()
+
+    @staticmethod
+    def get_instance():
+        # Ensure no other threads can access this method at the same time
+        with TaskQueueBroker.__lock:
+            # If the singleton instance has not been created yet, create it
+            if TaskQueueBroker.__instance is None:
+                TaskQueueBroker()
+        return TaskQueueBroker.__instance
+
+    def add_task(self, task):
+        if task['name'] in self.__task_names:
+            print("DEBUG: Task already queued. Ignoring")
+            return
+        self.__task_queue.put(task)
+        self.__task_names.add(task['name'])
+
+    def get_next_task(self):
+        # Get the next task from the queue
+        if not self.__task_queue.empty():
+            task = self.__task_queue.get()
+            self.__task_names.remove(task['name'])
+        else:
+            return None
+
+    def execute_tasks(self):
+        if self.__running_task is not None:
+            print("WARNING! Another process is already running scheduled tasks")
+        if self.__task_queue.empty():
+            # print("No pending tasks found")
+            return
+        self.__running_task = True
+        while not self.__task_queue.empty():
+            task = self.__task_queue.get()
+            self.__task_names.remove(task['name'])
+            # Execute task here
+            try:
+                print(f"Executing task - {task['name']}")
+                task['function'](*task['args'])
+            except Exception as e:
+                print(f"EXCEPTION! Failed to run task {task['name']}")
+                print(str(e))
+        self.__running_task = None
 
 
 def configure_tvh_with_defaults(app):
