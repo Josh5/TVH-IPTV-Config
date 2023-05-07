@@ -60,6 +60,7 @@ class EpgChannelProgrammes(db.Model):
     stop = db.Column(db.String(256), index=False, unique=False)
     start_timestamp = db.Column(db.String(256), index=False, unique=False)
     stop_timestamp = db.Column(db.String(256), index=False, unique=False)
+    categories = db.Column(db.String(256), index=True, unique=False)
 
     # Link with an epg channel
     epg_channel_id = db.Column(db.Integer, db.ForeignKey('epg_channels.id'), nullable=False)

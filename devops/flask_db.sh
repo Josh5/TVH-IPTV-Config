@@ -29,10 +29,7 @@ export HOME_DIR="${PWD}/config/"
 
 mkdir -p "${HOME_DIR}"
 
-# Setup database
-flask db upgrade
-
-# Run main process
-python3 ./run.py
+# Run flask DB command
+flask db ${@}
 
 popd || exit 1

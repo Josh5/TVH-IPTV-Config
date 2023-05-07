@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
+import json
 import os
 import re
 import time
@@ -158,6 +159,9 @@ def store_epg_programmes(config, epg_id, channel_id_list):
             # Parse sub-elements
             title = programme.findtext("title", default=None)
             desc = programme.findtext("desc", default=None)
+            categories = []
+            for category in programme.findall("category"):
+                categories.append(category.text)
             # Create new line entry for the programmes table
             items.append(
                 EpgChannelProgrammes(
@@ -169,6 +173,7 @@ def store_epg_programmes(config, epg_id, channel_id_list):
                     stop=stop,
                     start_timestamp=start_timestamp,
                     stop_timestamp=stop_timestamp,
+                    categories=json.dumps(categories)
                 )
             )
     # Save all new
@@ -247,6 +252,7 @@ def build_custom_epg(config):
                 .all()
             all_channel_programmes_data.append({
                 'channel':    channel_id,
+                'tags':       [tag.name for tag in result.tags],
                 'programmes': programmes
             })
     # Loop over all configured channels
@@ -282,6 +288,15 @@ def build_custom_epg(config):
                 if getattr(epg_channel_programme, child):
                     output_child = ET.SubElement(output_programme, child)
                     output_child.text = getattr(epg_channel_programme, child)
+            # Loop through all categories for this programme and add them as "category" child elements
+            if epg_channel_programme.categories:
+                for category in json.loads(epg_channel_programme.categories):
+                    output_child = ET.SubElement(output_programme, 'category')
+                    output_child.text = category
+            # Loop through all tags for this channel and add them as "category" child elements
+            for tag in channel_programmes_data.get('tags', []):
+                output_child = ET.SubElement(output_programme, 'category')
+                output_child.text = tag
     # Create an XML file and write the output root element to it
     output_tree = ET.ElementTree(output_root)
     ET.indent(output_tree, space="\t", level=0)
