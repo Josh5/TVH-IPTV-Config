@@ -115,6 +115,7 @@
                   v-else
                   v-model.number="connections"
                   type="number"
+                  label="Connections"
                   style="max-width: 200px"
                 />
               </div>
