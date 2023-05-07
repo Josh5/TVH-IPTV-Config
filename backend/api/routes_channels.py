@@ -1,14 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
-import time
-
 from backend.api import blueprint
 from flask import request, jsonify, current_app
 
 from backend.channels import read_config_all_channels, add_new_channel, read_config_one_channel, update_channel, \
-    publish_channel_muxes, map_all_services, delete_channel, cleanup_old_channels, add_bulk_channels, \
-    publish_bulk_channels_to_tvh
-from backend.epgs import build_custom_epg, run_tvh_epg_grabbers
+    delete_channel, add_bulk_channels, queue_background_chanel_update_tasks
 
 
 @blueprint.route('/tic-api/channels/get', methods=['GET'])
@@ -26,6 +22,7 @@ def api_get_channels():
 def api_add_new_channel():
     config = current_app.config['APP_CONFIG']
     add_new_channel(config, request.json)
+    queue_background_chanel_update_tasks(config)
     return jsonify(
         {
             "success": True
@@ -48,6 +45,7 @@ def api_get_channel_config(channel_id):
 def api_set_config_channels(channel_id):
     config = current_app.config['APP_CONFIG']
     update_channel(config, channel_id, request.json)
+    queue_background_chanel_update_tasks(config)
     return jsonify(
         {
             "success": True
@@ -61,6 +59,7 @@ def api_set_config_multiple_channels():
     for channel_id in request.json.get('channels', {}):
         channel = request.json['channels'][channel_id]
         update_channel(config, channel_id, channel)
+    queue_background_chanel_update_tasks(config)
     return jsonify(
         {
             "success": True
@@ -72,6 +71,7 @@ def api_set_config_multiple_channels():
 def api_add_multiple_channels():
     config = current_app.config['APP_CONFIG']
     add_bulk_channels(config, request.json.get('channels', []))
+    queue_background_chanel_update_tasks(config)
     return jsonify(
         {
             "success": True
@@ -86,30 +86,5 @@ def api_delete_config_channels(channel_id):
     return jsonify(
         {
             "success": True
-        }
-    )
-
-
-@blueprint.route('/tic-api/channels/publish', methods=['POST'])
-def api_publish_channels():
-    config = current_app.config['APP_CONFIG']
-    # Generate 'epg.xml' file in .tvh_iptv_config directory
-    build_custom_epg(config)
-    # Trigger an update in TVH to fetch the latest EPG
-    run_tvh_epg_grabbers(config)
-    # Sleep for a second for TVH to start the download (makes things much faster)
-    time.sleep(1)
-    # Configure TVH with the list of channels
-    publish_bulk_channels_to_tvh(config)
-    # Configure TVH with muxes
-    publish_channel_muxes(config)
-    # Map all services
-    # TODO: Create a thread that watches for new services every 60 seconds and maps them automatically
-    map_all_services(config)
-    # Clear out old channels
-    cleanup_old_channels(config)
-    return jsonify(
-        {
-            "success": True,
         }
     )

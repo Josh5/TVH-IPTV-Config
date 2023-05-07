@@ -2,6 +2,7 @@
 # -*- coding:utf-8 -*-
 import os
 
+from backend.channels import queue_background_chanel_update_tasks
 from backend.playlists import read_config_all_playlists, add_new_playlist, read_config_one_playlist, update_playlist, \
     delete_playlist, import_playlist_data, read_stream_details_from_all_playlists, probe_playlist_stream, \
     read_filtered_stream_details_from_all_playlists
@@ -60,6 +61,7 @@ def api_set_config_playlists(playlist_id):
 def api_delete_playlist(playlist_id):
     config = current_app.config['APP_CONFIG']
     delete_playlist(config, playlist_id)
+    queue_background_chanel_update_tasks(config)
     return jsonify(
         {
             "success": True

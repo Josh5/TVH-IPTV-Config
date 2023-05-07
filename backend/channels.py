@@ -423,3 +423,47 @@ def cleanup_old_channels(config):
         if channel.get('name') == "{name-not-set}":
             print(f"    - Removing channel UUID - {channel.get('uuid')}")
             tvh.delete_channel(channel.get('uuid'))
+
+
+def queue_background_chanel_update_tasks(config):
+    # Update TVH
+    from backend.api.tasks import TaskQueueBroker
+    task_broker = TaskQueueBroker.get_instance()
+    # Configure TVH with the list of channels
+    task_broker.add_task({
+        'name':     'publish_bulk_channels_to_tvh',
+        'function': publish_bulk_channels_to_tvh,
+        'args':     [config],
+    })
+    # Configure TVH with muxes
+    task_broker.add_task({
+        'name':     'publish_channel_muxes',
+        'function': publish_channel_muxes,
+        'args':     [config],
+    })
+    # Map all services
+    task_broker.add_task({
+        'name':     'map_all_services',
+        'function': map_all_services,
+        'args':     [config],
+    })
+    # Clear out old channels
+    task_broker.add_task({
+        'name':     'cleanup_old_channels',
+        'function': cleanup_old_channels,
+        'args':     [config],
+    })
+    # Generate 'epg.xml' file in .tvh_iptv_config directory
+    from backend.epgs import build_custom_epg
+    task_broker.add_task({
+        'name':     'build_custom_epg',
+        'function': build_custom_epg,
+        'args':     [config],
+    })
+    # Trigger an update in TVH to fetch the latest EPG
+    from backend.epgs import run_tvh_epg_grabbers
+    task_broker.add_task({
+        'name':     'run_tvh_epg_grabbers',
+        'function': run_tvh_epg_grabbers,
+        'args':     [config],
+    })

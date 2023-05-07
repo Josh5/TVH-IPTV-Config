@@ -7,7 +7,8 @@ from flask_minify import Minify
 from sys import exit
 
 from backend.api.tasks import scheduler, update_playlists, map_new_tvh_services, update_epgs, rebuild_custom_epg, \
-    update_tvh_muxes, configure_tvh_with_defaults, update_tvh_channels, update_tvh_networks, update_tvh_epg
+    update_tvh_muxes, configure_tvh_with_defaults, update_tvh_channels, update_tvh_networks, update_tvh_epg, \
+    TaskQueueBroker
 from lib.config import config_dict
 from backend import create_app, db
 
@@ -33,6 +34,13 @@ if DEBUG:
     app.logger.info('DEBUG       = ' + str(DEBUG))
     app.logger.info('DBMS        = ' + app_config.SQLALCHEMY_DATABASE_URI)
     app.logger.info('ASSETS_ROOT = ' + app_config.ASSETS_ROOT)
+
+
+@scheduler.task('interval', id='background_tasks', seconds=10)
+def background_tasks():
+    with app.app_context():
+        task_broker = TaskQueueBroker.get_instance()
+        task_broker.execute_tasks()
 
 
 @scheduler.task('interval', id='do_5_mins', minutes=5, misfire_grace_time=60)
