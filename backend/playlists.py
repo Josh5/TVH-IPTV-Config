@@ -68,7 +68,10 @@ def delete_playlist(config, playlist_id):
     playlist = db.session.query(Playlist).where(Playlist.id == playlist_id).one()
     net_uuid = playlist.tvh_uuid
     # Remove from TVH
-    delete_playlist_network_in_tvh(config, net_uuid)
+    try:
+        delete_playlist_network_in_tvh(config, net_uuid)
+    except Exception as e:
+        print("WARNING! Failed to remove playlist from TVH by UUID")
     # Remove cached copy of playlist
     cache_files = [
         os.path.join(config.config_path, 'cache', 'playlists', f"{playlist_id}.m3u"),
