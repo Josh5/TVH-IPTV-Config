@@ -135,24 +135,25 @@
                 </template>
 
                 <template v-slot:body="props">
-                    <q-tr :props="props">
-                        <q-td auto-width>
-                            <q-checkbox v-model="props.selected" color="primary" />
-                        </q-td>
-                        <q-td key="name" :props="props" style="max-width: 60px;">
-                            <q-avatar rounded>
-                                <img :src="props.row.tvg_logo" style="height:40px; width:auto; max-width:120px;"/>
-                            </q-avatar>
-                        </q-td>
-                        <q-td key="name" :props="props" style="max-width: 200px; white-space: normal; word-wrap: break-word;">
-                            {{ props.row.name }}
-                        </q-td>
-                        <q-td key="playlist_name" :props="props">
-                            <q-badge color="green">
-                                {{ props.row.playlist_name }}
-                            </q-badge>
-                        </q-td>
-                    </q-tr>
+                  <q-tr :props="props">
+                    <q-td auto-width>
+                      <q-checkbox v-model="props.selected" color="primary"/>
+                    </q-td>
+                    <q-td key="name" :props="props" style="max-width: 60px;">
+                      <q-avatar rounded>
+                        <img :src="props.row.tvg_logo" style="height:40px; width:auto; max-width:120px;"/>
+                      </q-avatar>
+                    </q-td>
+                    <q-td key="name" :props="props"
+                          style="max-width: 200px; white-space: normal; word-wrap: break-word;">
+                      {{ props.row.name }}
+                    </q-td>
+                    <q-td key="playlist_name" :props="props">
+                      <q-badge color="green">
+                        {{ props.row.playlist_name }}
+                      </q-badge>
+                    </q-td>
+                  </q-tr>
                 </template>
 
               </q-table>
@@ -232,7 +233,7 @@ export default {
       this.$emit('hide')
     },
     fetchStreamsList: function (props) {
-      const { page, rowsPerPage, sortBy, descending } = props.pagination
+      const {page, rowsPerPage, sortBy, descending} = props.pagination
       const filter = props.filter
 
       // Show loading animation
@@ -299,9 +300,9 @@ export default {
   },
   computed: {
     tableStyle() {
-        const dialogHeight = this.$refs.channelStreamSelectorDialogRef.$el.offsetHeight;
-        const tableHeight = (dialogHeight - 150)
-        return `height:${tableHeight}px;`
+      const dialogHeight = this.$refs.channelStreamSelectorDialogRef.$el.offsetHeight;
+      const tableHeight = (dialogHeight - 150)
+      return `height:${tableHeight}px;`
     }
   },
   data: function () {
