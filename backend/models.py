@@ -17,8 +17,8 @@ class Epg(db.Model):
     url = db.Column(db.String(500), index=True, unique=False)
 
     # Backref to all associated linked channels
-    epg_channels = db.relationship('EpgChannels', backref='guide', lazy=True)
-    channels = db.relationship('Channel', backref='guide', lazy=True)
+    epg_channels = db.relationship('EpgChannels', backref='guide', lazy=True, cascade="all, delete-orphan")
+    channels = db.relationship('Channel', backref='guide', lazy=True, cascade="all, delete-orphan")
 
     def __repr__(self):
         return '<Epg {}>'.format(self.id)
@@ -36,7 +36,8 @@ class EpgChannels(db.Model):
     epg_id = db.Column(db.Integer, db.ForeignKey('epgs.id'), nullable=False)
 
     # Backref to all associated linked channels
-    epg_channel_programmes = db.relationship('EpgChannelProgrammes', backref='channel', lazy=True)
+    epg_channel_programmes = db.relationship('EpgChannelProgrammes', backref='channel', lazy=True,
+                                             cascade="all, delete-orphan")
 
     def __repr__(self):
         return '<EpgChannels {}>'.format(self.id)
@@ -78,8 +79,8 @@ class Playlist(db.Model):
     url = db.Column(db.String(500), index=True, unique=False)
 
     # Backref to all associated linked sources
-    channel_sources = db.relationship('ChannelSource', backref='playlist', lazy=True)
-    playlist_streams = db.relationship('PlaylistStreams', backref='playlist', lazy=True)
+    channel_sources = db.relationship('ChannelSource', backref='playlist', lazy=True, cascade="all, delete-orphan")
+    playlist_streams = db.relationship('PlaylistStreams', backref='playlist', lazy=True, cascade="all, delete-orphan")
 
     def __repr__(self):
         return '<Playlist {}>'.format(self.id)
@@ -127,7 +128,7 @@ class Channel(db.Model):
     guide_channel_id = db.Column(db.String(64), index=False, unique=False)
 
     # Backref to all associated linked sources
-    sources = db.relationship('ChannelSource', backref='channel', lazy=True)
+    sources = db.relationship('ChannelSource', backref='channel', lazy=True, cascade="all, delete-orphan")
 
     # Specify many-to-many relationships
     tags = relationship("ChannelTag", secondary=channels_tags_association_table)
