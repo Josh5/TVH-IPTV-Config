@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
+import logging
+from logging.config import dictConfig
 
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
@@ -7,6 +9,29 @@ from importlib import import_module
 from backend.api import tasks
 
 db = SQLAlchemy()
+dictConfig({
+    'version':    1,
+    'formatters': {'default': {
+        'format': '%(asctime)s:%(levelname)s:%(name)s: %(message)s',
+    }},
+    'handlers':   {'wsgi': {
+        'class':     'logging.StreamHandler',
+        'stream':    'ext://flask.logging.wsgi_errors_stream',
+        'formatter': 'default'
+    }},
+    'root':       {
+        'level':    'INFO',
+        'handlers': ['wsgi']
+    }
+})
+
+
+# Custom logging filter that ignores log messages for a specific endpoints
+class IgnoreLoggingRoutesFilter(logging.Filter):
+    def filter(self, record):
+        if "/tic-api/get-background-tasks" in record.getMessage():
+            return False
+        return True
 
 
 def register_extensions(app):
@@ -36,7 +61,7 @@ def start_scheduler(app):
     tasks.scheduler.start()
 
 
-def create_app(config):
+def create_app(config, debugging_enabled):
     app = Flask(__name__)
     app.config.from_object(config)
     register_extensions(app)
@@ -46,5 +71,11 @@ def create_app(config):
     configure_database(app)
 
     start_scheduler(app)
+
+    log = logging.getLogger('werkzeug')
+    log.setLevel(logging.INFO)
+    if debugging_enabled:
+        log.setLevel(logging.DEBUG)
+    log.addFilter(IgnoreLoggingRoutesFilter())
 
     return app

@@ -27,7 +27,6 @@ def serve_static(path):
 @blueprint.route('/tic-web/epg.xml')
 def serve_epg_static():
     config = current_app.config['APP_CONFIG']
-    print(os.path.join(config.config_path))
     return send_from_directory(os.path.join(config.config_path), 'epg.xml')
 
 

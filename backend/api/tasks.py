@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
+import logging
 import threading
 from queue import Queue
 from flask_apscheduler import APScheduler
 
 scheduler = APScheduler()
+
+logger = logging.getLogger('werkzeug.tasks')
 
 
 class TaskQueueBroker:
@@ -33,7 +36,7 @@ class TaskQueueBroker:
 
     def add_task(self, task):
         if task['name'] in self.__task_names:
-            print("DEBUG: Task already queued. Ignoring")
+            logger.debug("Task already queued. Ignoring.")
             return
         self.__task_queue.put(task)
         self.__task_names.add(task['name'])
@@ -48,9 +51,9 @@ class TaskQueueBroker:
 
     def execute_tasks(self):
         if self.__running_task is not None:
-            print("WARNING! Another process is already running scheduled tasks")
+            logger.warning("Another process is already running scheduled tasks.")
         if self.__task_queue.empty():
-            # print("No pending tasks found")
+            logger.debug("No pending tasks found.")
             return
         while not self.__task_queue.empty():
             task = self.__task_queue.get()
@@ -58,11 +61,10 @@ class TaskQueueBroker:
             self.__running_task = task['name']
             # Execute task here
             try:
-                print(f"Executing task - {task['name']}")
+                logger.info("Executing task - %s.", task['name'])
                 task['function'](*task['args'])
             except Exception as e:
-                print(f"EXCEPTION! Failed to run task {task['name']}")
-                print(str(e))
+                logger.error("Failed to run task %s - %s", task['name'], str(e))
         self.__running_task = None
 
     def get_currently_running_task(self):
@@ -76,63 +78,63 @@ class TaskQueueBroker:
 
 
 def configure_tvh_with_defaults(app):
-    print("Configuring TVH")
+    logger.info("Configuring TVH")
     config = app.config['APP_CONFIG']
     from backend.tvheadend.tvh_requests import configure_tvh
     configure_tvh(config)
 
 
 def update_playlists(app):
-    print("Updating Playlists")
+    logger.info("Updating Playlists")
     config = app.config['APP_CONFIG']
     from backend.playlists import import_playlist_data_for_all_playlists
     import_playlist_data_for_all_playlists(config)
 
 
 def update_epgs(app):
-    print("Updating EPGs")
+    logger.info("Updating EPGs")
     config = app.config['APP_CONFIG']
     from backend.epgs import import_epg_data_for_all_epgs
     import_epg_data_for_all_epgs(config)
 
 
 def rebuild_custom_epg(app):
-    print("Rebuilding custom EPG")
+    logger.info("Rebuilding custom EPG")
     config = app.config['APP_CONFIG']
     from backend.epgs import build_custom_epg
     build_custom_epg(config)
 
 
 def update_tvh_epg(app):
-    print("Triggering update of TVH EPG")
+    logger.info("Triggering update of TVH EPG")
     config = app.config['APP_CONFIG']
     from backend.epgs import run_tvh_epg_grabbers
     run_tvh_epg_grabbers(config)
 
 
 def update_tvh_networks(app):
-    print("Updating channels in TVH")
+    logger.info("Updating channels in TVH")
     config = app.config['APP_CONFIG']
     from backend.playlists import publish_playlist_networks
     publish_playlist_networks(config)
 
 
 def update_tvh_channels(app):
-    print("Updating channels in TVH")
+    logger.info("Updating channels in TVH")
     config = app.config['APP_CONFIG']
     from backend.channels import publish_bulk_channels_to_tvh
     publish_bulk_channels_to_tvh(config)
 
 
 def update_tvh_muxes(app):
-    print("Updating muxes in TVH")
+    logger.info("Updating muxes in TVH")
     config = app.config['APP_CONFIG']
     from backend.channels import publish_channel_muxes
     publish_channel_muxes(config)
 
 
 def map_new_tvh_services(app):
-    print("Mapping new services in TVH")
+    logger.info("Mapping new services in TVH")
     config = app.config['APP_CONFIG']
     # Map any new services
     from backend.channels import map_all_services, cleanup_old_channels

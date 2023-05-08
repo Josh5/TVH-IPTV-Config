@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
 import json
+import logging
 import os
 import re
 import time
@@ -12,6 +13,8 @@ from sqlalchemy import and_
 from backend import db
 from backend.models import Epg, Channel, EpgChannels, EpgChannelProgrammes
 from backend.tvheadend.tvh_requests import get_tvh
+
+logger = logging.getLogger('werkzeug.epgs')
 
 
 def read_config_all_epgs():
@@ -76,16 +79,16 @@ def store_epg_channels(config, epg_id):
     xmltv_file = os.path.join(config.config_path, 'cache', 'epgs', f"{epg_id}.xml")
     if not os.path.exists(xmltv_file):
         # TODO: Add error logging here
-        print(f"No such file '{xmltv_file}'")
+        logger.info("No such file '%s'", xmltv_file)
         return False
     # Open file
     input_file = ET.parse(xmltv_file)
     # Delete all existing playlist channels
-    print(f"Clearing previous channels for EPG #{epg_id}")
+    logger.info("Clearing previous channels for EPG #%s", epg_id)
     stmt = EpgChannels.__table__.delete().where(EpgChannels.epg_id == epg_id)
     db.session.execute(stmt)
     # Add an updated list of channels from the XML file to the DB
-    print(f"Updating channels list for EPG #{epg_id} from path - '{xmltv_file}'")
+    logger.info("Updating channels list for EPG #%s from path - '%s'", epg_id, xmltv_file)
     items = []
     channel_id_list = []
     for channel in input_file.iterfind('.//channel'):
@@ -95,7 +98,7 @@ def store_epg_channels(config, epg_id):
         icon_elem = channel.find('icon')
         if not isinstance(icon_elem, NoneType):
             icon = icon_elem.attrib.get('src', '')
-        # print(f"Channel ID: '{channel_id}', Display Name: '{display_name}', Icon: {icon}")
+        logger.debug("Channel ID: '%s', Display Name: '%s', Icon: %s", channel_id, display_name, icon)
         items.append(
             EpgChannels(
                 epg_id=epg_id,
@@ -109,7 +112,7 @@ def store_epg_channels(config, epg_id):
     db.session.bulk_save_objects(items)
     # Commit all updates to channels
     db.session.commit()
-    print(f"Successfully imported {len(channel_id_list)} channels from path - '{xmltv_file}'")
+    logger.info("Successfully imported %s channels from path - '%s'", len(channel_id_list), xmltv_file)
     # Return list of channels
     return channel_id_list
 
@@ -118,12 +121,12 @@ def store_epg_programmes(config, epg_id, channel_id_list):
     xmltv_file = os.path.join(config.config_path, 'cache', 'epgs', f"{epg_id}.xml")
     if not os.path.exists(xmltv_file):
         # TODO: Add error logging here
-        print(f"No such file '{xmltv_file}'")
+        logger.info("No such file '%s'", xmltv_file)
         return False
     # Open file
     input_file = ET.parse(xmltv_file)
     # For each channel, create a list of programmes
-    print(f"Fetching list of channels from EPG #{epg_id} from database")
+    logger.info("Fetching list of channels from EPG #%s from database", epg_id)
     channel_ids = {}
     for channel_id in channel_id_list:
         epg_channel = db.session.query(EpgChannels) \
@@ -133,7 +136,7 @@ def store_epg_programmes(config, epg_id, channel_id_list):
             .first()
         channel_ids[channel_id] = epg_channel.id
     # Delete all existing playlist programmes
-    print(f"Clearing previous programmes for EPG #{epg_id}")
+    logger.info("Clearing previous programmes for EPG #%s", epg_id)
     epg_channel_rows = (
         db.session.query(EpgChannels)
         .options(joinedload(EpgChannels.guide))
@@ -145,7 +148,7 @@ def store_epg_programmes(config, epg_id, channel_id_list):
     )
     db.session.execute(stmt)
     # Add an updated list of programmes from the XML file to the DB
-    print(f"Updating new programmes list for EPG #{epg_id} from path - '{xmltv_file}'")
+    logger.info("Updating new programmes list for EPG #%s from path - '%s'", epg_id, xmltv_file)
     items = []
     for programme in input_file.iterfind(".//programme"):
         channel_id = programme.attrib.get('channel', None)
@@ -180,26 +183,26 @@ def store_epg_programmes(config, epg_id, channel_id_list):
     db.session.bulk_save_objects(items)
     # Commit all updates to channel programmes
     db.session.commit()
-    print(f"Successfully imported {len(items)} programmes from path - '{xmltv_file}'")
+    logger.info("Successfully imported %s programmes from path - '%s'", len(items), xmltv_file)
 
 
 def import_epg_data(config, epg_id):
     epg = read_config_one_epg(epg_id)
     # Download a new local copy of the EPG
-    print(f"Downloading updated XMLTV file for EPG #{epg_id} from url - '{epg['url']}'")
+    logger.info("Downloading updated XMLTV file for EPG #%s from url - '%s'", epg_id, epg['url'])
     start_time = time.time()
     from lib.epg import download_xmltv_epg
     xmltv_file = os.path.join(config.config_path, 'cache', 'epgs', f"{epg_id}.xml")
     download_xmltv_epg(epg['url'], xmltv_file)
     execution_time = time.time() - start_time
-    print(f"Updated XMLTV file for EPG #{epg_id} was downloaded in '{int(execution_time)}' seconds")
+    logger.info("Updated XMLTV file for EPG #%s was downloaded in '%s' seconds", epg_id, int(execution_time))
     # Read and save EPG data to DB
-    print(f"Importing updated data for EPG #{epg_id}")
+    logger.info("Importing updated data for EPG #%s", epg_id)
     start_time = time.time()
     channel_id_list = store_epg_channels(config, epg_id)
     store_epg_programmes(config, epg_id, channel_id_list)
     execution_time = time.time() - start_time
-    print(f"Updated data for EPG #{epg_id} was imported in '{int(execution_time)}' seconds")
+    logger.info("Updated data for EPG #%s was imported in '%s' seconds", epg_id, int(execution_time))
 
 
 def import_epg_data_for_all_epgs(config):
@@ -223,7 +226,7 @@ def read_channels_from_all_epgs(config):
 # --- Cache ---
 # TODO: Migrate this data into the database to speed up requests
 def build_custom_epg(config):
-    print(f"Generating custom EPG for TVH based on configured channels.")
+    logger.info("Generating custom EPG for TVH based on configured channels.")
     start_time = time.time()
     # Create the root <tv> element of the output XMLTV file
     output_root = ET.Element('tv')
@@ -303,7 +306,7 @@ def build_custom_epg(config):
     custom_epg_file = os.path.join(config.config_path, "epg.xml")
     output_tree.write(custom_epg_file, encoding='UTF-8', xml_declaration=True)
     execution_time = time.time() - start_time
-    print(f"The custom XMLTV EPG file for TVH was generated in '{int(execution_time)}' seconds")
+    logger.info("The custom XMLTV EPG file for TVH was generated in '%s' seconds", int(execution_time))
 
 
 def run_tvh_epg_grabbers(config):

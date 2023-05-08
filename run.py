@@ -24,7 +24,7 @@ try:
 except KeyError:
     exit('Error: Invalid <config_mode>. Expected values [Debug, Production] ')
 
-app = create_app(app_config)
+app = create_app(app_config, DEBUG)
 Migrate(app, db)
 
 if not DEBUG:

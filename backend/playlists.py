@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
+import logging
 import os
 import time
 from operator import attrgetter
@@ -10,6 +11,8 @@ from backend import db
 from backend.ffmpeg import ffprobe_file
 from backend.models import Playlist, PlaylistStreams
 from backend.tvheadend.tvh_requests import get_tvh, network_template
+
+logger = logging.getLogger('werkzeug.playlists')
 
 
 def read_config_all_playlists():
@@ -71,7 +74,7 @@ def delete_playlist(config, playlist_id):
     try:
         delete_playlist_network_in_tvh(config, net_uuid)
     except Exception as e:
-        print("WARNING! Failed to remove playlist from TVH by UUID")
+        logger.warning("Failed to remove playlist from TVH by UUID")
     # Remove cached copy of playlist
     cache_files = [
         os.path.join(config.config_path, 'cache', 'playlists', f"{playlist_id}.m3u"),
@@ -89,7 +92,7 @@ def store_playlist_streams(config, playlist_id):
     m3u_file = os.path.join(config.config_path, 'cache', 'playlists', f"{playlist_id}.m3u")
     if not os.path.exists(m3u_file):
         # TODO: Add error logging here
-        print(f"No such file '{m3u_file}'")
+        logger.error("No such file '%s'", m3u_file)
         return False
     # Read cache file contents
     with open(m3u_file, encoding="utf8", errors='ignore') as f:
@@ -100,7 +103,7 @@ def store_playlist_streams(config, playlist_id):
     stmt = PlaylistStreams.__table__.delete().where(PlaylistStreams.playlist_id == playlist_id)
     db.session.execute(stmt)
     # Add an updated list of streams from the XML file to the DB
-    print(f"Updating list of available streams for playlist #{playlist_id} from path - '{m3u_file}'")
+    logger.info("Updating list of available streams for playlist #%s from path - '%s'", playlist_id, m3u_file)
     items = []
     for stream in pl:
         items.append(
@@ -119,7 +122,7 @@ def store_playlist_streams(config, playlist_id):
     db.session.bulk_save_objects(items)
     # Commit all updates to playlist sources
     db.session.commit()
-    print(f"Successfully imported {len(items)} streams from path - '{m3u_file}'")
+    logger.info("Successfully imported %s streams from path - '%s'", len(items), m3u_file)
 
 
 def fetch_playlist_streams(playlist_id):
@@ -140,19 +143,19 @@ def fetch_playlist_streams(playlist_id):
 def import_playlist_data(config, playlist_id):
     playlist = read_config_one_playlist(playlist_id)
     # Download playlist data and save to YAML cache file
-    print(f"Downloading updated M3U file for playlist #{playlist_id} from url - '{playlist['url']}'")
+    logger.info("Downloading updated M3U file for playlist #%s from url - '%s'", playlist_id, playlist['url'])
     start_time = time.time()
     from lib.playlist import download_playlist_file
     m3u_file = os.path.join(config.config_path, 'cache', 'playlists', f"{playlist_id}.m3u")
     download_playlist_file(playlist['url'], m3u_file)
     execution_time = time.time() - start_time
-    print(f"Updated M3U file for playlist #{playlist_id} was downloaded in '{int(execution_time)}' seconds")
+    logger.info("Updated M3U file for playlist #%s was downloaded in '%s' seconds", playlist_id, int(execution_time))
     # Parse the M3U file and cache the data in a YAML file for faster parsing
-    print(f"Importing updated data for playlist #{playlist_id}")
+    logger.info("Importing updated data for playlist #%s", playlist_id)
     start_time = time.time()
     store_playlist_streams(config, playlist_id)
     execution_time = time.time() - start_time
-    print(f"Updated data for playlist #{playlist_id} was imported in '{int(execution_time)}' seconds")
+    logger.info("Updated data for playlist #%s was imported in '%s' seconds", playlist_id, int(execution_time))
 
 
 def import_playlist_data_for_all_playlists(config):
