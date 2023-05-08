@@ -70,7 +70,7 @@ def api_update_epg(epg_id):
         'name':     f'Update EPG - ID: {epg_id}',
         'function': import_epg_data,
         'args':     [config, epg_id],
-    })
+    }, priority=2)
     return jsonify(
         {
             "success": True,

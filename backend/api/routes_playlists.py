@@ -78,7 +78,7 @@ def api_update_playlist(playlist_id):
         'name':     f'Update playlist - ID: {playlist_id}',
         'function': import_playlist_data,
         'args':     [config, playlist_id],
-    })
+    }, priority=2)
     return jsonify(
         {
             "success": True,

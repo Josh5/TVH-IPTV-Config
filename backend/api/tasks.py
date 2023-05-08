@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
+import itertools
 import logging
 import threading
-from queue import Queue
+from queue import PriorityQueue
 from flask_apscheduler import APScheduler
 
 scheduler = APScheduler()
@@ -22,8 +23,9 @@ class TaskQueueBroker:
             TaskQueueBroker.__instance = self
             # Create the queue
             self.__running_task = None
-            self.__task_queue = Queue()
+            self.__task_queue = PriorityQueue()
             self.__task_names = set()
+            self.__priority_counter = itertools.count()
 
     @staticmethod
     def get_instance():
@@ -34,11 +36,11 @@ class TaskQueueBroker:
                 TaskQueueBroker()
         return TaskQueueBroker.__instance
 
-    def add_task(self, task):
+    def add_task(self, task, priority=1):
         if task['name'] in self.__task_names:
             logger.debug("Task already queued. Ignoring.")
             return
-        self.__task_queue.put(task)
+        self.__task_queue.put((priority, next(self.__priority_counter), task))
         self.__task_names.add(task['name'])
 
     def get_next_task(self):
@@ -56,7 +58,7 @@ class TaskQueueBroker:
             logger.debug("No pending tasks found.")
             return
         while not self.__task_queue.empty():
-            task = self.__task_queue.get()
+            priority, i, task = self.__task_queue.get()
             self.__task_names.remove(task['name'])
             self.__running_task = task['name']
             # Execute task here
@@ -72,8 +74,9 @@ class TaskQueueBroker:
 
     def get_pending_tasks(self):
         results = []
-        for task_name in self.__task_names:
-            results.append(task_name)
+        for i in range(self.__task_queue.qsize()):
+            priority, i, task = self.__task_queue.queue[i]
+            results.append(task['name'])
         return results
 
 
