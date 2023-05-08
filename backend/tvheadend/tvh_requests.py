@@ -46,7 +46,7 @@ network_template = {
     "pnetworkname": 'PROVIDER_NETWORK_NAME',
     "max_streams":  1,
     "priority":     1,
-    "max_timeout":  30,
+    "max_timeout":  10,
     "skipinitscan": True,
     "bouquet":      False, "max_bandwidth": 0, "nid": 0, "ignore_chnum": True, "satip_source": 0,
     "charset":      "", "use_libav": False, "scan_create": False, "spriority": 1, "icon_url": "",
@@ -75,6 +75,15 @@ mux_template = {
     "iptv_interface":    "", "iptv_satip_dvbt_freq": 0, "iptv_satip_dvbc_freq": 0, "iptv_satip_dvbs_freq": 0,
     "iptv_buffer_limit": 0, "tsid_zero": False, "pmt_06_ac3": 0, "eit_tsid_nocheck": False, "sid_filter": 0,
     "iptv_respawn":      False, "iptv_kill": 0, "iptv_kill_timeout": 5, "iptv_env": "", "iptv_hdr": ""
+}
+default_stream_profile_template = {
+    "default":     True,
+    "comment":     "MPEG-TS Pass-thru",
+    "timeout":     0,
+    "restart":     True,
+    "catimeout":   2000,
+    "priority":    3, "fpriority": 0, "contaccess": True, "swservice": True, "svfilter": 0, "sid": 1,
+    "rewrite_pmt": True, "rewrite_pat": True, "rewrite_sdt": True, "rewrite_nit": True, "rewrite_eit": True
 }
 default_recorder_profile_template = {
     "pre-extra-time":               1,
@@ -167,6 +176,14 @@ class Tvheadend:
             if grabber['title'] == "Internal: XMLTV: XMLTV URL grabber":
                 node = {"enabled": True, "priority": 1, "dn_chnum": 1, "uuid": grabber['uuid'],
                         "args":    "http://127.0.0.1:9985/tic-web/epg.xml"}
+                self.idnode_save(node)
+
+    def configure_default_stream_profile(self):
+        response = self.idnode_load({'enum': 1, 'class': 'profile'})
+        for profile in response.get('entries', []):
+            if profile['val'] == "pass":
+                node = default_stream_profile_template.copy()
+                node['uuid'] = profile['key']
                 self.idnode_save(node)
 
     def configure_default_recorder_profile(self):
@@ -331,5 +348,7 @@ def configure_tvh(config):
     tvh.disable_all_epg_grabbers()
     # Enable XMLTV URL grabber
     tvh.enable_xmltv_url_epg_grabber()
+    # Configure the default stream profile
+    tvh.configure_default_stream_profile()
     # Configure the default recorder profile
     tvh.configure_default_recorder_profile()
