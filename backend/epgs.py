@@ -257,13 +257,24 @@ def build_custom_epg(config):
                 'display_name': result.name,
                 'logo_url':     result.logo_url,
             })
-            programmes = db.session.query(EpgChannelProgrammes) \
+            db_programmes = db.session.query(EpgChannelProgrammes) \
                 .options(joinedload(EpgChannelProgrammes.channel)) \
                 .filter(and_(EpgChannelProgrammes.channel.has(epg_id=result.guide_id),
                              EpgChannelProgrammes.channel.has(channel_id=result.guide_channel_id)
                              )) \
                 .order_by(EpgChannelProgrammes.channel_id.asc(), EpgChannelProgrammes.start.asc()) \
                 .all()
+            programmes = []
+            for programme in db_programmes:
+                programmes.append({
+                    'start':           programme.start,
+                    'stop':            programme.stop,
+                    'start_timestamp': programme.start_timestamp,
+                    'stop_timestamp':  programme.stop_timestamp,
+                    'title':           programme.title,
+                    'desc':            programme.desc,
+                    'categories':      json.loads(programme.categories)
+                })
             all_channel_programmes_data.append({
                 'channel':    channel_id,
                 'tags':       [tag.name for tag in result.tags],
@@ -286,25 +297,25 @@ def build_custom_epg(config):
             # Create a <programme> element for the output file and copy the attributes from the input programme
             output_programme = ET.SubElement(output_root, 'programme')
             # Build programmes from DB data (manually create attributes etc.
-            if epg_channel_programme.start:
-                output_programme.set('start', epg_channel_programme.start)
-            if epg_channel_programme.stop:
-                output_programme.set('stop', epg_channel_programme.stop)
-            if epg_channel_programme.start_timestamp:
-                output_programme.set('start_timestamp', epg_channel_programme.start_timestamp)
-            if epg_channel_programme.stop_timestamp:
-                output_programme.set('stop_timestamp', epg_channel_programme.stop_timestamp)
+            if epg_channel_programme['start']:
+                output_programme.set('start', epg_channel_programme['start'])
+            if epg_channel_programme['stop']:
+                output_programme.set('stop', epg_channel_programme['stop'])
+            if epg_channel_programme['start_timestamp']:
+                output_programme.set('start_timestamp', epg_channel_programme['start_timestamp'])
+            if epg_channel_programme['stop_timestamp']:
+                output_programme.set('stop_timestamp', epg_channel_programme['stop_timestamp'])
             # Set the "channel" ident here
             output_programme.set('channel', str(channel_programmes_data.get('channel')))
             # Loop through all child elements of the input programme and copy them to the output programme
             for child in ['title', 'desc']:
                 # Copy all other child elements to the output programme if they exist
-                if getattr(epg_channel_programme, child):
+                if child in epg_channel_programme:
                     output_child = ET.SubElement(output_programme, child)
-                    output_child.text = getattr(epg_channel_programme, child)
+                    output_child.text = epg_channel_programme[child]
             # Loop through all categories for this programme and add them as "category" child elements
-            if epg_channel_programme.categories:
-                for category in json.loads(epg_channel_programme.categories):
+            if epg_channel_programme['categories']:
+                for category in epg_channel_programme['categories']:
                     output_child = ET.SubElement(output_programme, 'category')
                     output_child.text = category
             # Loop through all tags for this channel and add them as "category" child elements
