@@ -51,7 +51,7 @@ def every_5_mins():
             'name':     'Mapping all TVH services',
             'function': map_new_tvh_services,
             'args':     [app],
-        }, priority=5)
+        }, priority=10)
 
 
 @scheduler.task('interval', id='do_60_mins', minutes=60, misfire_grace_time=300)
@@ -62,27 +62,27 @@ def every_60_mins():
             'name':     'Configuring TVH with global default',
             'function': configure_tvh_with_defaults,
             'args':     [app],
-        }, priority=9)
+        }, priority=11)
         task_broker.add_task({
             'name':     'Configuring TVH networks',
             'function': update_tvh_networks,
             'args':     [app],
-        }, priority=8)
+        }, priority=12)
         task_broker.add_task({
             'name':     'Configuring TVH channels',
             'function': update_tvh_channels,
             'args':     [app],
-        }, priority=7)
+        }, priority=13)
         task_broker.add_task({
             'name':     'Configuring TVH muxes',
             'function': update_tvh_muxes,
             'args':     [app],
-        }, priority=6)
+        }, priority=14)
         task_broker.add_task({
             'name':     'Triggering an update in TVH to fetch the latest XMLTV',
             'function': update_tvh_epg,
             'args':     [app],
-        }, priority=5)
+        }, priority=30)
 
 
 @scheduler.task('cron', id='do_job_twice_a_day', hour='0/12', minute=1, misfire_grace_time=900)
@@ -93,12 +93,12 @@ def every_12_hours():
             'name':     f'Updating all playlists',
             'function': update_playlists,
             'args':     [app],
-        }, priority=1)
+        }, priority=100)
         task_broker.add_task({
             'name':     f'Updating all EPGs',
             'function': update_epgs,
             'args':     [app],
-        }, priority=1)
+        }, priority=100)
 
 
 @scheduler.task('cron', id='do_job_once_a_day', hour=0, minute=10, misfire_grace_time=900)
@@ -109,7 +109,7 @@ def every_24_hours():
             'name':     'Recreating static XMLTV file',
             'function': rebuild_custom_epg,
             'args':     [app],
-        }, priority=2)
+        }, priority=200)
 
 
 if __name__ == "__main__":

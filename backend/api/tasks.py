@@ -36,7 +36,7 @@ class TaskQueueBroker:
                 TaskQueueBroker()
         return TaskQueueBroker.__instance
 
-    def add_task(self, task, priority=1):
+    def add_task(self, task, priority=100):
         if task['name'] in self.__task_names:
             logger.debug("Task already queued. Ignoring.")
             return
