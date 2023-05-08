@@ -52,10 +52,10 @@ class TaskQueueBroker:
         if self.__task_queue.empty():
             # print("No pending tasks found")
             return
-        self.__running_task = True
         while not self.__task_queue.empty():
             task = self.__task_queue.get()
             self.__task_names.remove(task['name'])
+            self.__running_task = task['name']
             # Execute task here
             try:
                 print(f"Executing task - {task['name']}")
@@ -64,6 +64,15 @@ class TaskQueueBroker:
                 print(f"EXCEPTION! Failed to run task {task['name']}")
                 print(str(e))
         self.__running_task = None
+
+    def get_currently_running_task(self):
+        return self.__running_task
+
+    def get_pending_tasks(self):
+        results = []
+        for task_name in self.__task_names:
+            results.append(task_name)
+        return results
 
 
 def configure_tvh_with_defaults(app):

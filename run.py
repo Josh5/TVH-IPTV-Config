@@ -36,7 +36,7 @@ if DEBUG:
     app.logger.info('ASSETS_ROOT = ' + app_config.ASSETS_ROOT)
 
 
-@scheduler.task('interval', id='background_tasks', seconds=10)
+@scheduler.task('interval', id='background_tasks', seconds=60)
 def background_tasks():
     with app.app_context():
         task_broker = TaskQueueBroker.get_instance()
@@ -45,35 +45,71 @@ def background_tasks():
 
 @scheduler.task('interval', id='do_5_mins', minutes=5, misfire_grace_time=60)
 def every_5_mins():
-    print("Running 5 minute scheduled task 'do_5_mins'")
     with app.app_context():
-        configure_tvh_with_defaults(app)
-        map_new_tvh_services(app)
+        task_broker = TaskQueueBroker.get_instance()
+        task_broker.add_task({
+            'name':     'Mapping all TVH services',
+            'function': map_new_tvh_services,
+            'args':     [app],
+        })
 
 
 @scheduler.task('interval', id='do_60_mins', minutes=60, misfire_grace_time=300)
 def every_60_mins():
-    print("Running hourly scheduled task 'do_60_mins'")
     with app.app_context():
-        update_tvh_networks(app)
-        update_tvh_channels(app)
-        update_tvh_muxes(app)
-        update_tvh_epg(app)
+        task_broker = TaskQueueBroker.get_instance()
+        task_broker.add_task({
+            'name':     'Configuring TVH with global default',
+            'function': configure_tvh_with_defaults,
+            'args':     [app],
+        })
+        task_broker.add_task({
+            'name':     'Configuring TVH networks',
+            'function': update_tvh_networks,
+            'args':     [app],
+        })
+        task_broker.add_task({
+            'name':     'Configuring TVH channels',
+            'function': update_tvh_channels,
+            'args':     [app],
+        })
+        task_broker.add_task({
+            'name':     'Configuring TVH muxes',
+            'function': update_tvh_muxes,
+            'args':     [app],
+        })
+        task_broker.add_task({
+            'name':     'Triggering an update in TVH to fetch the latest XMLTV',
+            'function': update_tvh_epg,
+            'args':     [app],
+        })
 
 
 @scheduler.task('cron', id='do_job_twice_a_day', hour='0/12', minute=1, misfire_grace_time=900)
 def every_12_hours():
-    print("Running noon/midnight scheduled task 'do_job_twice_a_day'")
     with app.app_context():
-        update_playlists(app)
-        update_epgs(app)
+        task_broker = TaskQueueBroker.get_instance()
+        task_broker.add_task({
+            'name':     f'Updating all playlists',
+            'function': update_playlists,
+            'args':     [app],
+        })
+        task_broker.add_task({
+            'name':     f'Updating all EPGs',
+            'function': update_epgs,
+            'args':     [app],
+        })
 
 
 @scheduler.task('cron', id='do_job_once_a_day', hour=0, minute=10, misfire_grace_time=900)
 def every_24_hours():
-    print("Running midnight scheduled task 'do_job_once_a_day'")
     with app.app_context():
-        rebuild_custom_epg(app)
+        task_broker = TaskQueueBroker.get_instance()
+        task_broker.add_task({
+            'name':     'Recreating static XMLTV file',
+            'function': rebuild_custom_epg,
+            'args':     [app],
+        })
 
 
 if __name__ == "__main__":

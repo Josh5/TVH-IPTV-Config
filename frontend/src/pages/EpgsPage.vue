@@ -163,7 +163,7 @@ export default defineComponent({
           color: 'positive',
           position: 'top',
           icon: 'cloud_done',
-          message: 'EPG updated',
+          message: 'EPG update queued',
           timeout: 200
         })
       }).catch(() => {
@@ -171,7 +171,7 @@ export default defineComponent({
         this.$q.notify({
           color: 'negative',
           position: 'top',
-          message: "Failed to update EPG",
+          message: "Failed to queue EPG update",
           icon: 'report_problem',
           actions: [{icon: 'close', color: 'white'}]
         })

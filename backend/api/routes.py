@@ -5,6 +5,7 @@ import os
 from backend.api import blueprint
 from flask import request, jsonify, redirect, send_from_directory, current_app
 
+from backend.api.tasks import TaskQueueBroker
 from backend.tvheadend.tvh_requests import configure_tvh
 
 
@@ -37,6 +38,21 @@ def ping():
         {
             "success": True,
             "data":    "pong"
+        }
+    )
+
+
+@blueprint.route('/tic-api/get-background-tasks', methods=['GET'])
+def api_get_background_tasks():
+    task_broker = TaskQueueBroker.get_instance()
+    task_broker.get_pending_tasks()
+    return jsonify(
+        {
+            "success": True,
+            "data":    {
+                "current_task":  task_broker.get_currently_running_task(),
+                "pending_tasks": task_broker.get_pending_tasks(),
+            },
         }
     )
 

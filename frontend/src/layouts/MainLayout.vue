@@ -37,6 +37,23 @@
           v-bind="link"
         />
       </q-list>
+
+      <q-separator class="q-my-lg"/>
+
+      <q-list>
+        <q-item-label header>Upcoming background tasks:</q-item-label>
+        <q-item
+          v-for="(task, index) in pendingTasks"
+          v-bind:key="index">
+          <q-item-section avatar>
+            <q-icon color="primary" :name="task.icon"/>
+          </q-item-section>
+
+          <q-item-section>
+            <q-item-label caption>{{ task.name }}</q-item-label>
+          </q-item-section>
+        </q-item>
+      </q-list>
     </q-drawer>
 
     <q-page-container>
@@ -48,6 +65,7 @@
 <script>
 import {defineComponent, ref} from 'vue'
 import EssentialLink from 'components/EssentialLink.vue'
+import pollForBackgroundTasks from "src/mixins/backgroundTasksMixin";
 
 const linksList = [
   {
@@ -85,6 +103,7 @@ export default defineComponent({
 
   setup() {
     const leftDrawerOpen = ref(false)
+    const {pendingTasks} = pollForBackgroundTasks()
 
     return {
       epgUrl: `${window.location.origin}/tic-web/epg.xml`,
@@ -92,7 +111,8 @@ export default defineComponent({
       leftDrawerOpen,
       toggleLeftDrawer() {
         leftDrawerOpen.value = !leftDrawerOpen.value
-      }
+      },
+      pendingTasks
     }
   }
 })

@@ -431,39 +431,39 @@ def queue_background_chanel_update_tasks(config):
     task_broker = TaskQueueBroker.get_instance()
     # Configure TVH with the list of channels
     task_broker.add_task({
-        'name':     'publish_bulk_channels_to_tvh',
+        'name':     'Configuring TVH channels',
         'function': publish_bulk_channels_to_tvh,
         'args':     [config],
     })
     # Configure TVH with muxes
     task_broker.add_task({
-        'name':     'publish_channel_muxes',
+        'name':     'Configuring TVH muxes',
         'function': publish_channel_muxes,
         'args':     [config],
     })
     # Map all services
     task_broker.add_task({
-        'name':     'map_all_services',
+        'name':     'Mapping all TVH services',
         'function': map_all_services,
         'args':     [config],
     })
     # Clear out old channels
     task_broker.add_task({
-        'name':     'cleanup_old_channels',
+        'name':     'Cleanup old TVH channels',
         'function': cleanup_old_channels,
         'args':     [config],
     })
     # Generate 'epg.xml' file in .tvh_iptv_config directory
     from backend.epgs import build_custom_epg
     task_broker.add_task({
-        'name':     'build_custom_epg',
+        'name':     'Recreating static XMLTV file',
         'function': build_custom_epg,
         'args':     [config],
     })
     # Trigger an update in TVH to fetch the latest EPG
     from backend.epgs import run_tvh_epg_grabbers
     task_broker.add_task({
-        'name':     'run_tvh_epg_grabbers',
+        'name':     'Triggering an update in TVH to fetch the latest XMLTV',
         'function': run_tvh_epg_grabbers,
         'args':     [config],
     })

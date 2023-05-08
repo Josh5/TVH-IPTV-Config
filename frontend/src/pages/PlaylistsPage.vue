@@ -171,7 +171,7 @@ export default defineComponent({
           color: 'positive',
           position: 'top',
           icon: 'cloud_done',
-          message: 'Playlist updated',
+          message: 'Playlist update queued',
           timeout: 200
         })
       }).catch(() => {
@@ -179,7 +179,7 @@ export default defineComponent({
         this.$q.notify({
           color: 'negative',
           position: 'top',
-          message: "Failed to update playlist",
+          message: "Failed to queue update of playlist",
           icon: 'report_problem',
           actions: [{icon: 'close', color: 'white'}]
         })

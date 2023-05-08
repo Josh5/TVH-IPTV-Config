@@ -2,6 +2,7 @@
 # -*- coding:utf-8 -*-
 import os
 
+from backend.api.tasks import TaskQueueBroker
 from backend.channels import queue_background_chanel_update_tasks
 from backend.playlists import read_config_all_playlists, add_new_playlist, read_config_one_playlist, update_playlist, \
     delete_playlist, import_playlist_data, read_stream_details_from_all_playlists, probe_playlist_stream, \
@@ -72,7 +73,12 @@ def api_delete_playlist(playlist_id):
 @blueprint.route('/tic-api/playlists/update/<playlist_id>', methods=['POST'])
 def api_update_playlist(playlist_id):
     config = current_app.config['APP_CONFIG']
-    import_playlist_data(config, playlist_id)
+    task_broker = TaskQueueBroker.get_instance()
+    task_broker.add_task({
+        'name':     f'Update playlist - ID: {playlist_id}',
+        'function': import_playlist_data,
+        'args':     [config, playlist_id],
+    })
     return jsonify(
         {
             "success": True,
