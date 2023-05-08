@@ -52,6 +52,7 @@ class Config:
         self.settings = {
             "settings": {
                 "tvheadend":                {},
+                "enable_stream_buffer":     True,
                 "default_ffmpeg_pipe_args": "-hide_banner -loglevel error "
                                             "-probesize 10M -analyzeduration 0 -fpsprobesize 0 "
                                             "-i [URL] -c copy -metadata service_name=[SERVICE_NAME] "

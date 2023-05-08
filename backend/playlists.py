@@ -2,6 +2,7 @@
 # -*- coding:utf-8 -*-
 import logging
 import os
+import requests
 import time
 from operator import attrgetter
 from sqlalchemy import or_
@@ -88,6 +89,21 @@ def delete_playlist(config, playlist_id):
     db.session.commit()
 
 
+def download_playlist_file(url, output):
+    logger.info("Downloading Playlist from url - '%s'", url)
+    if not os.path.exists(os.path.dirname(output)):
+        os.makedirs(os.path.dirname(output))
+    headers = {
+        'User-Agent': 'VLC/3.0.0-git LibVLC/3.0.0-gi',
+    }
+    with requests.get(url, headers=headers, stream=True) as r:
+        r.raise_for_status()
+        with open(output, 'wb') as f:
+            for chunk in r.iter_content(chunk_size=8192):
+                f.write(chunk)
+    return output
+
+
 def store_playlist_streams(config, playlist_id):
     m3u_file = os.path.join(config.config_path, 'cache', 'playlists', f"{playlist_id}.m3u")
     if not os.path.exists(m3u_file):
@@ -145,7 +161,6 @@ def import_playlist_data(config, playlist_id):
     # Download playlist data and save to YAML cache file
     logger.info("Downloading updated M3U file for playlist #%s from url - '%s'", playlist_id, playlist['url'])
     start_time = time.time()
-    from lib.playlist import download_playlist_file
     m3u_file = os.path.join(config.config_path, 'cache', 'playlists', f"{playlist_id}.m3u")
     download_playlist_file(playlist['url'], m3u_file)
     execution_time = time.time() - start_time

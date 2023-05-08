@@ -76,6 +76,11 @@ def api_get_config_tvheadend():
     return jsonify(
         {
             "success": True,
-            "data":    settings.get('settings', {}).get('tvheadend', {})
+            "data":    {
+                "tvheadend":                settings.get('settings', {}).get('tvheadend', {}),
+                "enable_stream_buffer":     settings.get('settings', {}).get('enable_stream_buffer', True),
+                "default_ffmpeg_pipe_args": settings.get('settings', {}).get('default_ffmpeg_pipe_args', '[URL]'),
+
+            }
         }
     )

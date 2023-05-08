@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import re
+import requests
 import time
 import xml.etree.ElementTree as ET
 from types import NoneType
@@ -73,6 +74,17 @@ def delete_epg(config, epg_id):
     for f in cache_files:
         if os.path.isfile(f):
             os.remove(f)
+
+
+def download_xmltv_epg(url, output):
+    logger.info("Downloading EPG from url - '%s'", url)
+    if not os.path.exists(os.path.dirname(output)):
+        os.makedirs(os.path.dirname(output))
+    with requests.get(url, stream=True, allow_redirects=True) as r:
+        r.raise_for_status()
+        with open(output, 'wb') as f:
+            for chunk in r.iter_content(chunk_size=128):
+                f.write(chunk)
 
 
 def store_epg_channels(config, epg_id):
@@ -191,7 +203,6 @@ def import_epg_data(config, epg_id):
     # Download a new local copy of the EPG
     logger.info("Downloading updated XMLTV file for EPG #%s from url - '%s'", epg_id, epg['url'])
     start_time = time.time()
-    from lib.epg import download_xmltv_epg
     xmltv_file = os.path.join(config.config_path, 'cache', 'epgs', f"{epg_id}.xml")
     download_xmltv_epg(epg['url'], xmltv_file)
     execution_time = time.time() - start_time

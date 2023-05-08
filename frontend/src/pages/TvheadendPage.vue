@@ -64,6 +64,26 @@
                 </q-input>
               </div>
 
+              <q-separator/>
+
+              <div class="q-gutter-sm">
+                <q-checkbox v-model="enableStreamBuffer" label="Enable Stream Buffer"/>
+              </div>
+
+              <div
+                v-if="enableStreamBuffer"
+                class="q-gutter-sm">
+                <q-skeleton
+                  v-if="defaultPipeArgs === null"
+                  type="QInput"/>
+                <q-input
+                  v-else
+                  v-model="defaultPipeArgs"
+                  label="Default FFmpeg Stream Buffer Options"
+                  hint="Note: [URL] and [SERVICE_NAME] will be replaced with the stream source and the service name respectively."
+                />
+              </div>
+
               <div>
                 <q-btn label="Save" type="submit" color="primary"/>
               </div>
@@ -95,6 +115,8 @@ export default defineComponent({
       tvhUsername: ref(null),
       tvhPassword: ref(null),
       isPwd: ref(true),
+      enableStreamBuffer: ref(true),
+      defaultPipeArgs: ref(null)
     }
   },
   methods: {
@@ -104,10 +126,12 @@ export default defineComponent({
         method: 'get',
         url: '/tic-api/tvheadend/get-settings'
       }).then((response) => {
-        this.tvhHost = response.data.data.host
-        this.tvhPort = response.data.data.port
-        this.tvhUsername = response.data.data.username
-        this.tvhPassword = response.data.data.password
+        this.tvhHost = response.data.data.tvheadend.host
+        this.tvhPort = response.data.data.tvheadend.port
+        this.tvhUsername = response.data.data.tvheadend.username
+        this.tvhPassword = response.data.data.tvheadend.password
+        this.enableStreamBuffer = response.data.data.enable_stream_buffer
+        this.defaultPipeArgs = response.data.data.default_ffmpeg_pipe_args
       }).catch(() => {
         this.$q.notify({
           color: 'negative',
@@ -119,12 +143,6 @@ export default defineComponent({
       });
     },
     save: function () {
-      // TODO: Add settings for setting default ffmpeg pipe args and schedule refresh
-      // settings:
-      //   default_ffmpeg_pipe_args: -hide_banner -loglevel error -probesize 10M -analyzeduration
-      //     0 -fpsprobesize 0 -i [URL] -c copy -metadata service_name=[SERVICE_NAME] -f mpegts
-      //     pipe:1
-      //     refresh_schedule: 0
       // Save settings
       let data = {
         settings: {
@@ -134,6 +152,8 @@ export default defineComponent({
             username: this.tvhUsername,
             password: this.tvhPassword,
           },
+          enable_stream_buffer: this.enableStreamBuffer,
+          default_ffmpeg_pipe_args: this.defaultPipeArgs,
         }
       }
       axios({

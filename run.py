@@ -9,7 +9,7 @@ from sys import exit
 from backend.api.tasks import scheduler, update_playlists, map_new_tvh_services, update_epgs, rebuild_custom_epg, \
     update_tvh_muxes, configure_tvh_with_defaults, update_tvh_channels, update_tvh_networks, update_tvh_epg, \
     TaskQueueBroker
-from lib.config import config_dict
+from backend.config import config_dict
 from backend import create_app, db
 
 # WARNING: Don't run with debug turned on in production!

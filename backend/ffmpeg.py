@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import json
+import re
 import subprocess
 
 
@@ -69,3 +70,16 @@ def ffprobe_file(vid_file_path):
         raise FFProbeError(vid_file_path, str(e))
 
     return info
+
+
+def generate_iptv_url(config, url='', service_name=''):
+    if not url.startswith('pipe://'):
+        settings = config.read_settings()
+        if settings['settings']['enable_stream_buffer']:
+            ffmpeg_args = settings['settings']['default_ffmpeg_pipe_args']
+            ffmpeg_args = ffmpeg_args.replace("[URL]", url)
+            service_name = re.sub('[^a-zA-Z0-9 \n\.]', '', service_name)
+            service_name = re.sub('\s', '-', service_name)
+            ffmpeg_args = ffmpeg_args.replace("[SERVICE_NAME]", service_name.lower())
+            url = f"pipe://ffmpeg {ffmpeg_args}"
+    return url

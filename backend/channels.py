@@ -6,11 +6,11 @@ import re
 from sqlalchemy.orm import joinedload
 from sqlalchemy import and_, func
 from backend import db
+from backend.ffmpeg import generate_iptv_url
 from backend.models import Channel, ChannelTag, Epg, ChannelSource, Playlist, EpgChannels, PlaylistStreams, \
     channels_tags_association_table
 from backend.playlists import fetch_playlist_streams
 from backend.tvheadend.tvh_requests import get_tvh
-from lib.playlist import generate_iptv_url
 
 logger = logging.getLogger('werkzeug.channels')
 
