@@ -70,3 +70,7 @@ COPY --from=frontend_build_stage /build/dist/spa /app/frontend/dist/spa
 COPY backend /app/backend
 COPY migrations /app/migrations
 COPY run.py /app/run.py
+
+EXPOSE 9985/tcp
+EXPOSE 9981/tcp
+EXPOSE 9982/tcp
