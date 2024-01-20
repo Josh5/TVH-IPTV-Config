@@ -171,6 +171,8 @@ def import_playlist_data(config, playlist_id):
     store_playlist_streams(config, playlist_id)
     execution_time = time.time() - start_time
     logger.info("Updated data for playlist #%s was imported in '%s' seconds", playlist_id, int(execution_time))
+    # Publish changes to TVH
+    publish_playlist_networks(config)
 
 
 def import_playlist_data_for_all_playlists(config):
@@ -257,6 +259,7 @@ def delete_playlist_network_in_tvh(config, net_uuid):
 
 
 def publish_playlist_networks(config):
+    logger.info("Publishing all playlist networks to TVH")
     tvh = get_tvh(config)
 
     # Loop over configured playlists
@@ -268,6 +271,7 @@ def publish_playlist_networks(config):
         playlist_name = result.name
         max_streams = result.connections
         network_name = f"playlist_{result.id}_{result.name}"
+        logger.info("Publishing playlist to TVH - %s.", network_name)
         if net_uuid:
             found = False
             for net in tvh.list_cur_networks():
