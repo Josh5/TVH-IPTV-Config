@@ -80,11 +80,24 @@ def download_xmltv_epg(url, output):
     logger.info("Downloading EPG from url - '%s'", url)
     if not os.path.exists(os.path.dirname(output)):
         os.makedirs(os.path.dirname(output))
-    with requests.get(url, stream=True, allow_redirects=True) as r:
+    mozilla_header = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0"}
+    with requests.get(url, stream=True, allow_redirects=True, headers=mozilla_header) as r:
         r.raise_for_status()
         with open(output, 'wb') as f:
             for chunk in r.iter_content(chunk_size=128):
                 f.write(chunk)
+    try_unzip(output)
+
+
+def try_unzip(output: str) -> None:
+    try:
+        with gzip.open(output, 'rb') as f:
+            out = f.readlines()
+        logger.info("Downloaded file iz gzipped. Unzipping")
+        with open(output, 'wb') as f:
+            f.writelines(out)
+    except:
+        pass
 
 
 def store_epg_channels(config, epg_id):
