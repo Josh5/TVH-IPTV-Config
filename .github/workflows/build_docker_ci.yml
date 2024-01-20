@@ -79,10 +79,10 @@ jobs:
             DOCKER_PUSH="false"
           fi
 
-          echo ::set-output name=docker_image::${DOCKER_IMAGE}
-          echo ::set-output name=docker_tags::$(echo ${DOCKER_TAGS} | sed 's/,$//')
-          echo ::set-output name=docker_platforms::linux/amd64,linux/arm64
-          echo ::set-output name=docker_push::${DOCKER_PUSH}
+          echo "docker_image=${DOCKER_IMAGE}" >> $GITHUB_OUTPUT
+          echo "docker_tags=$(echo ${DOCKER_TAGS} | sed 's/,$//')" >> $GITHUB_OUTPUT
+          echo "docker_platforms=linux/amd64" >> $GITHUB_OUTPUT
+          echo "docker_push=${DOCKER_PUSH}" >> $GITHUB_OUTPUT
 
       # Cache the build
       - name: Cache Docker layers
