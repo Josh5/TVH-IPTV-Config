@@ -29,6 +29,8 @@ api_idnode_load = "idnode/load"
 api_idnode_save = "idnode/save"
 api_idnode_delete = "idnode/delete"
 api_hardware_tree = "hardware/tree"
+api_list_all_channel_tags = "channeltag/grid"
+api_create_channel_tag = "channeltag/create"
 api_list_all_channels = "channel/grid"
 api_create_channel = "channel/create"
 api_services_mapper = "service/mapper/save"
@@ -99,6 +101,17 @@ network_template = {
     "bouquet":      False, "max_bandwidth": 0, "nid": 0, "ignore_chnum": True, "satip_source": 0,
     "charset":      "", "use_libav": False, "scan_create": False, "spriority": 1, "icon_url": "",
     "idlescan":     False, "sid_chnum": False, "localtime": 0, "service_sid": 0, "remove_scrambled": True
+}
+channel_tag_comment = "TVH IPTV Config channel tag"
+channel_tag_template = {
+    "enabled":     True,
+    "name":        "TAG_NAME",
+    "comment":     "TAG_COMMENT",
+    "index":       0,
+    "internal":    False,
+    "icon":        "",
+    "private":     False,
+    "titled_icon": False
 }
 channel_template = {
     "enabled":      True,
@@ -222,8 +235,6 @@ class Tvheadend:
             self.idnode_save({"enabled": False, "uuid": grabber['uuid']})
 
     def create_and_configure_client_user(self, username, password):
-        tvh_client_access_entry_comment = "TVH IPTV Config client access entry"
-        tvh_client_password_comment = "TVH IPTV Config client password entry"
         # Read current access entries
         url = f"{self.api_url}/{api_accessentry_grid}"
         response = self.__post(url, payload={'groupBy': 'false', 'groupDir': 'ASC'})
@@ -444,6 +455,34 @@ class Tvheadend:
     def run_internal_epg_grabber(self):
         url = f"{self.api_url}/{api_int_epggrab_run}"
         self.__post(url, payload={'rerun': 1})
+
+    def list_all_managed_channel_tags(self):
+        url = f"{self.api_url}/{api_list_all_channel_tags}"
+        post_data = {"limit": "999999999", "sort": "name", "dir": "ASC", "all": 1}
+        response = self.__post(url, payload=post_data)
+        return_list = []
+        try:
+            json_list = json.loads(response)
+            for tvh_channel_tag in json_list["entries"]:
+                if tvh_channel_tag.get('comment') == channel_tag_comment:
+                    return_list.append(tvh_channel_tag)
+        except json.JSONDecodeError:
+            return_list = []
+        return return_list
+
+    def create_channel_tag(self, tag_name):
+        url = f"{self.api_url}/{api_create_channel_tag}"
+        channel_conf = channel_tag_template.copy()
+        channel_conf["name"] = tag_name
+        channel_conf["comment"] = channel_tag_comment
+        # Send request to server
+        post_data = {"conf": json.dumps(channel_conf)}
+        response = self.__get(url, payload=post_data)
+        try:
+            json_list = json.loads(response)
+        except json.JSONDecodeError:
+            json_list = {}
+        return json_list.get('uuid')
 
     def list_all_channels(self):
         url = f"{self.api_url}/{api_list_all_channels}"

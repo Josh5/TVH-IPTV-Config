@@ -310,7 +310,10 @@ def publish_channel_to_tvh(config, channel):
             channel_uuid = None
     if not channel_uuid:
         # No channel exists, create one
+        logger.info("   - Creating new channel in TVH")
         channel_uuid = tvh.create_channel(channel.name, channel.number, channel.logo_url)
+    else:
+        logger.info("   - Found existing channel in TVH")
     channel_conf = {
         'enabled': True,
         'uuid':    channel_uuid,
@@ -318,8 +321,23 @@ def publish_channel_to_tvh(config, channel):
         "number":  channel.number,
         "icon":    channel.logo_url
     }
-    # TODO: Add channel tags
-    # channel_conf["tags"] = result.name
+    # Check for existing channel tags
+    existing_tag_details = {}
+    logger.info("   - Fetching details of channel tags in TVH")
+    for tvh_channel_tag in tvh.list_all_managed_channel_tags():
+        existing_tag_details[tvh_channel_tag.get('name')] = tvh_channel_tag.get('uuid')
+    # Create channel tags in TVH if missing
+    channel_tag_uuids = []
+    for tag in channel.tags:
+        tag_uuid = existing_tag_details.get(tag.name)
+        if not tag_uuid:
+            # Create channel tag
+            logger.info("Creating new channel tag '%s'", tag.name)
+            tag_uuid = tvh.create_channel_tag(tag.name)
+        channel_tag_uuids.append(tag_uuid)
+    # Apply channel tag UUIDs to chanel conf in TVH
+    channel_conf["tags"] = channel_tag_uuids
+    # Save channel info in TVH
     tvh.idnode_save(channel_conf)
     return channel_uuid
 
