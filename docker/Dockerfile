@@ -4,7 +4,7 @@
 # |  _| |  _ <| |_| | |\  | | | | |___| |\  | |_| |  ___) || |/ ___ \ |_| | |___ 
 # |_|   |_| \_\\___/|_| \_| |_| |_____|_| \_|____/  |____/ |_/_/   \_\____|_____|
 #                                                                                
-FROM node:16-bullseye as frontend_build_stage
+FROM node:18-alpine as frontend_build_stage
 
 COPY ./frontend/package.json /build/
 COPY ./frontend/package-lock.json /build/
@@ -30,7 +30,7 @@ RUN \
 # | |  | |/ ___ \ | || |\  |
 # |_|  |_/_/   \_\___|_| \_|
 #
-FROM lscr.io/linuxserver/tvheadend:latest
+FROM ghcr.io/linuxserver/baseimage-alpine:3.18
 
 # set version label
 ARG BUILD_DATE
@@ -45,7 +45,7 @@ RUN \
     echo "**** install runtime packages ****" \
         && apk add --no-cache \
             ffmpeg \
-            ffmpeg4-libs \
+            ffmpeg-libs \
             python3 \
             py3-pip \
     && \
@@ -61,8 +61,15 @@ ENV DEBUG="False"
 
 # Install python dependencies
 COPY requirements.txt .
-RUN python3 -m pip install --upgrade pip
-RUN python3 -m pip install --no-cache-dir -r requirements.txt
+RUN \
+    echo "** Install python dependencies **" \
+        && mkdir -p /app \
+        && python3 -m venv --symlinks /app/venv-docker \
+        && . /app/venv-docker/bin/activate \
+        && python3 -m pip install --upgrade pip \
+        && python3 -m pip install --no-cache-dir -r requirements.txt \
+    && \
+    echo
 
 # Install project
 COPY docker/overlay/ /
@@ -71,6 +78,8 @@ COPY backend /app/backend
 COPY migrations /app/migrations
 COPY run.py /app/run.py
 
+# Set working directory
+WORKDIR /app/
+
+# Expose ports
 EXPOSE 9985/tcp
-EXPOSE 9981/tcp
-EXPOSE 9982/tcp

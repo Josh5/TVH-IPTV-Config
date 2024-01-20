@@ -25,9 +25,5 @@ services:
       # - RUN_OPTS= #optional
     volumes:
       # Configuration files
-      - ./config:/config
-      # Recordings Path (/recordings)
-      - ./recordings:/recordings
-      # TimeShift Path (/timeshift)
-      - ./timeshift:/timeshift
+      - ./dev_env/config:/config
     restart: unless-stopped

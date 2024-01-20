@@ -5,7 +5,7 @@
 # File Created: Tuesday, 11th April 2023 3:31:39 pm
 # Author: Josh.5 (jsunnex@gmail.com)
 # -----
-# Last Modified: Tuesday, 11th April 2023 11:40:19 pm
+# Last Modified: Saturday, 20th January 2024 4:22:58 pm
 # Modified By: Josh.5 (jsunnex@gmail.com)
 ###
 
@@ -15,17 +15,17 @@ project_root=$(readlink -e ${script_path}/..)
 pushd "${project_root}" || exit 1
 
 # Ensure we have created a venv
-if [[ ! -e venv/bin/activate ]]; then
-    python3 -m venv venv
+if [[ ! -e venv-local/bin/activate ]]; then
+    python3 -m venv venv-local
 fi
 # Active the venv
-source venv/bin/activate
+source venv-local/bin/activate
 
 # Configure env
 export PYTHONUNBUFFERED=1;
 export FLASK_APP=run.py;
 export FLASK_DEBUG=true;
-export HOME_DIR="${PWD}/config/"
+export HOME_DIR="${PWD}/dev_env/config/"
 
 mkdir -p "${HOME_DIR}"
 

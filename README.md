@@ -31,7 +31,7 @@ The goal of this project is to wrap around Tvheadend and, using its API, configu
 
 This project is currently in beta. I am publishing builds, but the application is very new and could be full of bugs, inefficent processes, or visual blemishes. That being said, if you would like to contribute to this project, feel free to provide a PR.
 
-I will probably not be acknowledging any issue reports or testing. But feel free to also reach out on [Discord](https://unmanic.app/discord) if you would like to contribute any suggestions there.
+I will probably not be acknowledging any issue reports or testing. But feel free to also reach out on [Discord](https://support-api.streamingtech.co.nz/discord) if you would like to contribute any suggestions there.
 
 ### Table Of Contents
 
@@ -51,7 +51,7 @@ I will probably not be acknowledging any issue reports or testing. But feel free
 
 ## Install and Run
 
-To run from source:
+### Run from source:
 
 1) Run the setup script. This will create a local environment, installing a Python virtual environment and all dependencies listed in the requirements.txt file, along with the building the frontend. You should re-run this script whenever you pull updates from GitHub.
     ```
@@ -62,7 +62,18 @@ To run from source:
     ./devops/run_local_dev_env.sh
     ```
 
-This will create a directory within this project rooth called `./config` which contains all configuration and cache data.
+This will create a directory within this project root called `./dev_env` which contains all configuration and cache data.
+
+
+### Run from source with docker compose:
+
+From the project root run:
+```
+mkdir -p ./dev_env/config
+docker compose -f docker-compose.yml -f docker-compose.dev-override.yml up --build
+```
+
+This will create a directory within this project root called `./dev_env` which contains all configuration and cache data.
 
 
 ## License

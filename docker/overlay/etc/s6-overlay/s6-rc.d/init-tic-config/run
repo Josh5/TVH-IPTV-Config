@@ -10,11 +10,6 @@ if [[ ! -e "/config/.tvh_iptv_config/settings.yml" ]]; then
     cp -rfv "/defaults/tvh-iptv-config/settings.yml" "/config/.tvh_iptv_config/settings.yml"
 fi
 
-# Execute migrations
-echo "Running TVH-IPTV-Config DB migrations"
-cd /app/
-flask db upgrade
-
 # Set permissions
 echo "Setting permissions"
 lsiown -R abc:users /config/.tvh_iptv_config

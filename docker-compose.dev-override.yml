@@ -1,0 +1,18 @@
+---
+version: "2.1"
+services:
+  tvh_iptv:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      args:
+        BUILD_DATE: "NOW"
+        VERSION: "UNKNOWN"
+    environment:
+      - RUN_PIP_INSTALL=true
+      - DEBUG=True
+      - FLASK_DEBUG=True
+    volumes:
+      - ./dev_env/config:/config
+      - ./:/app
+
