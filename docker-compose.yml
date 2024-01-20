@@ -3,7 +3,7 @@ version: "2.1"
 services:
   # -- TVH IPTV CONFIG --
   tvh_iptv:
-    image: josh5/tvh-iptv:latest
+    image: josh5/tvh-iptv-config:latest
     build:
       context: .
       dockerfile: docker/Dockerfile
@@ -22,7 +22,7 @@ services:
       - PGID=1000
       # Timezone
       - TZ=Pacific/Auckland
-      # The host IP address or IP used to contact this application.
+      # The host IP address used to contact this application.
       - APP_HOST_IP=192.168.1.102
       # Application Port (needs to match the exposed port listed above)
       - APP_PORT=9985
