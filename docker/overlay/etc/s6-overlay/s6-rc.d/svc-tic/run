@@ -8,9 +8,12 @@ if [ "${RUN_PIP_INSTALL}" == "true" ]; then
 fi
 
 # Execute migrations
+echo
 echo "Running TVH-IPTV-Config DB migrations"
 s6-setuidgid abc /app/venv-docker/bin/flask db upgrade
 
+echo
+echo "Starting TVH-IPTV-Config Service"
 exec \
     s6-notifyoncheck -d -n 300 -w 1000 -c "nc -z localhost 9985" \
         s6-setuidgid abc /app/venv-docker/bin/flask run
