@@ -1,13 +1,20 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
 
-import requests
 import json
+import logging
 import os
+import requests
+
+logger = logging.getLogger('werkzeug.tvh_requests')
 
 # TVheadend API URLs:
 api_config_save = "config/save"
 api_imagecache_config_save = "imagecache/config/save"
+api_accessentry_grid = "access/entry/grid"
+api_accessentry_config_create = "access/entry/create"
+api_password_grid = "passwd/entry/grid"
+api_password_config_create = "passwd/entry/create"
 api_epggrab_config_save = "epggrab/config/save"
 api_list_scanfile = "dvb/scanfile/list"
 api_create_network = "mpegts/network/create"
@@ -35,6 +42,46 @@ tvh_config = {
     "digest":      2,
 }
 tvh_imagecache_config = {"enabled": True, "ignore_sslcert": True, "expire": 7, "ok_period": 168, "fail_period": 24}
+tvh_client_access_entry_comment = "TVH IPTV Config client access entry"
+tvh_client_password_comment = "TVH IPTV Config client password entry"
+tvh_client_access_entry = {
+    "comment":             "COMMENT",
+    "enabled":             True,
+    "username":            "user",
+    "change":              [
+        "change_profiles",
+        "change_uilevel",
+        "change_xmltv_output",
+        "change_htsp_output"
+    ],
+    "webui":               True,
+    "admin":               False,
+    "streaming":           ["basic", "htsp"],
+    "dvr":                 ["basic", "htsp", "all", "all_rw", "failed"],
+    "prefix":              "0.0.0.0/0,::/0",
+    "lang":                "", "themeui": "",
+    "langui":              "",
+    "profile":             "",
+    "dvr_config":          "",
+    "channel_min":         "0",
+    "channel_max":         "0",
+    "channel_tag_exclude": False,
+    "channel_tag":         "",
+    "xmltv_output_format": 0,
+    "htsp_output_format":  0,
+    "uilevel":             0,
+    "uilevel_nochange":    0,
+    "conn_limit_type":     0,
+    "conn_limit":          0,
+    "htsp_anonymize":      False
+}
+tvh_client_password = {
+    "comment":  "COMMENT",
+    "username": "USERNAME",
+    "password": "PASSWORD",
+    "enabled":  True,
+    "auth":     ["enable"],
+}
 epggrab_config = {
     "channel_rename":     False, "channel_renumber": False, "channel_reicon": False,
     "epgdb_periodicsave": 0, "epgdb_saveafterimport": True,
@@ -160,6 +207,10 @@ class Tvheadend:
         url = f"{self.api_url}/{api_imagecache_config_save}"
         self.__post(url, payload={"node": json.dumps(node)})
 
+    def create_accessentry_config(self, node):
+        url = f"{self.api_url}/{api_imagecache_config_save}"
+        self.__post(url, payload={"node": json.dumps(node)})
+
     def save_epggrab_config(self, node):
         url = f"{self.api_url}/{api_epggrab_config_save}"
         self.__post(url, payload={"node": json.dumps(node)})
@@ -170,12 +221,106 @@ class Tvheadend:
         for grabber in response.get('entries', []):
             self.idnode_save({"enabled": False, "uuid": grabber['uuid']})
 
+    def create_and_configure_client_user(self, username, password):
+        tvh_client_access_entry_comment = "TVH IPTV Config client access entry"
+        tvh_client_password_comment = "TVH IPTV Config client password entry"
+        # Read current access entries
+        url = f"{self.api_url}/{api_accessentry_grid}"
+        response = self.__post(url, payload={'groupBy': 'false', 'groupDir': 'ASC'})
+        try:
+            json_list = json.loads(response)
+        except json.JSONDecodeError:
+            json_list = {"entries": []}
+        # Create template for access entry
+        node = tvh_client_access_entry.copy()
+        node['comment'] = tvh_client_access_entry_comment
+        for entry in json_list.get('entries', []):
+            if entry.get('comment') == tvh_client_access_entry_comment:
+                node['uuid'] = entry['uuid']
+        # Create the access control if it does not yet exist
+        if not node.get('uuid'):
+            # Create access control
+            post_data = {"conf": json.dumps(node)}
+            # Send request to server
+            url = f"{self.api_url}/{api_accessentry_config_create}"
+            response = self.__post(url, payload=post_data)
+            try:
+                json_list = json.loads(response)
+            except json.JSONDecodeError:
+                json_list = {}
+            node['uuid'] = json_list.get('uuid')
+        # Save and update the client user access control
+        node['username'] = username
+        node['comment'] = tvh_client_access_entry_comment
+        self.idnode_save(node)
+        # Read current password entries
+        url = f"{self.api_url}/{api_password_grid}"
+        response = self.__post(url, payload={'groupBy': 'false', 'groupDir': 'ASC'})
+        try:
+            json_list = json.loads(response)
+        except json.JSONDecodeError:
+            json_list = {"entries": []}
+        # Create template for password
+        node = tvh_client_password.copy()
+        node['comment'] = tvh_client_password_comment
+        for entry in json_list.get('entries', []):
+            if entry.get('comment') == tvh_client_password_comment:
+                node['uuid'] = entry['uuid']
+        # Create the password if it does not yet exist
+        if not node.get('uuid'):
+            # Create access control
+            post_data = {"conf": json.dumps(node)}
+            # Send request to server
+            url = f"{self.api_url}/{api_password_config_create}"
+            response = self.__post(url, payload=post_data)
+            try:
+                json_list = json.loads(response)
+            except json.JSONDecodeError:
+                json_list = {}
+            node['uuid'] = json_list.get('uuid')
+        # Save and update the client user access control
+        node['username'] = username
+        node['password'] = password
+        node['comment'] = tvh_client_password_comment
+        self.idnode_save(node)
+
+    def remove_client_user(self):
+        # Read current access entries
+        url = f"{self.api_url}/{api_accessentry_grid}"
+        response = self.__post(url, payload={'groupBy': 'false', 'groupDir': 'ASC'})
+        try:
+            json_list = json.loads(response)
+        except json.JSONDecodeError:
+            json_list = {"entries": []}
+        # Look for the client user access entry managed by TIC
+        access_entry_uuid = None
+        for entry in json_list.get('entries', []):
+            if entry.get('comment') == tvh_client_access_entry_comment:
+                access_entry_uuid = entry['uuid']
+        # Read current password entries
+        url = f"{self.api_url}/{api_password_grid}"
+        response = self.__post(url, payload={'groupBy': 'false', 'groupDir': 'ASC'})
+        try:
+            json_list = json.loads(response)
+        except json.JSONDecodeError:
+            json_list = {"entries": []}
+        # Look for the client password managed by TIC
+        password_uuid = None
+        for entry in json_list.get('entries', []):
+            if entry.get('comment') == tvh_client_password_comment:
+                password_uuid = entry['uuid']
+        # Delete idnodes
+        if access_entry_uuid:
+            self.idnode_delete(access_entry_uuid)
+        if password_uuid:
+            self.idnode_delete(password_uuid)
+
     def enable_xmltv_url_epg_grabber(self):
         url = f"{self.api_url}/{api_epggrab_list}"
         response = self.__get(url, payload={}, rformat='json')
         for grabber in response.get('entries', []):
             if grabber['title'] == "Internal: XMLTV: XMLTV URL grabber":
-                tic_web_host = os.environ.get("APP_HOST_IP", "127.0.0.1") 
+                tic_web_host = os.environ.get("APP_HOST_IP", "127.0.0.1")
                 tic_web_port = os.environ.get("APP_PORT", "9985")
                 node = {"enabled": True, "priority": 1, "dn_chnum": 1, "uuid": grabber['uuid'],
                         "args":    f"http://{tic_web_host}:{tic_web_port}/tic-web/epg.xml"}
@@ -329,6 +474,12 @@ class Tvheadend:
         url = f"{self.api_url}/{api_idnode_delete}"
         self.__get(url, payload={"uuid": chan_uuid})
 
+    def manage_client_user_access(self, enabled, username, password):
+        if enabled:
+            self.create_and_configure_client_user(username, password)
+        else:
+            self.remove_client_user()
+
 
 def get_tvh(config):
     settings = config.read_settings()
@@ -340,11 +491,17 @@ def get_tvh(config):
 
 
 def configure_tvh(config):
+    settings = config.read_settings()
     tvh = get_tvh(config)
     # Update Base Config
     tvh.save_tvh_config(tvh_config)
     # Update Image Cache Config
     tvh.save_imagecache_config(tvh_imagecache_config)
+    # Create a client user
+    enable_client_user = settings.get('settings', {}).get('create_client_user', False)
+    username = settings.get('settings', {}).get('client_username', '')
+    password = settings.get('settings', {}).get('client_password', '')
+    tvh.manage_client_user_access(enable_client_user, username, password)
     # Configure EPG Grab Config
     tvh.save_epggrab_config(epggrab_config)
     # Disable all EPG grabbers

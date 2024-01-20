@@ -5,15 +5,6 @@
 mkdir -p \
     /config/.tvh_iptv_config
 
-# Add default configs for TVH-IPTV-Config
-if [[ ! -e "/config/.tvh_iptv_config/settings.yml" ]]; then
-    cp -rfv "/defaults/tvh-iptv-config/settings.yml" "/config/.tvh_iptv_config/settings.yml"
-fi
-if [[ -n "$APP_HOST_IP" ]]; then
-    sed -i "s/127.0.0.1/$APP_HOST_IP/g" "/config/.tvh_iptv_config/settings.yml"
-fi
-
-
 # Set permissions
 echo "Setting permissions"
 lsiown -R abc:users /config/.tvh_iptv_config

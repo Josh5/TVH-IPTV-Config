@@ -51,13 +51,20 @@ class Config:
     def create_default_settings_yaml(self):
         self.settings = {
             "settings": {
-                "tvheadend":                {},
+                "tvheadend":                {
+                    "host":     os.environ.get("APP_HOST_IP", "127.0.0.1"),
+                    "port":     "9981",
+                    "username": "",
+                    "password": "",
+                },
+                "create_client_user":       False,
+                "client_username":          "user",
+                "client_password":          "user",
                 "enable_stream_buffer":     True,
                 "default_ffmpeg_pipe_args": "-hide_banner -loglevel error "
                                             "-probesize 10M -analyzeduration 0 -fpsprobesize 0 "
                                             "-i [URL] -c copy -metadata service_name=[SERVICE_NAME] "
                                             "-f mpegts pipe:1",
-                "refresh_schedule":         0000,
 
             }
         }
