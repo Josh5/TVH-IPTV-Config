@@ -1,19 +1,21 @@
 ---
 version: "2.1"
 services:
+  # -- TVH IPTV CONFIG --
   tvh_iptv:
     image: josh5/tvh-iptv:latest
     container_name: tvh_iptv
     build:
       context: .
       dockerfile: docker/Dockerfile
+    restart: unless-stopped
+
+    # NETWORK:
     ports:
       # WebUI Port (9985)
       - 9985:9985
-      # TVH WebUI Port (9981)
-      - 9981:9981
-      # TVH HTSP Port (9982)
-      - 9982:9982
+
+    # ENVIRONMENT:
     environment:
       # Process user ID
       - PUID=1000
@@ -21,9 +23,8 @@ services:
       - PGID=1000
       # Timezone
       - TZ=Pacific/Auckland
-      # Additional arguments to be passed to Tvheadend (Optional)
-      # - RUN_OPTS= #optional
+
+    # VOLUMES:
     volumes:
       # Configuration files
       - ./dev_env/config:/config
-    restart: unless-stopped

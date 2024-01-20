@@ -1,6 +1,7 @@
 ---
 version: "2.1"
 services:
+  # -- TVH IPTV CONFIG --
   tvh_iptv:
     build:
       context: .
@@ -8,11 +9,44 @@ services:
       args:
         BUILD_DATE: "NOW"
         VERSION: "UNKNOWN"
+
+    # ENVIRONMENT:
     environment:
       - RUN_PIP_INSTALL=true
       - DEBUG=True
       - FLASK_DEBUG=True
+
+    # VOLUMES:
     volumes:
       - ./dev_env/config:/config
       - ./:/app
 
+  # -- TVHEADEND --
+  tvheadend:
+    image: lscr.io/linuxserver/tvheadend:latest
+
+    # NETWORK:
+    ports:
+      - "9981:9981/tcp" # Webui
+      - "9982:9982/tcp" # HTSP
+
+    # ENVIRONMENT:
+    environment:
+      # Process user ID
+      - PUID=1000
+      # Process group ID
+      - PGID=1000
+      # Timezone
+      - TZ=Pacific/Auckland
+      # Additional arguments to be passed to Tvheadend (Optional)
+      # - RUN_OPTS= #optional
+
+    # VOLUMES:
+    volumes:
+      - ./dev_env/tvheadend:/config
+      - ./dev_env/tvh-recordings:/recordings
+      - ./dev_env/tvh-timeshift:/timeshift
+
+    ## # DEVICES:
+    ## devices:
+    ##   - /dev/dri #optional
