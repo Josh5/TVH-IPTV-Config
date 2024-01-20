@@ -3,6 +3,7 @@
 
 import requests
 import json
+import os
 
 # TVheadend API URLs:
 api_config_save = "config/save"
@@ -174,8 +175,10 @@ class Tvheadend:
         response = self.__get(url, payload={}, rformat='json')
         for grabber in response.get('entries', []):
             if grabber['title'] == "Internal: XMLTV: XMLTV URL grabber":
+                tic_web_host = os.environ.get("APP_HOST_IP", "127.0.0.1") 
+                tic_web_port = os.environ.get("APP_PORT", "9985")
                 node = {"enabled": True, "priority": 1, "dn_chnum": 1, "uuid": grabber['uuid'],
-                        "args":    "http://127.0.0.1:9985/tic-web/epg.xml"}
+                        "args":    f"http://{tic_web_host}:{tic_web_port}/tic-web/epg.xml"}
                 self.idnode_save(node)
 
     def configure_default_stream_profile(self):
