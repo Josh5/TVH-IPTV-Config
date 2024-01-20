@@ -168,6 +168,7 @@ def update_channel(config, channel_id, data):
     new_source_ids = []
     new_sources = []
     priority = len(data.get('sources', []))
+    logger.info("Updating channel sources")
     for source_info in data.get('sources', []):
         channel_source = db.session.query(ChannelSource) \
             .filter(and_(ChannelSource.channel_id == channel.id,
@@ -175,9 +176,9 @@ def update_channel(config, channel_id, data):
                          ChannelSource.playlist_stream_name == source_info['stream_name']
                          )) \
             .one_or_none()
-        if channel_source:
-            new_source_ids.append(channel_source.id)
         if not channel_source:
+            logger.info("    - Adding new channel source for channel %s 'Playlist:%s - %s'", channel.name,
+                        source_info['playlist_id'], source_info['stream_name'])
             playlist_info = db.session.query(Playlist).filter(Playlist.id == source_info['playlist_id']).one()
             playlist_streams = fetch_playlist_streams(playlist_info.id)
             playlist_stream = playlist_streams.get(source_info['stream_name'])
@@ -186,6 +187,24 @@ def update_channel(config, channel_id, data):
                 playlist_stream_name=source_info['stream_name'],
                 playlist_stream_url=playlist_stream['url'],
             )
+        else:
+            logger.info("    - Found existing channel source for channel %s 'Playlist:%s - %s'", channel.name,
+                        source_info['playlist_id'], source_info['stream_name'])
+            new_source_ids.append(channel_source.id)
+            # Filter sources to refresh here. Things not added to the new_source_ids list are removed and re-added
+            for refresh_source_info in data.get('refresh_sources', []):
+                if (refresh_source_info['playlist_id'] == source_info['playlist_id']
+                        and refresh_source_info['stream_name'] == source_info['stream_name']):
+                    logger.info("    - Channel %s source marked for refresh 'Playlist:%s - %s'", channel.name,
+                                source_info['playlist_id'], source_info['stream_name'])
+                    playlist_info = db.session.query(Playlist).filter(Playlist.id == source_info['playlist_id']).one()
+                    playlist_streams = fetch_playlist_streams(playlist_info.id)
+                    playlist_stream = playlist_streams.get(source_info['stream_name'])
+                    # Update playlist stream url
+                    logger.info("    - Updating channel %s source from '%s' to '%s'", channel.name,
+                                channel_source.playlist_stream_url, playlist_stream['url'])
+                    channel_source.playlist_stream_url = playlist_stream['url']
+                    break
         # Update source priority (higher means higher priority
         channel_source.priority = priority
         priority -= 1
@@ -365,13 +384,15 @@ def publish_channel_muxes(config):
                     if not found:
                         mux_uuid = None
                 if not mux_uuid:
-                    logger.info("    - Creating new MUX for channel '%s'", result.name)
+                    logger.info("    - Creating new MUX for channel '%s' with stream '%s'", result.name,
+                                source.playlist_stream_url)
                     # No mux exists, create one
                     mux_uuid = tvh.network_mux_create(net_uuid)
                     logger.info(mux_uuid)
                     run_mux_scan = True
                 else:
-                    logger.info("    - Updating existing MUX for channel '%s' - %s", result.name, mux_uuid)
+                    logger.info("    - Updating existing MUX '%s' for channel '%s' with stream '%s'", mux_uuid,
+                                result.name, source.playlist_stream_url)
                 # Update mux
                 service_name = f"{source.playlist.name} - {source.playlist_stream_name}"
                 iptv_url = generate_iptv_url(

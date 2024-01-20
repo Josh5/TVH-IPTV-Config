@@ -71,7 +71,7 @@
       </q-card-section>
       <!-- END DIALOG CONFIG -->
 
-      <q-separator/>
+      <q-separator />
 
       <div class="row">
         <div class="col col-12 q-pa-lg">
@@ -83,18 +83,18 @@
               <div class="q-gutter-sm">
                 <q-skeleton
                   v-if="enabled === null"
-                  type="QCheckbox"/>
-                <q-checkbox v-model="enabled" label="Enabled"/>
+                  type="QCheckbox" />
+                <q-checkbox v-model="enabled" label="Enabled" />
               </div>
 
-              <q-separator class="q-my-lg"/>
+              <q-separator class="q-my-lg" />
 
               <!--START DETAILS CONFIG-->
               <h5 class="q-mb-none">Channel Details:</h5>
               <div class="q-gutter-sm">
                 <q-skeleton
                   v-if="number === null"
-                  type="QInput"/>
+                  type="QInput" />
                 <q-input
                   v-else
                   v-model="number"
@@ -105,7 +105,7 @@
               <div class="q-gutter-sm">
                 <q-skeleton
                   v-if="name === null"
-                  type="QInput"/>
+                  type="QInput" />
                 <q-input
                   v-else
                   v-model="name"
@@ -115,7 +115,7 @@
               <div class="q-gutter-sm">
                 <q-skeleton
                   v-if="logoUrl === null"
-                  type="QInput"/>
+                  type="QInput" />
                 <q-input
                   v-else
                   v-model="logoUrl"
@@ -126,7 +126,7 @@
               <div class="q-gutter-sm">
                 <q-skeleton
                   v-if="tags === null"
-                  type="QInput"/>
+                  type="QInput" />
                 <q-select
                   v-else
                   use-input
@@ -142,14 +142,14 @@
               </div>
               <!--END DETAILS CONFIG-->
 
-              <q-separator class="q-my-lg"/>
+              <q-separator class="q-my-lg" />
 
               <!--START EPG CONFIG-->
               <h5 class="q-mb-none">Programme Guide:</h5>
               <div class="q-gutter-sm">
                 <q-skeleton
                   v-if="epgSourceOptions === null"
-                  type="QInput"/>
+                  type="QInput" />
                 <q-select
                   v-else
                   v-model="epgSourceId"
@@ -163,7 +163,7 @@
               <div class="q-gutter-sm">
                 <q-skeleton
                   v-if="epgSourceId === null || epgChannelOptions === null"
-                  type="QInput"/>
+                  type="QInput" />
                 <q-select
                   v-else
                   label="EPG Channel"
@@ -180,7 +180,7 @@
               </div>
               <!--END EPG CONFIG-->
 
-              <q-separator class="q-my-lg"/>
+              <q-separator class="q-my-lg" />
 
               <!--START SOURCES CONFIG-->
               <h5 class="q-mb-none">Channel Sources:</h5>
@@ -215,7 +215,7 @@
                         </q-item-section>
                         <!--END DRAGGABLE HANDLE-->
 
-                        <q-separator inset vertical class="gt-xs"/>
+                        <q-separator inset vertical class="gt-xs" />
 
                         <!--START CHANNEL NUMBER-->
                         <q-item-section side class="q-px-sm q-mx-sm" style="max-width: 60px;">
@@ -229,7 +229,7 @@
                         </q-item-section>
                         <!--END CHANNEL NUMBER-->
 
-                        <q-separator inset vertical class="gt-xs"/>
+                        <q-separator inset vertical class="gt-xs" />
 
                         <!--START NAME / DESCRIPTION-->
                         <q-item-section top class="q-mx-md">
@@ -243,11 +243,18 @@
                         </q-item-section>
                         <!--END NAME / DESCRIPTION-->
 
-                        <q-separator inset vertical class="gt-xs"/>
+                        <q-separator inset vertical class="gt-xs" />
 
-                        <q-item-section side class="q-mr-md">
+                        <q-item-section side class="q-mr-none">
                           <div class="text-grey-8 q-gutter-xs">
-                            <!--                        <q-btn class="gt-xs" size="12px" flat dense round icon="delete"/>-->
+                            <q-btn size="12px" flat dense round color="primary" icon="refresh"
+                                   @click="refreshChannelSourceFromPlaylist(index)">
+                              <q-tooltip class="bg-white text-primary">Refresh source from playlist</q-tooltip>
+                            </q-btn>
+                          </div>
+                        </q-item-section>
+                        <q-item-section side class="q-ml-none q-mr-md">
+                          <div class="text-grey-8 q-gutter-xs">
                             <q-btn size="12px" flat dense round color="negative" icon="delete"
                                    @click="removeChannelSourceFromList(index)">
                               <q-tooltip class="bg-white text-primary">Remove this source</q-tooltip>
@@ -262,7 +269,7 @@
                 </q-list>
 
                 <q-bar class="bg-transparent q-mb-sm">
-                  <q-space/>
+                  <q-space />
                   <q-btn
                     round
                     flat
@@ -275,12 +282,12 @@
               <!--END SOURCES CONFIG-->
 
               <div>
-                <q-btn label="Save" type="submit" color="primary"/>
+                <q-btn label="Save" type="submit" color="primary" />
                 <q-btn
                   @click="deleteChannel()"
                   class="q-ml-md"
                   color="red"
-                  label="Delete"/>
+                  label="Delete" />
               </div>
 
             </q-form>
@@ -300,24 +307,24 @@ tab          - The tab to display first ['info', 'settings']
 */
 
 import axios from "axios";
-import {ref} from "vue";
+import { ref } from "vue";
 import draggable from "vuedraggable";
 import ChannelStreamSelectorDialog from "components/ChannelStreamSelectorDialog.vue";
 
 export default {
-  name: 'ChannelInfoDialog',
-  components: {draggable},
+  name: "ChannelInfoDialog",
+  components: { draggable },
   props: {
     channelId: {
       type: String
     },
     newChannelNumber: {
       type: Number
-    },
+    }
   },
   emits: [
     // REQUIRED
-    'ok', 'hide', 'path'
+    "ok", "hide", "path"
   ],
   data() {
     return {
@@ -327,7 +334,7 @@ export default {
       name: ref(null),
       logoUrl: ref(null),
       tags: ref(null),
-      newTag: ref(''),
+      newTag: ref(""),
       epgSourceOptions: ref(null),
       epgSourceId: ref(null),
       epgChannelAllOptions: ref(null),
@@ -339,8 +346,8 @@ export default {
 
       channelSourceOptions: ref(null),
       channelSourceOptionsFiltered: ref(null),
-      channelSources: ref(null),
-    }
+      channelSources: ref(null)
+    };
   },
   methods: {
     // following method is REQUIRED
@@ -351,26 +358,27 @@ export default {
       this.fetchPlaylistData();
       if (this.channelId) {
         this.fetchData();
-        return
+        return;
       }
-      this.enabled = true
+      this.enabled = true;
       this.number = (this.newChannelNumber ? this.newChannelNumber : 0);
-      this.name = ''
-      this.logoUrl = ''
-      this.tags = []
-      this.epgSourceOptions = []
-      this.epgSourceId = ''
-      this.epgSourceName = ''
-      this.epgChannelDefaultOptions = []
-      this.epgChannelOptions = []
-      this.epgChannel = ''
+      this.name = "";
+      this.logoUrl = "";
+      this.tags = [];
+      this.epgSourceOptions = [];
+      this.epgSourceId = "";
+      this.epgSourceName = "";
+      this.epgChannelDefaultOptions = [];
+      this.epgChannelOptions = [];
+      this.epgChannel = "";
 
-      this.listOfPlaylists = []
-      this.listOfChannelSources = []
+      this.listOfPlaylists = [];
+      this.listOfChannelSources = [];
+      this.listOfChannelSourcesToRefresh = [];
 
-      this.channelSourceOptions = []
-      this.channelSourceOptionsFiltered = []
-      this.channelSources = []
+      this.channelSourceOptions = [];
+      this.channelSourceOptionsFiltered = [];
+      this.channelSources = [];
     },
 
     // following method is REQUIRED
@@ -382,101 +390,102 @@ export default {
     onDialogHide() {
       // required to be emitted
       // when QDialog emits "hide" event
-      this.$emit('ok', {})
-      this.$emit('hide')
+      this.$emit("ok", {});
+      this.$emit("hide");
     },
 
-    fetchData: function () {
+    fetchData: function() {
       // Fetch from server
       axios({
-        method: 'GET',
-        url: '/tic-api/channels/settings/' + this.channelId,
+        method: "GET",
+        url: "/tic-api/channels/settings/" + this.channelId
       }).then((response) => {
-        this.enabled = response.data.data.enabled
-        this.number = response.data.data.number
-        this.name = response.data.data.name
-        this.logoUrl = response.data.data.logo_url
-        this.tags = response.data.data.tags
+        this.enabled = response.data.data.enabled;
+        this.number = response.data.data.number;
+        this.name = response.data.data.name;
+        this.logoUrl = response.data.data.logo_url;
+        this.tags = response.data.data.tags;
         // Fetch data for EPG
-        this.epgSourceId = response.data.data.guide.epg_id
-        this.epgSourceName = response.data.data.guide.epg_name
-        this.epgChannel = response.data.data.guide.channel_id
+        this.epgSourceId = response.data.data.guide.epg_id;
+        this.epgSourceName = response.data.data.guide.epg_name;
+        this.epgChannel = response.data.data.guide.channel_id;
         // Fetch list of channel sources and pipe to a list ordered by the 'priority'
         this.listOfChannelSources = response.data.data.sources.sort((a, b) => b.priority - a.priority);
+        this.listOfChannelSourcesToRefresh = [];
         // Enable saving the form
         this.canSave = true;
       });
     },
-    fetchEpgData: function () {
+    fetchEpgData: function() {
       // Fetch from server
       axios({
-        method: 'GET',
-        url: '/tic-api/epgs/get'
+        method: "GET",
+        url: "/tic-api/epgs/get"
       }).then((response) => {
-        this.epgSourceOptions = []
+        this.epgSourceOptions = [];
         for (let i in response.data.data) {
-          let epg = response.data.data[i]
+          let epg = response.data.data[i];
           this.epgSourceOptions.push(
             {
               label: epg.name,
-              value: epg.id,
+              value: epg.id
             }
           );
         }
       });
       axios({
-        method: 'GET',
-        url: '/tic-api/epgs/channels'
+        method: "GET",
+        url: "/tic-api/epgs/channels"
       }).then((response) => {
-        this.epgChannelAllOptions = {}
+        this.epgChannelAllOptions = {};
         for (let epg_id in response.data.data) {
-          let epg_channels = response.data.data[epg_id]
-          this.epgChannelAllOptions[epg_id] = []
+          let epg_channels = response.data.data[epg_id];
+          this.epgChannelAllOptions[epg_id] = [];
           for (let i = 0; i < epg_channels.length; i++) {
             let channel_info = epg_channels[i];
             this.epgChannelAllOptions[epg_id].push(
               {
                 label: channel_info.display_name,
-                value: channel_info.channel_id,
+                value: channel_info.channel_id
               }
             );
           }
         }
-        this.updateCurrentEpgChannelOptions()
+        this.updateCurrentEpgChannelOptions();
       });
     },
-    fetchPlaylistData: function () {
+    fetchPlaylistData: function() {
       axios({
-        method: 'get',
-        url: '/tic-api/playlists/get'
+        method: "get",
+        url: "/tic-api/playlists/get"
       }).then((response) => {
-        this.listOfPlaylists = response.data.data
+        this.listOfPlaylists = response.data.data;
       }).catch(() => {
         this.$q.notify({
-          color: 'negative',
-          position: 'top',
+          color: "negative",
+          position: "top",
           message: "Failed to fetch the list of playlists",
-          icon: 'report_problem',
-          actions: [{icon: 'close', color: 'white'}]
-        })
+          icon: "report_problem",
+          actions: [{ icon: "close", color: "white" }]
+        });
       });
     },
-    updateCurrentEpgChannelOptions: function () {
+    updateCurrentEpgChannelOptions: function() {
       if (this.epgSourceId) {
-        this.epgChannelDefaultOptions = this.epgChannelAllOptions[this.epgSourceId]
-        this.epgChannelOptions = this.epgChannelAllOptions[this.epgSourceId]
+        this.epgChannelDefaultOptions = this.epgChannelAllOptions[this.epgSourceId];
+        this.epgChannelOptions = this.epgChannelAllOptions[this.epgSourceId];
       }
     },
-    save: function () {
+    save: function() {
       const epgInfo = this.epgSourceOptions.find((item) => {
-        return item.value === this.epgSourceId
-      })
+        return item.value === this.epgSourceId;
+      });
       if (epgInfo) {
-        this.epgSourceName = epgInfo.label
+        this.epgSourceName = epgInfo.label;
       }
-      let url = '/tic-api/channels/new'
+      let url = "/tic-api/channels/new";
       if (this.channelId) {
-        url = `/tic-api/channels/settings/${this.channelId}/save`
+        url = `/tic-api/channels/settings/${this.channelId}/save`;
       }
       let data = {
         enabled: this.enabled,
@@ -488,123 +497,135 @@ export default {
         guide: {
           epg_id: this.epgSourceId,
           epg_name: this.epgSourceName,
-          channel_id: this.epgChannel,
+          channel_id: this.epgChannel
         },
         sources: this.listOfChannelSources,
-      }
+        refresh_sources: this.listOfChannelSourcesToRefresh
+      };
+      console.log(data);
       if (this.newChannelNumber) {
-        data.number = this.newChannelNumber
+        data.number = this.newChannelNumber;
       }
       axios({
-        method: 'POST',
+        method: "POST",
         url: url,
         data: data
       }).then((response) => {
         // Save success, show feedback
         this.$q.notify({
-          color: 'positive',
-          position: 'top',
-          icon: 'cloud_done',
-          message: 'Saved',
+          color: "positive",
+          position: "top",
+          icon: "cloud_done",
+          message: "Saved",
           timeout: 200
-        })
-        this.hide()
+        });
+        this.hide();
       }).catch(() => {
         this.$q.notify({
-          color: 'negative',
-          position: 'top',
-          message: 'Failed to save settings',
-          icon: 'report_problem',
-          actions: [{icon: 'close', color: 'white'}]
-        })
+          color: "negative",
+          position: "top",
+          message: "Failed to save settings",
+          icon: "report_problem",
+          actions: [{ icon: "close", color: "white" }]
+        });
       });
     },
-    deleteChannel: function () {
-      let channelId = this.channelId
+    deleteChannel: function() {
+      let channelId = this.channelId;
       if (!channelId) {
-        console.warn(`No channel ID provided - '${channelId}'`)
-        return
+        console.warn(`No channel ID provided - '${channelId}'`);
+        return;
       }
       axios({
-        method: 'DELETE',
-        url: `/tic-api/channels/settings/${channelId}/delete`,
+        method: "DELETE",
+        url: `/tic-api/channels/settings/${channelId}/delete`
       }).then((response) => {
         // Save success, show feedback
         this.$q.notify({
-          color: 'positive',
-          position: 'top',
-          icon: 'cloud_done',
-          message: 'Channel successfully deleted',
+          color: "positive",
+          position: "top",
+          icon: "cloud_done",
+          message: "Channel successfully deleted",
           timeout: 200
-        })
-        this.hide()
+        });
+        this.hide();
       }).catch(() => {
         this.$q.notify({
-          color: 'negative',
-          position: 'top',
-          message: 'Failed to delete channel',
-          icon: 'report_problem',
-          actions: [{icon: 'close', color: 'white'}]
-        })
+          color: "negative",
+          position: "top",
+          message: "Failed to delete channel",
+          icon: "report_problem",
+          actions: [{ icon: "close", color: "white" }]
+        });
       });
     },
-    addTag: function () {
+    addTag: function() {
       if (this.newTag) {
         this.tags[this.tags.length] = this.newTag;
         this.newTag = null;
       }
     },
     filterEpg(val, update) {
-      if (val === '') {
+      if (val === "") {
         update(() => {
-          this.epgChannelOptions = this.epgChannelDefaultOptions
-        })
-        return
+          this.epgChannelOptions = this.epgChannelDefaultOptions;
+        });
+        return;
       }
 
       update(() => {
-        const needle = val.toLowerCase()
-        this.epgChannelOptions = this.epgChannelDefaultOptions.filter(v => v.label.toLowerCase().indexOf(needle) > -1)
-      })
+        const needle = val.toLowerCase();
+        this.epgChannelOptions = this.epgChannelDefaultOptions.filter(v => v.label.toLowerCase().indexOf(needle) > -1);
+      });
     },
-    selectChannelSourceFromList: function () {
+    selectChannelSourceFromList: function() {
       this.$q.dialog({
         component: ChannelStreamSelectorDialog,
         componentProps: {
-          hideStreams: [],
-        },
+          hideStreams: []
+        }
       }).onOk((payload) => {
-        if (typeof payload.selectedStreams !== 'undefined' && payload.selectedStreams !== null) {
+        if (typeof payload.selectedStreams !== "undefined" && payload.selectedStreams !== null) {
           // Add selected stream to list
-          let enabledStreams = structuredClone(this.listOfChannelSources)
+          let enabledStreams = structuredClone(this.listOfChannelSources);
           for (const i in payload.selectedStreams) {
             // Check if this sources is already added...
             const foundItem = enabledStreams.find((item) => {
-              return (item.playlist_id === payload.selectedStreams[i].playlist_id && item.stream_name === payload.selectedStreams[i].stream_name)
-            })
+              return (item.playlist_id === payload.selectedStreams[i].playlist_id && item.stream_name === payload.selectedStreams[i].stream_name);
+            });
             if (foundItem) {
               // Value already exists
-              console.warn("Channel source already exists")
-              continue
+              console.warn("Channel source already exists");
+              continue;
             }
             const playlistDetails = this.listOfPlaylists.find((item) => {
-              return parseInt(item.id) === parseInt(payload.selectedStreams[i].playlist_id)
-            })
+              return parseInt(item.id) === parseInt(payload.selectedStreams[i].playlist_id);
+            });
             enabledStreams.push({
               playlist_id: payload.selectedStreams[i].playlist_id,
               playlist_name: playlistDetails.name,
-              stream_name: payload.selectedStreams[i].stream_name,
+              stream_name: payload.selectedStreams[i].stream_name
             });
           }
           this.listOfChannelSources = enabledStreams;
           // NOTE: Do not save the current settings here! We want to be able to undo these changes.
         }
       }).onDismiss(() => {
-      })
+      });
     },
-    removeChannelSourceFromList: function (index) {
+    refreshChannelSourceFromPlaylist: function(index) {
+      let refreshSources = structuredClone(this.listOfChannelSourcesToRefresh);
+      // TODO: Add logic to not add the same thing multiple times
+      refreshSources.push({
+        playlist_id: this.listOfChannelSources[index].playlist_id,
+        playlist_name: this.listOfChannelSources[index].playlist_name,
+        stream_name: this.listOfChannelSources[index].stream_name
+      });
+      this.listOfChannelSourcesToRefresh = refreshSources;
+    },
+    removeChannelSourceFromList: function(index) {
       this.listOfChannelSources.splice(index, 1);
-    },
+    }
   },
   computed: {
     dragOptions() {
@@ -615,18 +636,18 @@ export default {
         ghostClass: "ghost",
         direction: "vertical",
         delay: 200,
-        delayOnTouchOnly: true,
+        delayOnTouchOnly: true
       };
     }
   },
   watch: {
     epgSourceId(value) {
       if (value && this.epgChannelAllOptions) {
-        this.updateCurrentEpgChannelOptions()
+        this.updateCurrentEpgChannelOptions();
       }
     }
   }
-}
+};
 </script>
 
 <style>
