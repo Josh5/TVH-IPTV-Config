@@ -72,6 +72,8 @@ class TaskQueueBroker:
             logger.debug("Pending tasks queue paused.")
             return
         while not self.__task_queue.empty():
+            if self.__status == "paused":
+                break
             priority, i, task = self.__task_queue.get()
             self.__task_names.remove(task['name'])
             self.__running_task = task['name']
