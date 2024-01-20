@@ -5,6 +5,7 @@ import {Notify} from 'quasar'
 export default function pollForBackgroundTasks() {
   const pendingTasks = ref([])
   const notifications = ref({})
+  const pendingTasksStatus = ref("running")
   let timerId = null
 
   const displayCurrentTask = (messageId, taskName) => {
@@ -54,6 +55,7 @@ export default function pollForBackgroundTasks() {
         })
       }
       pendingTasks.value = tasks
+      pendingTasksStatus.value = payload.data['task_queue_status']
       if (payload.data['current_task']) {
         displayCurrentTask('currentTask', payload.data['current_task'])
       } else {
@@ -79,6 +81,7 @@ export default function pollForBackgroundTasks() {
   })
 
   return {
-    pendingTasks
+    pendingTasks,
+    pendingTasksStatus
   }
 }

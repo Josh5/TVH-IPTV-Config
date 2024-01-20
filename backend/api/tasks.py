@@ -23,6 +23,7 @@ class TaskQueueBroker:
             TaskQueueBroker.__instance = self
             # Create the queue
             self.__running_task = None
+            self.__status = "running"
             self.__task_queue = PriorityQueue()
             self.__task_names = set()
             self.__priority_counter = itertools.count()
@@ -35,6 +36,16 @@ class TaskQueueBroker:
             if TaskQueueBroker.__instance is None:
                 TaskQueueBroker()
         return TaskQueueBroker.__instance
+
+    def get_status(self):
+        return self.__status
+
+    def toggle_status(self):
+        if self.__status == "paused":
+            self.__status = "running"
+        else:
+            self.__status = "paused"
+        return self.__status
 
     def add_task(self, task, priority=100):
         if task['name'] in self.__task_names:
@@ -56,6 +67,9 @@ class TaskQueueBroker:
             logger.warning("Another process is already running scheduled tasks.")
         if self.__task_queue.empty():
             logger.debug("No pending tasks found.")
+            return
+        if self.__status == "paused":
+            logger.debug("Pending tasks queue paused.")
             return
         while not self.__task_queue.empty():
             priority, i, task = self.__task_queue.get()

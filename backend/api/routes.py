@@ -49,9 +49,21 @@ def api_get_background_tasks():
         {
             "success": True,
             "data":    {
-                "current_task":  task_broker.get_currently_running_task(),
-                "pending_tasks": task_broker.get_pending_tasks(),
+                "task_queue_status": task_broker.get_status(),
+                "current_task":      task_broker.get_currently_running_task(),
+                "pending_tasks":     task_broker.get_pending_tasks(),
             },
+        }
+    )
+
+
+@blueprint.route('/tic-api/toggle-pause-background-tasks', methods=['GET'])
+def api_toggle_background_tasks_status():
+    task_broker = TaskQueueBroker.get_instance()
+    task_broker.toggle_status()
+    return jsonify(
+        {
+            "success": True
         }
     )
 
