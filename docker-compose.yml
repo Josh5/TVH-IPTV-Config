@@ -4,7 +4,6 @@ services:
   # -- TVH IPTV CONFIG --
   tvh_iptv:
     image: josh5/tvh-iptv:latest
-    container_name: tvh_iptv
     build:
       context: .
       dockerfile: docker/Dockerfile
