@@ -468,7 +468,7 @@ def cleanup_old_channels(config):
             tvh.delete_channel(channel.get('uuid'))
 
 
-def queue_background_chanel_update_tasks(config):
+def queue_background_channel_update_tasks(config):
     # Update TVH
     from backend.api.tasks import TaskQueueBroker
     task_broker = TaskQueueBroker.get_instance()

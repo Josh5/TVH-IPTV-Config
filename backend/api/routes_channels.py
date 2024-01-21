@@ -4,7 +4,7 @@ from backend.api import blueprint
 from flask import request, jsonify, current_app
 
 from backend.channels import read_config_all_channels, add_new_channel, read_config_one_channel, update_channel, \
-    delete_channel, add_bulk_channels, queue_background_chanel_update_tasks
+    delete_channel, add_bulk_channels, queue_background_channel_update_tasks
 
 
 @blueprint.route('/tic-api/channels/get', methods=['GET'])
@@ -22,7 +22,7 @@ def api_get_channels():
 def api_add_new_channel():
     config = current_app.config['APP_CONFIG']
     add_new_channel(config, request.json)
-    queue_background_chanel_update_tasks(config)
+    queue_background_channel_update_tasks(config)
     return jsonify(
         {
             "success": True
@@ -45,7 +45,7 @@ def api_get_channel_config(channel_id):
 def api_set_config_channels(channel_id):
     config = current_app.config['APP_CONFIG']
     update_channel(config, channel_id, request.json)
-    queue_background_chanel_update_tasks(config)
+    queue_background_channel_update_tasks(config)
     return jsonify(
         {
             "success": True
@@ -59,7 +59,7 @@ def api_set_config_multiple_channels():
     for channel_id in request.json.get('channels', {}):
         channel = request.json['channels'][channel_id]
         update_channel(config, channel_id, channel)
-    queue_background_chanel_update_tasks(config)
+    queue_background_channel_update_tasks(config)
     return jsonify(
         {
             "success": True
@@ -71,7 +71,7 @@ def api_set_config_multiple_channels():
 def api_add_multiple_channels():
     config = current_app.config['APP_CONFIG']
     add_bulk_channels(config, request.json.get('channels', []))
-    queue_background_chanel_update_tasks(config)
+    queue_background_channel_update_tasks(config)
     return jsonify(
         {
             "success": True
