@@ -266,6 +266,7 @@ def build_custom_epg(config):
     configured_channels = []
     all_channel_programmes_data = []
     # for key in settings.get('channels', {}):
+    logger.info("   - Building a programme data for each channel.")
     for result in db.session.query(Channel).order_by(Channel.number.asc()).all():
         if result.enabled:
             channel_id = generate_epg_channel_id(result.number, result.name)
@@ -283,6 +284,7 @@ def build_custom_epg(config):
                 .order_by(EpgChannelProgrammes.channel_id.asc(), EpgChannelProgrammes.start.asc()) \
                 .all()
             programmes = []
+            logger.info("       - Building programme list for %s - %s.", channel_id, result.name)
             for programme in db_programmes:
                 programmes.append({
                     'start':           programme.start,
@@ -299,6 +301,7 @@ def build_custom_epg(config):
                 'programmes': programmes
             })
     # Loop over all configured channels
+    logger.info("   - Generating XML channel info.")
     for channel_info in configured_channels:
         # Create a <channel> element for a TV channel
         channel = ET.SubElement(output_root, 'channel')
@@ -310,6 +313,7 @@ def build_custom_epg(config):
         icon = ET.SubElement(channel, 'icon')
         icon.set('src', channel_info['logo_url'])
     # Loop through all <programme> elements returned
+    logger.info("   - Generating XML channel programme data.")
     for channel_programmes_data in all_channel_programmes_data:
         for epg_channel_programme in channel_programmes_data.get('programmes', []):
             # Create a <programme> element for the output file and copy the attributes from the input programme
@@ -341,6 +345,7 @@ def build_custom_epg(config):
                 output_child = ET.SubElement(output_programme, 'category')
                 output_child.text = tag
     # Create an XML file and write the output root element to it
+    logger.info("   - Writing out XMLTV file.")
     output_tree = ET.ElementTree(output_root)
     ET.indent(output_tree, space="\t", level=0)
     custom_epg_file = os.path.join(config.config_path, "epg.xml")
