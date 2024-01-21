@@ -1,5 +1,9 @@
 ---
 version: "2.1"
+
+networks:
+  tvh-iptv-config-net:
+
 services:
   # -- TVH IPTV CONFIG --
   tvh_iptv:
@@ -10,6 +14,8 @@ services:
     restart: unless-stopped
 
     # NETWORK:
+    networks:
+      - tvh-iptv-config-net
     ports:
       # WebUI Port (9985)
       - 9985:9985

@@ -15,7 +15,13 @@
           TVH IPTV Config
         </q-toolbar-title>
 
-        <div><span class="q-ml-sm text-weight-bold">EPG URL:</span> {{ epgUrl }}</div>
+        <div>
+          <span class="q-ml-sm text-weight-bold">EPG URL:</span>
+          <span
+            class="cursor-pointer"
+            @click="copyUrlToClipboard"
+          >{{ epgUrl }}</span>
+        </div>
       </q-toolbar>
     </q-header>
 
@@ -81,6 +87,10 @@
 </template>
 
 <style>
+.cursor-pointer {
+  cursor: pointer;
+}
+
 .rotating-icon {
   animation: spin 2s linear infinite;
 }
@@ -100,6 +110,7 @@ import { defineComponent, ref } from "vue";
 import EssentialLink from "components/EssentialLink.vue";
 import pollForBackgroundTasks from "src/mixins/backgroundTasksMixin";
 import axios from "axios";
+import { copyToClipboard, useQuasar } from "quasar";
 
 const linksList = [
   {
@@ -136,11 +147,37 @@ export default defineComponent({
   },
 
   setup() {
+    const $q = useQuasar();
     const leftDrawerOpen = ref(false);
     const { pendingTasks, pendingTasksStatus } = pollForBackgroundTasks();
     const tasksArePaused = ref(false);
 
-    function tasksPauseResume() {
+    const epgUrl = ref(`${window.location.origin}/tic-web/epg.xml`);
+
+    const copyUrlToClipboard = () => {
+      copyToClipboard(epgUrl.value)
+        .then(() => {
+          // Notify user of success
+          $q.notify({
+            color: "green",
+            textColor: "white",
+            icon: "done",
+            message: "EPG URL copied to clipboard"
+          });
+        })
+        .catch((err) => {
+          // Handle the error (e.g., clipboard API not supported)
+          console.error("Copy failed", err);
+          $q.notify({
+            color: "red",
+            textColor: "white",
+            icon: "error",
+            message: "Failed to copy URL"
+          });
+        });
+    };
+
+    const tasksPauseResume = () => {
       // tasksArePaused.value = !tasksArePaused.value;
       // Your logic to toggle pause/resume the tasks
       axios({
@@ -155,15 +192,16 @@ export default defineComponent({
           actions: [{ icon: "close", color: "white" }]
         });
       });
-    }
+    };
 
     return {
-      epgUrl: `${window.location.origin}/tic-web/epg.xml`,
+      epgUrl,
       essentialLinks: linksList,
       leftDrawerOpen,
       toggleLeftDrawer() {
         leftDrawerOpen.value = !leftDrawerOpen.value;
       },
+      copyUrlToClipboard,
       pendingTasks,
       pendingTasksStatus,
       tasksPauseResume,

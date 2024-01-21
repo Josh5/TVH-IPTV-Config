@@ -35,6 +35,7 @@ def read_config_all_channels():
         return_list.append({
             'id':       result.id,
             'enabled':  result.enabled,
+            'tvh_uuid': result.tvh_uuid,
             'name':     result.name,
             'logo_url': result.logo_url,
             'number':   result.number,

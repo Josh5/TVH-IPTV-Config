@@ -18,6 +18,11 @@ from backend.tvheadend.tvh_requests import get_tvh
 logger = logging.getLogger('werkzeug.epgs')
 
 
+def generate_epg_channel_id(number, name):
+    # return f"{number}_{re.sub(r'[^a-zA-Z0-9]', '', name)}"
+    return str(number)
+
+
 def read_config_all_epgs():
     return_list = []
     for result in db.session.query(Epg).all():
@@ -263,7 +268,7 @@ def build_custom_epg(config):
     # for key in settings.get('channels', {}):
     for result in db.session.query(Channel).order_by(Channel.number.asc()).all():
         if result.enabled:
-            channel_id = f"{result.number}_{re.sub(r'[^a-zA-Z0-9]', '', result.name)}"
+            channel_id = generate_epg_channel_id(result.number, result.name)
             # Populate a channels list
             configured_channels.append({
                 'channel_id':   channel_id,

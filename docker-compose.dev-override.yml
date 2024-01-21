@@ -26,6 +26,8 @@ services:
     image: lscr.io/linuxserver/tvheadend:latest
 
     # NETWORK:
+    networks:
+      - tvh-iptv-config-net
     ports:
       - "9981:9981/tcp" # Webui
       - "9982:9982/tcp" # HTSP
