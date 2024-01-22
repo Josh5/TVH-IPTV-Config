@@ -43,6 +43,12 @@ services:
       # Additional arguments to be passed to Tvheadend (Optional)
       # - RUN_OPTS= #optional
 
+    # VOLUMES:
+    volumes:
+      - ./dev_env/tvheadend:/config
+      - ./dev_env/tvh-recordings:/recordings
+      - ./dev_env/tvh-timeshift:/timeshift
+
     ## # DEVICES:
     ## devices:
     ##   - /dev/dri #optional

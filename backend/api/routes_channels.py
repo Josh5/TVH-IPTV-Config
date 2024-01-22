@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
+import io
+
 from backend.api import blueprint
-from flask import request, jsonify, current_app
+from flask import request, jsonify, current_app, send_file
 
 from backend.channels import read_config_all_channels, add_new_channel, read_config_one_channel, update_channel, \
-    delete_channel, add_bulk_channels, queue_background_channel_update_tasks
+    delete_channel, add_bulk_channels, queue_background_channel_update_tasks, read_channel_logo
 
 
 @blueprint.route('/tic-api/channels/get', methods=['GET'])
@@ -88,3 +90,13 @@ def api_delete_config_channels(channel_id):
             "success": True
         }
     )
+
+
+@blueprint.route('/tic-api/channels/<channel_id>/logo/<file_placeholder>', methods=['GET'])
+def api_get_channel_logo(channel_id, file_placeholder):
+    image_data, mime_type = read_channel_logo(channel_id)
+    # Convert to a BytesIO object for sending file
+    image_io = io.BytesIO(image_data)
+    image_io.seek(0)
+    # Return file blob
+    return send_file(image_io, mimetype=mime_type, download_name='image')

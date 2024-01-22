@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
+import gzip
 import json
 import logging
 import os
-import re
+from mimetypes import guess_extension
+
 import requests
 import time
 import xml.etree.ElementTree as ET
@@ -12,6 +14,7 @@ from types import NoneType
 from sqlalchemy.orm import joinedload
 from sqlalchemy import and_
 from backend import db
+from backend.channels import read_base46_image_string
 from backend.models import Epg, Channel, EpgChannels, EpgChannelProgrammes
 from backend.tvheadend.tvh_requests import get_tvh
 
@@ -255,6 +258,7 @@ def read_channels_from_all_epgs(config):
 # --- Cache ---
 # TODO: Migrate this data into the database to speed up requests
 def build_custom_epg(config):
+    settings = config.read_settings()
     logger.info("Generating custom EPG for TVH based on configured channels.")
     start_time = time.time()
     # Create the root <tv> element of the output XMLTV file
@@ -270,11 +274,16 @@ def build_custom_epg(config):
     for result in db.session.query(Channel).order_by(Channel.number.asc()).all():
         if result.enabled:
             channel_id = generate_epg_channel_id(result.number, result.name)
+            # Read cached image
+            image_data, mime_type = read_base46_image_string(result.logo_base64)
+            cache_buster = time.time()
+            ext = guess_extension(mime_type)
+            logo_url = f"{settings['settings']['app_url']}/tic-api/channels/{channel_id}/logo/{cache_buster}.{ext}"
             # Populate a channels list
             configured_channels.append({
                 'channel_id':   channel_id,
                 'display_name': result.name,
-                'logo_url':     result.logo_url,
+                'logo_url':     logo_url,
             })
             db_programmes_query = db.session.query(EpgChannelProgrammes) \
                 .options(joinedload(EpgChannelProgrammes.channel)) \

@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
+import base64
 import logging
+import os
 import re
+from mimetypes import guess_type
 
+import requests
 from sqlalchemy.orm import joinedload
 from sqlalchemy import and_, func
 from backend import db
@@ -15,7 +19,9 @@ from backend.tvheadend.tvh_requests import get_tvh
 logger = logging.getLogger('werkzeug.channels')
 
 
-def read_config_all_channels(filter_playlist_ids=[]):
+def read_config_all_channels(filter_playlist_ids=None):
+    if filter_playlist_ids is None:
+        filter_playlist_ids = []
     return_list = []
     for result in db.session.query(Channel) \
             .options(joinedload(Channel.tags), joinedload(Channel.sources).subqueryload(ChannelSource.playlist)) \
@@ -93,6 +99,50 @@ def read_config_one_channel(channel_id):
     return return_item
 
 
+def get_channel_image_path(config, channel_id):
+    return os.path.join(config.config_path, 'cache', 'logos', f"channel_logo_{channel_id}")
+
+
+def convert_image_to_base64(image_source):
+    placeholder_base64 = 'iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAIAAAD/gAIDAAACiUlEQVR4nO2cy46sMAxEzdX8/y/3XUSKUM+I7sLlF6qzYgE4HJwQEsLxer1MfMe/6gJMQrIAJAtAsgAkC0CyACQLQLIAJAtAsgAkC0CyACQLQLIAJAtAsgAkC0CyACQL4Md5/HEclFH84ziud+gwV+C61H2F905yFvTxDNDOQXjz4p6vddTt0M7Db0OoRN/7cmZi6Nm+iphWblbrlnnm90CsMBe+EmpNTsVk3pM/faXd9oRYzH7WLui2lmlqFeBjF8QD/2LKn/Fxd4jfgy/vPcblV+zrTmiluCDIF1/WqgW/269kInyRZZ3bi+f5Ysr63bI+zFf4EE25LyI0WRcP7FpfxOTiyPrYtXmGr7yR0gfUx9Rh5em+CLKg14sqX5SaWDBhMTe/vLLuvbWW+PInV9lU2MT8qpw3HOereJJ1li+XLMowW6YvZ7PVYvp+Sn61kGVDfHWRZRN8NZJl7X31kmW9fbWTZY19dZRlXX01lWUtffWVZf18tZZlzXy5ZEV/iLGjrA1/LOf7WffMWjTJrxmyrIevMbKsgS+vrJxm6xxubdwI6h9QmpRZi8L8IshKTi675YsyTjkvsxYl+TVVllX44sjKr4k77tq4js76JJeWWW19ET9eHlwNN2n1kbxooPBzyLXxVgDuN/HkzGrli756IGQxQvIqlLfQe5tehpA2q0N+RRDVwBf62nRfNHCmxFfo+o7YrkOyr+j1HRktceFKVvKq7AcsM70+M9FX6jO+avU9K25Nhyj/vw4UX2W9R0v/Y4jfV6WsMzn/ovH+D6aJrDQ8z5knDNFAPH9GugmSBSBZAJIFIFkAkgUgWQCSBSBZAJIFIFkAkgUgWQCSBSBZAJIFIFkA/wGlHK2X7Li2TQAAAABJRU5ErkJggg=='
+    try:
+        if image_source.startswith('data:image/'):
+            mime_type = image_source.split(';')[0].split(':')[1]
+            image_base64_string = image_source.split('base64,')[1]
+        elif image_source.startswith('http://') or image_source.startswith('https://'):
+            # Image source is a URL
+            mime_type = guess_type(image_source)[0]
+            response = requests.get(image_source)
+            response.raise_for_status()  # Will raise an HTTPError if the HTTP request returned an unsuccessful status code
+            image_base64_string = base64.b64encode(response.content).decode()
+        else:
+            # Handle other cases or raise an error
+            raise ValueError("Unsupported image source format")
+    except Exception as e:
+        logger.error("An error occurred while updating channel image: %s", e)
+        # Return the placeholder image
+        mime_type = 'image/png'
+        image_base64_string = placeholder_base64
+
+    # Prepend the MIME type and base64 header and return
+    base64_string_with_header = f"data:{mime_type};base64,{image_base64_string}"
+    return base64_string_with_header
+
+
+def read_base46_image_string(base64_string):
+    # Extract the MIME type and decode the base64 string
+    mime_type = base64_string.split(';')[0].split(':')[1]
+    image_data = base64.b64decode(base64_string.split(',')[1])
+    return image_data, mime_type
+
+
+def read_channel_logo(channel_id):
+    channel = db.session.query(Channel).where(Channel.id == channel_id).one()
+    base64_string = channel.logo_base64
+    image_data, mime_type = read_base46_image_string(base64_string)
+    return image_data, mime_type
+
+
 def add_new_channel(config, data, commit=True):
     channel = Channel(
         enabled=data.get('enabled'),
@@ -132,6 +182,10 @@ def add_new_channel(config, data, commit=True):
     if new_sources:
         channel.sources.clear()
         channel.sources = new_sources
+
+    # Host an image cache
+    # if data.get('logo_url'):
+    channel.logo_base64 = convert_image_to_base64(data.get('logo_url'))
 
     # Publish changes to TVH
     channel_uuid = publish_channel_to_tvh(config, channel)
@@ -229,6 +283,9 @@ def update_channel(config, channel_id, data):
     if new_sources:
         channel.sources.clear()
         channel.sources = new_sources
+
+    # Host an image cache
+    channel.logo_base64 = convert_image_to_base64(data.get('logo_url'))
 
     # Publish changes to TVH
     channel_uuid = publish_channel_to_tvh(config, channel)

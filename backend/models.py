@@ -119,7 +119,8 @@ class Channel(db.Model):
 
     enabled = db.Column(db.Boolean, nullable=False, unique=False)
     name = db.Column(db.String(500), index=True, unique=False)
-    logo_url = db.Column(db.String(500), index=True, unique=False)
+    logo_url = db.Column(db.String(500), index=False, unique=False)
+    logo_base64 = db.Column(db.String(500), index=False, unique=False)
     number = db.Column(db.Integer, index=True, unique=False)
     tvh_uuid = db.Column(db.String(500), index=True, unique=False)
 
