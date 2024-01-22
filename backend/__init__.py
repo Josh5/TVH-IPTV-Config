@@ -48,9 +48,6 @@ def register_blueprints(app):
 
 
 def configure_database(app):
-    with app.app_context():
-        db.create_all()
-
     @app.teardown_request
     def shutdown_session(exception=None):
         db.session.remove()

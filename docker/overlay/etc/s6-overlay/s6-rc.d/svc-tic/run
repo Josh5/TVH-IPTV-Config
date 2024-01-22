@@ -10,7 +10,7 @@ fi
 # Execute migrations
 echo
 echo "Running TVH-IPTV-Config DB migrations"
-s6-setuidgid abc /app/venv-docker/bin/flask db upgrade
+s6-setuidgid abc /app/db-migrate.sh
 
 echo
 echo "Starting TVH-IPTV-Config Service"

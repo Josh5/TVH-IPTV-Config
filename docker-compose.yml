@@ -6,7 +6,7 @@ networks:
 
 services:
   # -- TVH IPTV CONFIG --
-  tvh_iptv:
+  tvh-iptv-config:
     image: josh5/tvh-iptv-config:latest
     build:
       context: .
