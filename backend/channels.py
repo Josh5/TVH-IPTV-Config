@@ -149,10 +149,10 @@ def read_base46_image_string(base64_string):
 def read_channel_logo(channel_id):
     channel = db.session.query(Channel).where(Channel.id == channel_id).one()
     base64_string = channel.logo_base64
-    image_base64_string, mime_type = read_base46_image_string(base64_string)
-    if not image_base64_string:
+    if not base64_string:
         # Revert to using the logo url
-        image_base64_string, mime_type = download_image_to_base64(channel.logo_url)
+        base64_string, mime_type = download_image_to_base64(channel.logo_url)
+    image_base64_string, mime_type = read_base46_image_string(base64_string)
     return image_base64_string, mime_type
 
 
