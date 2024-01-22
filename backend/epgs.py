@@ -276,13 +276,14 @@ def build_custom_epg(config):
                 'display_name': result.name,
                 'logo_url':     result.logo_url,
             })
-            db_programmes = db.session.query(EpgChannelProgrammes) \
+            db_programmes_query = db.session.query(EpgChannelProgrammes) \
                 .options(joinedload(EpgChannelProgrammes.channel)) \
                 .filter(and_(EpgChannelProgrammes.channel.has(epg_id=result.guide_id),
                              EpgChannelProgrammes.channel.has(channel_id=result.guide_channel_id)
                              )) \
-                .order_by(EpgChannelProgrammes.channel_id.asc(), EpgChannelProgrammes.start.asc()) \
-                .all()
+                .order_by(EpgChannelProgrammes.channel_id.asc(), EpgChannelProgrammes.start.asc())
+            logger.debug(db_programmes_query)
+            db_programmes = db_programmes_query.all()
             programmes = []
             logger.info("       - Building programme list for %s - %s.", channel_id, result.name)
             for programme in db_programmes:
