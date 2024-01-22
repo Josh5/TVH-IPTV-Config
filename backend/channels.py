@@ -139,8 +139,8 @@ def read_base46_image_string(base64_string):
 def read_channel_logo(channel_id):
     channel = db.session.query(Channel).where(Channel.id == channel_id).one()
     base64_string = channel.logo_base64
-    image_data, mime_type = read_base46_image_string(base64_string)
-    return image_data, mime_type
+    image_base64_string, mime_type = read_base46_image_string(base64_string)
+    return image_base64_string, mime_type
 
 
 def add_new_channel(config, data, commit=True):
