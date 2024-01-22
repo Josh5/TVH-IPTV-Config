@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
-import os
-
-import requests
-
 from backend.api import blueprint
 from flask import jsonify, current_app, render_template_string, Response
 
@@ -36,6 +32,8 @@ def _get_tvh_settings():
     tvh_port = settings['settings']['tvheadend']['port']
     tvh_username = settings['settings']['tvheadend']['username']
     tvh_password = settings['settings']['tvheadend']['password']
+    # Configure TVH-IPTV-Config base URL (proto/host/port)
+    tic_base_url = settings['settings']['app_url']
     # Configure some connection URLs
     tvh_api_url = f"http://{tvh_host}:{tvh_port}/api"
     tvh_http_url = f"http://{tvh_host}:{tvh_port}"
@@ -44,6 +42,7 @@ def _get_tvh_settings():
     stream_profile = 'pass'
     stream_priority = 300
     return {
+        "tic_base_url":    tic_base_url,
         "tvh_host":        tvh_host,
         "tvh_port":        tvh_port,
         "tvh_username":    tvh_username,
@@ -55,43 +54,41 @@ def _get_tvh_settings():
     }
 
 
-def _get_channels():
-    tvh_settings = _get_tvh_settings()
+def _get_channels(playlist_id):
     return_channels = []
-    channels_config = read_config_all_channels()
+    channels_config = read_config_all_channels(filter_playlist_ids=[int(playlist_id)])
     for channel in channels_config:
         if channel['enabled']:
             return_channels.append(channel)
     return return_channels
 
 
-def _get_discover_data():
+def _get_discover_data(playlist_id=0):
     tvh_settings = _get_tvh_settings()
-    tic_web_host = os.environ.get("APP_HOST_IP", "127.0.0.1")
-    tic_web_port = os.environ.get("APP_PORT", "9985")
+    device_name = f'TVH-IPTV-Config-{playlist_id}'
     tuner_count = 2
-    device_id = '12345678'
-
+    device_id = f'tic-12345678-{playlist_id}'
+    device_auth = f'tic-{playlist_id}'
+    base_url = f'{tvh_settings["tic_base_url"]}/tic-api/hdhr_device/{playlist_id}'
     return {
-        'FriendlyName':    'TVH-IPTV-Config',
+        'FriendlyName':    device_name,
         'Manufacturer':    'Tvheadend',
         'ModelNumber':     'HDTC-2US',
         'FirmwareName':    'bin_2.2.0',
         'TunerCount':      tuner_count,
         'FirmwareVersion': '2.2.0',
         'DeviceID':        device_id,
-        'DeviceAuth':      'tic',
-        'BaseURL':         f'http://{tic_web_host}:{tic_web_port}',
-        'LineupURL':       f'http://{tic_web_host}:{tic_web_port}/lineup.json',
+        'DeviceAuth':      device_auth,
+        'BaseURL':         base_url,
+        'LineupURL':       f'{base_url}/lineup.json',
     }
 
 
-def _get_lineup_list():
+def _get_lineup_list(playlist_id):
     use_tvh_source = True
     tvh_settings = _get_tvh_settings()
     lineup_list = []
-    for channel_details in _get_channels():
-        # current_app.logger.info(channel_details)
+    for channel_details in _get_channels(playlist_id):
         channel_id = generate_epg_channel_id(channel_details["number"], channel_details["name"])
         # TODO: Add support for fetching a stream from this application without using TVH as a proxy
         if use_tvh_source and channel_details.get('tvh_uuid'):
@@ -108,20 +105,20 @@ def _get_lineup_list():
     return lineup_list
 
 
-@blueprint.route('/discover.json', methods=['GET'])
-def discover():
-    discover_data = _get_discover_data()
+@blueprint.route('/tic-api/hdhr_device/<playlist_id>/discover.json', methods=['GET'])
+def discover_json(playlist_id):
+    discover_data = _get_discover_data(playlist_id=playlist_id)
     return jsonify(discover_data)
 
 
-@blueprint.route('/lineup.json', methods=['GET'])
-def lineup():
-    lineup_list = _get_lineup_list()
+@blueprint.route('/tic-api/hdhr_device/<playlist_id>/lineup.json', methods=['GET'])
+def lineup_json(playlist_id):
+    lineup_list = _get_lineup_list(playlist_id)
     return jsonify(lineup_list)
 
 
-@blueprint.route('/lineup_status.json', methods=['GET'])
-def status():
+@blueprint.route('/tic-api/hdhr_device/<playlist_id>/lineup_status.json', methods=['GET'])
+def lineup_status_json(playlist_id=None):
     return jsonify(
         {
             'ScanInProgress': 0,
@@ -132,13 +129,13 @@ def status():
     )
 
 
-@blueprint.route('/lineup.post', methods=['GET', 'POST'])
-def lineup_post():
+@blueprint.route('/tic-api/hdhr_device/<playlist_id>/lineup.post', methods=['GET', 'POST'])
+def lineup_post(playlist_id=None):
     return ''
 
 
-@blueprint.route('/device.xml', methods=['GET'])
-def device():
+@blueprint.route('/tic-api/hdhr_device/<playlist_id>/device.xml', methods=['GET'])
+def device_xml(playlist_id):
     discover_data = _get_discover_data()
     xml_content = render_template_string(device_xml_template, data=discover_data)
     return Response(xml_content, mimetype='application/xml')

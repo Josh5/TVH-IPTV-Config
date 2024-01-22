@@ -15,7 +15,7 @@ from backend.tvheadend.tvh_requests import get_tvh
 logger = logging.getLogger('werkzeug.channels')
 
 
-def read_config_all_channels():
+def read_config_all_channels(filter_playlist_ids=[]):
     return_list = []
     for result in db.session.query(Channel) \
             .options(joinedload(Channel.tags), joinedload(Channel.sources).subqueryload(ChannelSource.playlist)) \
@@ -26,12 +26,19 @@ def read_config_all_channels():
             tags.append(tag.name)
         sources = []
         for source in result.sources:
+            # If filtering on playlist IDs, then only return sources from that playlist
+            if filter_playlist_ids and source.playlist_id not in filter_playlist_ids:
+                continue
             sources.append({
                 'playlist_id':   source.playlist_id,
                 'playlist_name': source.playlist.name,
                 'priority':      source.priority,
                 'stream_name':   source.playlist_stream_name,
             })
+        # Filter out this channel if we have provided a playlist ID filter list and no sources were found
+        if filter_playlist_ids and not sources:
+            continue
+
         return_list.append({
             'id':       result.id,
             'enabled':  result.enabled,

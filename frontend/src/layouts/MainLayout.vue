@@ -87,10 +87,6 @@
 </template>
 
 <style>
-.cursor-pointer {
-  cursor: pointer;
-}
-
 .rotating-icon {
   animation: spin 2s linear infinite;
 }
