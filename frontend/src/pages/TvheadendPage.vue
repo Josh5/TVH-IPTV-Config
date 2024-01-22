@@ -3,8 +3,6 @@
 
     <div class="q-pa-none">
 
-      <!--      <h4 class="q-ma-none">{{ $t('headers.librarySettings') }}</h4>-->
-
       <div class="row">
         <div class="col-sm-12 col-md-10 col-lg-8">
           <div :class="$q.platform.is.mobile ? 'q-ma-sm' : 'q-ma-sm q-pa-md'">
@@ -14,7 +12,8 @@
               class="q-gutter-md"
             >
 
-              <h5 class="q-mb-none">TVheadend Configuration</h5>
+              <h5 class="q-mb-none">TVheadend Connection</h5>
+
               <div class="q-gutter-sm">
                 <q-skeleton
                   v-if="tvhHost === null"
@@ -68,6 +67,24 @@
 
               <q-separator />
 
+              <h5 class="q-mb-none">HDHomeRun Proxy Config</h5>
+
+              <div class="q-gutter-sm">
+                <q-skeleton
+                  v-if="appUrl === null"
+                  type="QInput" />
+                <q-input
+                  v-else
+                  v-model="appUrl"
+                  label="TVH-IPTV-Config Host"
+                  hint="This is needed for other applications to contact this proxy."
+                />
+              </div>
+
+              <q-separator />
+
+              <h5 class="q-mb-none">TVheadend Stream Config</h5>
+
               <div class="q-gutter-sm">
                 <q-item tag="label" dense class="q-pl-none q-mr-none">
                   <q-item-section avatar>
@@ -83,17 +100,19 @@
                 v-if="enableStreamBuffer"
                 class="q-gutter-sm">
                 <q-skeleton
-                  v-if="defaultPipeArgs === null"
+                  v-if="defaultFfmpegPipeArgs === null"
                   type="QInput" />
                 <q-input
                   v-else
-                  v-model="defaultPipeArgs"
+                  v-model="defaultFfmpegPipeArgs"
                   label="Default FFmpeg Stream Buffer Options"
                   hint="Note: [URL] and [SERVICE_NAME] will be replaced with the stream source and the service name respectively."
                 />
               </div>
 
               <q-separator />
+
+              <h5 class="q-mb-none">TVheadend Users Config</h5>
 
               <div class="q-gutter-sm">
                 <q-item tag="label" dense class="q-pl-none q-mr-none">
@@ -113,31 +132,31 @@
                 class="q-gutter-sm">
                 <div class="q-gutter-sm">
                   <q-skeleton
-                    v-if="tvhClientUsername === null"
+                    v-if="clientUsername === null"
                     type="QInput" />
                   <q-input
                     v-else
-                    v-model="tvhClientUsername"
-                    :rules="[tvhClientUsername => !!tvhClientUsername || 'Username cannot be blank']"
+                    v-model="clientUsername"
+                    :rules="[clientUsername => !!clientUsername || 'Username cannot be blank']"
                     label="TVheadend Client Username"
                   />
                 </div>
                 <div class="q-gutter-sm">
                   <q-skeleton
-                    v-if="tvhClientPassword === null"
+                    v-if="clientPassword === null"
                     type="QInput" />
                   <q-input
                     v-else
-                    v-model="tvhClientPassword"
-                    :rules="[tvhClientPassword => !!tvhClientPassword || 'A password is required']"
-                    :type="hideTvhClientPassword ? 'password' : 'text'"
+                    v-model="clientPassword"
+                    :rules="[clientPassword => !!clientPassword || 'A password is required']"
+                    :type="hideclientPassword ? 'password' : 'text'"
                     label="TVheadend Client Password"
                     hint="This is optional. If your TVH server is not configured with an admin user, leave this blank.">
                     <template v-slot:append>
                       <q-icon
-                        :name="hideTvhClientPassword ? 'visibility_off' : 'visibility'"
+                        :name="hideclientPassword ? 'visibility_off' : 'visibility'"
                         class="cursor-pointer"
-                        @click="hideTvhClientPassword = !hideTvhClientPassword"
+                        @click="hideclientPassword = !hideclientPassword"
                       />
                     </template>
                   </q-input>
@@ -170,40 +189,71 @@ export default defineComponent({
   },
   data() {
     return {
+      // UI Elements
+      hideTvhPassword: ref(true),
+      hideclientPassword: ref(true),
+
+      // Application Settings
       tvhHost: ref(null),
       tvhPort: ref(null),
       tvhUsername: ref(null),
       tvhPassword: ref(null),
-      hideTvhPassword: ref(true),
-      enableStreamBuffer: ref(true),
-      createClientUser: ref(true),
-      tvhClientUsername: ref(null),
-      tvhClientPassword: ref(null),
-      hideTvhClientPassword: ref(true),
-      defaultPipeArgs: ref(null)
+      appUrl: ref(null),
+      enableStreamBuffer: ref(null),
+      defaultFfmpegPipeArgs: ref(null),
+      createClientUser: ref(null),
+      clientUsername: ref(null),
+      clientPassword: ref(null),
+
+      // Defaults
+      defSet: ref({
+        tvhHost: window.location.hostname,
+        tvhPort: "9981",
+        tvhUsername: "",
+        tvhPassword: "",
+        appUrl: window.location.origin,
+        enableStreamBuffer: true,
+        defaultFfmpegPipeArgs: "-hide_banner -loglevel error -probesize 10M -analyzeduration 0 -fpsprobesize 0 -i [URL] -c copy -metadata service_name=[SERVICE_NAME] -f mpegts pipe:1",
+        createClientUser: false,
+        clientUsername: "user",
+        clientPassword: "user"
+      })
     };
   },
   methods: {
+    convertToCamelCase(str) {
+      return str.replace(/([-_][a-z])/g, (group) => group.toUpperCase().replace("-", "").replace("_", ""));
+    },
     fetchSettings: function() {
       // Fetch current settings
       axios({
         method: "get",
-        url: "/tic-api/tvheadend/get-settings"
+        url: "/tic-api/get-settings"
       }).then((response) => {
+        // TVH Connection settings are specially nested (for some reason)
         this.tvhHost = response.data.data.tvheadend.host;
         this.tvhPort = response.data.data.tvheadend.port;
         this.tvhUsername = response.data.data.tvheadend.username;
         this.tvhPassword = response.data.data.tvheadend.password;
-        this.createClientUser = response.data.data.create_client_user;
-        this.tvhClientUsername = response.data.data.client_username;
-        this.tvhClientPassword = response.data.data.client_password;
-        this.enableStreamBuffer = response.data.data.enable_stream_buffer;
-        this.defaultPipeArgs = response.data.data.default_ffmpeg_pipe_args;
 
-        // Set some defaults
-        this.createClientUser = typeof this.createClientUser === "undefined" ? false : this.createClientUser;
-        this.tvhClientUsername = typeof this.tvhClientUsername === "undefined" ? "user" : this.tvhClientUsername;
-        this.tvhClientPassword = typeof this.tvhClientPassword === "undefined" ? "user" : this.tvhClientPassword;
+        // All other application settings are here
+        const appSettings = response.data.data;
+
+        // Iterate over the settings and set values
+        Object.entries(appSettings).forEach(([key, value]) => {
+          if (typeof value !== "object") {
+            const camelCaseKey = this.convertToCamelCase(key);
+            this[camelCaseKey] = value;
+          }
+        });
+
+        // Fill in any missing values from defaults
+        Object.keys(this.defSet).forEach((key) => {
+          if (this[key] === undefined || this[key] === null) {
+            this[key] = this.defSet[key];
+          }
+        });
+
       }).catch(() => {
         this.$q.notify({
           color: "negative",
@@ -216,25 +266,30 @@ export default defineComponent({
     },
     save: function() {
       // Save settings
-      let data = {
+      let postData = {
         settings: {
-          tvheadend: {
-            host: this.tvhHost,
-            port: this.tvhPort,
-            username: this.tvhUsername,
-            password: this.tvhPassword,
-          },
-          create_client_user: this.createClientUser,
-          client_username: this.tvhClientUsername,
-          client_password: this.tvhClientPassword,
-          enable_stream_buffer: this.enableStreamBuffer,
-          default_ffmpeg_pipe_args: this.defaultPipeArgs,
+          tvheadend: {}
         }
       };
+
+      // Dynamically populate settings from component data, falling back to defaults
+      Object.keys(this.defSet).forEach((key) => {
+        const snakeCaseKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+
+        if (key.startsWith("tvh")) {
+          // Handle tvheadend settings
+          const tvhKey = key.replace("tvh", "").toLowerCase(); // Convert tvhHost to host, etc.
+          postData.settings.tvheadend[tvhKey] = this[key] ?? this.defSet[key];
+        } else {
+          // Handle other application settings
+          postData.settings[snakeCaseKey] = this[key] ?? this.defSet[key];
+        }
+      });
+
       axios({
         method: "POST",
         url: "/tic-api/save-settings",
-        data: data
+        data: postData
       }).then((response) => {
         // Save success, show feedback
         this.fetchSettings();

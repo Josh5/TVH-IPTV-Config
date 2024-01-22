@@ -81,20 +81,13 @@ def api_save_config():
     )
 
 
-@blueprint.route('/tic-api/tvheadend/get-settings')
+@blueprint.route('/tic-api/get-settings')
 def api_get_config_tvheadend():
     config = current_app.config['APP_CONFIG']
     settings = config.read_settings()
     return jsonify(
         {
             "success": True,
-            "data":    {
-                "tvheadend":                settings.get('settings', {}).get('tvheadend', {}),
-                "create_client_user":       settings.get('settings', {}).get('create_client_user', False),
-                "client_username":          settings.get('settings', {}).get('client_username', ''),
-                "client_password":          settings.get('settings', {}).get('client_password', ''),
-                "enable_stream_buffer":     settings.get('settings', {}).get('enable_stream_buffer', True),
-                "default_ffmpeg_pipe_args": settings.get('settings', {}).get('default_ffmpeg_pipe_args', '[URL]'),
-            }
+            "data":    settings.get('settings', {})
         }
     )
