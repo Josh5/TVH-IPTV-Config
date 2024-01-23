@@ -297,14 +297,6 @@ def update_channel(config, channel_id, data):
         channel.sources.clear()
         channel.sources = new_sources
 
-    # Host an image cache
-    channel.logo_base64 = parse_image_as_base64(data.get('logo_url'))
-
-    # Publish changes to TVH
-    channel_uuid = publish_channel_to_tvh(config, channel)
-    # Save network UUID against playlist in settings
-    channel.tvh_uuid = channel_uuid
-
     # Commit
     db.session.commit()
 
@@ -434,6 +426,9 @@ def publish_bulk_channels_to_tvh(config):
         channel_uuid = publish_channel_to_tvh(config, result)
         # Save network UUID against playlist in settings
         result.tvh_uuid = channel_uuid
+        # Generate a local image cache
+        result.logo_base64 = parse_image_as_base64(result.logo_url)
+        # Save channel details
         db.session.commit()
         # Append to list of current network UUIDs
         managed_uuids.append(channel_uuid)
