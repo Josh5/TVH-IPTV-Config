@@ -278,7 +278,7 @@ def build_custom_epg(config):
             image_data, mime_type = read_base46_image_string(result.logo_base64)
             cache_buster = time.time()
             ext = guess_extension(mime_type)
-            logo_url = f"{settings['settings']['app_url']}/tic-api/channels/{channel_id}/logo/{cache_buster}.{ext}"
+            logo_url = f"{settings['settings']['app_url']}/tic-api/channels/{result.id}/logo/{cache_buster}{ext}"
             # Populate a channels list
             configured_channels.append({
                 'channel_id':   channel_id,
