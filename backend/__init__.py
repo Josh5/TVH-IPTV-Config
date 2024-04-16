@@ -69,10 +69,10 @@ def create_app(config, debugging_enabled):
 
     start_scheduler(app)
 
-    log = logging.getLogger('werkzeug')
-    log.setLevel(logging.INFO)
+    app.logger.setLevel(logging.INFO)
     if debugging_enabled:
-        log.setLevel(logging.DEBUG)
-    log.addFilter(IgnoreLoggingRoutesFilter())
+        app.logger.setLevel(logging.DEBUG)
+
+    app.logger.addFilter(IgnoreLoggingRoutesFilter())
 
     return app
