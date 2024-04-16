@@ -176,10 +176,12 @@ def store_epg_programmes(config, epg_id, channel_id_list):
         .filter(EpgChannels.epg_id == epg_id)
         .all()
     )
+    epg_channel_ids = [epg_channel.id for epg_channel in epg_channel_rows]
     stmt = EpgChannelProgrammes.__table__.delete().where(
-        EpgChannelProgrammes.epg_channel_id.in_([epg_channel.id for epg_channel in epg_channel_rows])
+        EpgChannelProgrammes.epg_channel_id.in_(epg_channel_ids)
     )
-    logger.debug(stmt)
+    compiled_stmt = str(stmt.compile(db.session.bind))
+    logger.debug(compiled_stmt)
     db.session.execute(stmt)
     # Commit DB changes
     db.session.commit()
