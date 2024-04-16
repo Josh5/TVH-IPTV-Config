@@ -179,7 +179,10 @@ def store_epg_programmes(config, epg_id, channel_id_list):
     stmt = EpgChannelProgrammes.__table__.delete().where(
         EpgChannelProgrammes.epg_channel_id.in_([epg_channel.id for epg_channel in epg_channel_rows])
     )
+    logger.debug(stmt)
     db.session.execute(stmt)
+    # Commit DB changes
+    db.session.commit()
     # Add an updated list of programmes from the XML file to the DB
     logger.info("Updating new programmes list for EPG #%s from path - '%s'", epg_id, xmltv_file)
     items = []
