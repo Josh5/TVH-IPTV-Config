@@ -107,6 +107,25 @@ def try_unzip(output: str) -> None:
     except:
         pass
 
+def clear_previous_epg_data(config, epg_id):
+    # Delete all existing playlist programmes
+    logger.info("Clearing previous programmes for EPG #%s", epg_id)
+    epg_channel_rows = (
+        db.session.query(EpgChannels)
+        .options(joinedload(EpgChannels.guide))
+        .filter(EpgChannels.epg_id == epg_id)
+        .all()
+    )
+    stmt = EpgChannelProgrammes.__table__.delete().where(
+        EpgChannelProgrammes.epg_channel_id.in_([epg_channel.id for epg_channel in epg_channel_rows])
+    )
+    db.session.execute(stmt)
+    # Delete all existing playlist channels
+    logger.info("Clearing previous channels for EPG #%s", epg_id)
+    stmt = EpgChannels.__table__.delete().where(EpgChannels.epg_id == epg_id)
+    db.session.execute(stmt)
+    # Commit DB changes
+    db.session.commit()
 
 def store_epg_channels(config, epg_id):
     xmltv_file = os.path.join(config.config_path, 'cache', 'epgs', f"{epg_id}.xml")
@@ -116,10 +135,6 @@ def store_epg_channels(config, epg_id):
         return False
     # Open file
     input_file = ET.parse(xmltv_file)
-    # Delete all existing playlist channels
-    logger.info("Clearing previous channels for EPG #%s", epg_id)
-    stmt = EpgChannels.__table__.delete().where(EpgChannels.epg_id == epg_id)
-    db.session.execute(stmt)
     # Add an updated list of channels from the XML file to the DB
     logger.info("Updating channels list for EPG #%s from path - '%s'", epg_id, xmltv_file)
     items = []
@@ -168,23 +183,6 @@ def store_epg_programmes(config, epg_id, channel_id_list):
                          )) \
             .first()
         channel_ids[channel_id] = epg_channel.id
-    # Delete all existing playlist programmes
-    logger.info("Clearing previous programmes for EPG #%s", epg_id)
-    epg_channel_rows = (
-        db.session.query(EpgChannels)
-        .options(joinedload(EpgChannels.guide))
-        .filter(EpgChannels.epg_id == epg_id)
-        .all()
-    )
-    epg_channel_ids = [epg_channel.id for epg_channel in epg_channel_rows]
-    stmt = EpgChannelProgrammes.__table__.delete().where(
-        EpgChannelProgrammes.epg_channel_id.in_(epg_channel_ids)
-    )
-    compiled_stmt = str(stmt.compile(db.session.bind))
-    logger.debug(compiled_stmt)
-    db.session.execute(stmt)
-    # Commit DB changes
-    db.session.commit()
     # Add an updated list of programmes from the XML file to the DB
     logger.info("Updating new programmes list for EPG #%s from path - '%s'", epg_id, xmltv_file)
     items = []
@@ -236,6 +234,7 @@ def import_epg_data(config, epg_id):
     # Read and save EPG data to DB
     logger.info("Importing updated data for EPG #%s", epg_id)
     start_time = time.time()
+    clear_previous_epg_data(config, epg_id)
     channel_id_list = store_epg_channels(config, epg_id)
     store_epg_programmes(config, epg_id, channel_id_list)
     execution_time = time.time() - start_time
@@ -261,7 +260,6 @@ def read_channels_from_all_epgs(config):
 
 
 # --- Cache ---
-# TODO: Migrate this data into the database to speed up requests
 def build_custom_epg(config):
     settings = config.read_settings()
     logger.info("Generating custom EPG for TVH based on configured channels.")
