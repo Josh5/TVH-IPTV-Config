@@ -12,11 +12,10 @@ from backend.api.tasks import scheduler, update_playlists, map_new_tvh_services,
 from backend.config import config_dict
 from backend import create_app, db
 
-# WARNING: Don't run with debug turned on in production!
-DEBUG = (os.getenv('FLASK_DEBUG', 'False').capitalize() == 'True')
+debugging_enabled = (os.getenv('ENABLE_DEBUGGING', 'false').lower() == 'true')
 
 # The configuration
-get_config_mode = 'Debug' if DEBUG else 'Production'
+get_config_mode = 'Debug' if debugging_enabled else 'Production'
 
 try:
     # Load the configuration using the default values
@@ -24,16 +23,16 @@ try:
 except KeyError:
     exit('Error: Invalid <config_mode>. Expected values [Debug, Production] ')
 
-app = create_app(app_config, DEBUG)
+app = create_app(app_config, debugging_enabled)
 Migrate(app, db)
 
-if not DEBUG:
+if not debugging_enabled:
     Minify(app=app, html=True, js=False, cssless=False)
 
-if DEBUG:
-    app.logger.info('DEBUG       = ' + str(DEBUG))
-    app.logger.info('DBMS        = ' + app_config.SQLALCHEMY_DATABASE_URI)
-    app.logger.info('ASSETS_ROOT = ' + app_config.ASSETS_ROOT)
+if debugging_enabled:
+    app.logger.info(' DEBUGGING   = ' + str(debugging_enabled))
+    app.logger.debug('DBMS        = ' + app_config.SQLALCHEMY_DATABASE_URI)
+    app.logger.debug('ASSETS_ROOT = ' + app_config.ASSETS_ROOT)
 
 
 @scheduler.task('interval', id='background_tasks', seconds=60)

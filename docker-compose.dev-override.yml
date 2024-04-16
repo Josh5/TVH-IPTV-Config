@@ -13,7 +13,7 @@ services:
     # ENVIRONMENT:
     environment:
       - RUN_PIP_INSTALL=true
-      - DEBUG=True
+      - ENABLE_DEBUGGING=True
       - FLASK_DEBUG=True
 
     # VOLUMES:
