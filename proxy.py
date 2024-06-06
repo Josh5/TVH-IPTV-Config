@@ -6,7 +6,7 @@
 # File Created: Thursday, 6th June 2024 11:49:30 pm
 # Author: Josh.5 (jsunnex@gmail.com)
 # -----
-# Last Modified: Friday, 7th June 2024 12:19:57 am
+# Last Modified: Friday, 7th June 2024 12:58:25 am
 # Modified By: Josh.5 (jsunnex@gmail.com)
 ###
 import logging
@@ -98,6 +98,8 @@ def proxy():
         for line in lines:
             if line.startswith("#"):
                 updated_lines.append(line)
+            elif line.strip() == "":  # Preserve blank lines
+                updated_lines.append("")
             else:
                 updated_lines.append(add_proxy_arg(line, new_base_url))
         content = "\n".join(updated_lines)
