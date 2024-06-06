@@ -76,6 +76,29 @@ docker compose -f docker-compose.yml -f docker-compose.dev-override.yml up --bui
 This will create a directory within this project root called `./dev_env` which contains all configuration and cache data.
 
 
+## Development
+
+To setup a development environment, first setup either a [Run from source](#Run-from-source) or [Run from source with docker compose](#Run-from-source-with-docker-compose) setup from the instructions in the previous section.
+
+### Updating packages
+Activate the venv and, from inside the Python venv, run the command:
+```
+python3 -m pip install -r ./requirements.txt -r ./requirements-dev.txt
+```
+This will install all the current dev dependencies and tools.
+
+Now run the pip-audit check command. This will print any packages that need to be updated.
+```
+pip-audit -r ./requirements.txt -r ./requirements-dev.txt
+```
+This will give you a printout of what is out of date. From there you can select which packages you wish to upgrade.
+
+Once you have upgraded the packages, run this command to upgrade the frozen requirements.
+```
+pip-compile ./requirements.in --upgrade
+```
+
+
 ## License
 
 This projected is licensed under the [Apache 2.0 Licence](./LICENSE). 

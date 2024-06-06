@@ -8,10 +8,8 @@ services:
   # -- TVH IPTV CONFIG --
   tvh-iptv-config:
     image: josh5/tvh-iptv-config:latest
-    build:
-      context: .
-      dockerfile: docker/Dockerfile
     restart: unless-stopped
+    user: "${PUID:-1000}:${PGID:-1000}"
 
     # NETWORK:
     networks:
@@ -22,16 +20,14 @@ services:
 
     # ENVIRONMENT:
     environment:
-      # Process user ID
-      - PUID=1000
-      # Process group ID
-      - PGID=1000
       # Timezone
       - TZ=Pacific/Auckland
       # The host IP address used to contact this application.
       - APP_HOST_IP=192.168.1.102
       # Application Port (needs to match the exposed port listed above)
       - APP_PORT=9985
+      # Enable debugging in TIC application logs
+      - ENABLE_DEBUGGING=false
 
     # VOLUMES:
     volumes:

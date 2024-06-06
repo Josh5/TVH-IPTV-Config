@@ -3,6 +3,7 @@ version: "2.1"
 services:
   # -- TVH IPTV CONFIG --
   tvh-iptv-config:
+    image: josh5/tvh-iptv-config:latest
     build:
       context: .
       dockerfile: docker/Dockerfile
@@ -12,9 +13,14 @@ services:
 
     # ENVIRONMENT:
     environment:
-      - RUN_PIP_INSTALL=true
-      - ENABLE_DEBUGGING=True
-      - FLASK_DEBUG=True
+      # Skips the DB migrate command execution on container startup
+      - SKIP_MIGRATIONS=false
+      # Executes a pip install on container startup
+      - RUN_PIP_INSTALL=false
+      # Enables debug logging
+      - ENABLE_DEBUGGING=true
+      # Sets Flask Debug mode on. Will restart the process if changes to files are made
+      - FLASK_DEBUG=true
 
     # VOLUMES:
     volumes:
