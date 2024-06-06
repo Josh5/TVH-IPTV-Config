@@ -35,6 +35,8 @@ flask-sqlalchemy==3.1.1
     #   flask-migrate
 greenlet==3.0.3
     # via sqlalchemy
+gunicorn==22.0.0
+    # via -r ./requirements.in
 htmlmin==0.1.12
     # via flask-minify
 idna==3.7
@@ -58,6 +60,8 @@ markupsafe==2.1.5
     #   werkzeug
 mergedeep==1.3.4
     # via -r ./requirements.in
+packaging==24.0
+    # via gunicorn
 ply==3.11
     # via lesscpy
 python-dateutil==2.9.0.post0

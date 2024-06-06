@@ -15,7 +15,7 @@ services:
     environment:
       # Skips the DB migrate command execution on container startup
       - SKIP_MIGRATIONS=false
-      # Executes a pip install on container startup
+      # Executes a pip install on container startup (might be required to generate the venv)
       - RUN_PIP_INSTALL=false
       # Enables debug logging
       - ENABLE_DEBUGGING=true

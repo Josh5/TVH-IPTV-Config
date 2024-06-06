@@ -64,8 +64,8 @@ COPY requirements.txt /app/requirements.txt
 RUN \
     echo "** Install python dependencies **" \
         && mkdir -p /app \
-        && python3 -m venv --symlinks /app/venv-docker \
-        && . /app/venv-docker/bin/activate \
+        && python3 -m venv --symlinks /var/venv-docker \
+        && . /var/venv-docker/bin/activate \
         && python3 -m pip install --upgrade pip \
         && python3 -m pip install --no-cache-dir -r /app/requirements.txt \
     && \

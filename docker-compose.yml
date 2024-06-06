@@ -17,6 +17,8 @@ services:
     ports:
       # WebUI Port (9985)
       - 9985:9985
+      # Proxy Port (9987)
+      - 9987:9987
 
     # ENVIRONMENT:
     environment:

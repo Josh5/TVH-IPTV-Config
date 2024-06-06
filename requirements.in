@@ -23,6 +23,9 @@
 Flask==3.0.1
     #   Reason:             This is Flask
     #   Import example:     N/A
+gunicorn==22.0.0
+    #   Reason:             Used to serve the Django application in production
+    #   Import example:     N/A (Executed from bin directory)
 
 # -- Flask Extensions
 Flask-Minify~=0.42
