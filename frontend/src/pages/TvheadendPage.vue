@@ -83,6 +83,22 @@
 
               <q-separator />
 
+              <h5 class="q-mb-none">HLS Proxy Prefix</h5>
+
+              <div class="q-gutter-sm">
+                <q-skeleton
+                  v-if="hlsProxyPrefix === null"
+                  type="QInput" />
+                <q-input
+                  v-else
+                  v-model="hlsProxyPrefix"
+                  label="TVH-IPTV-Config Host"
+                  hint="TVH-IPTV-Config comes with an inbuilt HLS proxy running on port 9987. This is used for the HLS proxy that can be enabled when editing Playlists. It should be something like 'http://tvh-iptv-config:9987'"
+                />
+              </div>
+
+              <q-separator />
+
               <h5 class="q-mb-none">TVheadend Stream Config</h5>
 
               <div class="q-gutter-sm">
@@ -199,6 +215,7 @@ export default defineComponent({
       tvhUsername: ref(null),
       tvhPassword: ref(null),
       appUrl: ref(null),
+      hlsProxyPrefix: ref(null),
       enableStreamBuffer: ref(null),
       defaultFfmpegPipeArgs: ref(null),
       createClientUser: ref(null),
@@ -212,6 +229,7 @@ export default defineComponent({
         tvhUsername: "",
         tvhPassword: "",
         appUrl: window.location.origin,
+        hlsProxyPrefix: "http://" + window.location.host.split(":")[0] + ":9987",
         enableStreamBuffer: true,
         defaultFfmpegPipeArgs: "-hide_banner -loglevel error -probesize 10M -analyzeduration 0 -fpsprobesize 0 -i [URL] -c copy -metadata service_name=[SERVICE_NAME] -f mpegts pipe:1",
         createClientUser: false,

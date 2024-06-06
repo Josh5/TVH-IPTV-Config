@@ -20,11 +20,12 @@ def read_config_all_playlists():
     return_list = []
     for result in db.session.query(Playlist).all():
         return_list.append({
-            'id':          result.id,
-            'enabled':     result.enabled,
-            'connections': result.connections,
-            'name':        result.name,
-            'url':         result.url,
+            'id':            result.id,
+            'enabled':       result.enabled,
+            'connections':   result.connections,
+            'name':          result.name,
+            'url':           result.url,
+            'use_hls_proxy': result.use_hls_proxy,
         })
     return return_list
 
@@ -34,11 +35,12 @@ def read_config_one_playlist(playlist_id):
     result = db.session.query(Playlist).filter(Playlist.id == playlist_id).one()
     if result:
         return_item = {
-            'id':          result.id,
-            'enabled':     result.enabled,
-            'name':        result.name,
-            'url':         result.url,
-            'connections': result.connections,
+            'id':            result.id,
+            'enabled':       result.enabled,
+            'name':          result.name,
+            'url':           result.url,
+            'connections':   result.connections,
+            'use_hls_proxy': result.use_hls_proxy,
         }
     return return_item
 
@@ -49,6 +51,7 @@ def add_new_playlist(config, data):
         name=data.get('name'),
         url=data.get('url'),
         connections=data.get('connections'),
+        use_hls_proxy=data.get('use_hls_proxy'),
     )
     # This is a new entry. Add it to the session before commit
     db.session.add(playlist)
@@ -59,10 +62,11 @@ def add_new_playlist(config, data):
 
 def update_playlist(config, playlist_id, data):
     playlist = db.session.query(Playlist).where(Playlist.id == playlist_id).one()
-    playlist.enabled = data.get('enabled')
-    playlist.name = data.get('name')
-    playlist.url = data.get('url')
-    playlist.connections = data.get('connections')
+    playlist.enabled = data.get('enabled', playlist.enabled)
+    playlist.name = data.get('name', playlist.name)
+    playlist.url = data.get('url', playlist.url)
+    playlist.connections = data.get('connections', playlist.connections)
+    playlist.use_hls_proxy = data.get('use_hls_proxy', playlist.use_hls_proxy)
     db.session.commit()
     # Publish changes to TVH
     publish_playlist_networks(config)

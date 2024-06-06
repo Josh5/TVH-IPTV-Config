@@ -71,7 +71,7 @@
       </q-card-section>
       <!-- END DIALOG CONFIG -->
 
-      <q-separator/>
+      <q-separator />
 
       <div class="row">
         <div class="col col-12 q-pa-lg">
@@ -83,13 +83,13 @@
               <div class="q-gutter-sm">
                 <q-skeleton
                   v-if="enabled === null"
-                  type="QCheckbox"/>
-                <q-checkbox v-model="enabled" label="Enabled"/>
+                  type="QCheckbox" />
+                <q-checkbox v-model="enabled" label="Enabled" />
               </div>
               <div class="q-gutter-sm">
                 <q-skeleton
                   v-if="name === null"
-                  type="QInput"/>
+                  type="QInput" />
                 <q-input
                   v-else
                   v-model="name"
@@ -99,7 +99,7 @@
               <div class="q-gutter-sm">
                 <q-skeleton
                   v-if="url === null"
-                  type="QInput"/>
+                  type="QInput" />
                 <q-input
                   v-else
                   v-model="url"
@@ -110,7 +110,7 @@
               <div class="q-gutter-sm">
                 <q-skeleton
                   v-if="connections === null"
-                  type="QInput"/>
+                  type="QInput" />
                 <q-input
                   v-else
                   v-model.number="connections"
@@ -119,9 +119,15 @@
                   style="max-width: 200px"
                 />
               </div>
+              <div class="q-gutter-sm">
+                <q-skeleton
+                  v-if="use_hls_proxy === null"
+                  type="QCheckbox" />
+                <q-checkbox v-model="use_hls_proxy" label="Use HLS proxy" />
+              </div>
 
               <div>
-                <q-btn label="Save" type="submit" color="primary"/>
+                <q-btn label="Save" type="submit" color="primary" />
               </div>
 
             </q-form>
@@ -141,10 +147,10 @@ tab          - The tab to display first ['info', 'settings']
 */
 
 import axios from "axios";
-import {ref} from "vue";
+import { ref } from "vue";
 
 export default {
-  name: 'PlaylistInfoDialog',
+  name: "PlaylistInfoDialog",
   props: {
     playlistId: {
       type: String
@@ -152,7 +158,7 @@ export default {
   },
   emits: [
     // REQUIRED
-    'ok', 'hide', 'path'
+    "ok", "hide", "path"
   ],
   data() {
     return {
@@ -160,7 +166,8 @@ export default {
       name: ref(null),
       url: ref(null),
       connections: ref(null),
-    }
+      use_hls_proxy: ref(null)
+    };
   },
   methods: {
     // following method is REQUIRED
@@ -169,12 +176,13 @@ export default {
       this.$refs.playlistInfoDialogRef.show();
       if (this.playlistId) {
         this.fetchPlaylistData();
-        return
+        return;
       }
-      this.enabled = true
-      this.name = ''
-      this.url = ''
-      this.connections = 1
+      this.enabled = true;
+      this.name = "";
+      this.url = "";
+      this.connections = 1;
+      this.use_hls_proxy = false;
     },
 
     // following method is REQUIRED
@@ -186,67 +194,69 @@ export default {
     onDialogHide() {
       // required to be emitted
       // when QDialog emits "hide" event
-      this.$emit('ok', {})
-      this.$emit('hide')
+      this.$emit("ok", {});
+      this.$emit("hide");
     },
 
-    fetchPlaylistData: function () {
+    fetchPlaylistData: function() {
       // Fetch from server
       axios({
-        method: 'GET',
-        url: '/tic-api/playlists/settings/' + this.playlistId,
+        method: "GET",
+        url: "/tic-api/playlists/settings/" + this.playlistId
       }).then((response) => {
-        this.enabled = response.data.data.enabled
-        this.name = response.data.data.name
-        this.url = response.data.data.url
-        this.connections = response.data.data.connections
+        this.enabled = response.data.data.enabled;
+        this.name = response.data.data.name;
+        this.url = response.data.data.url;
+        this.connections = response.data.data.connections;
+        this.use_hls_proxy = response.data.data.use_hls_proxy;
       });
     },
-    save: function () {
-      let url = '/tic-api/playlists/new'
+    save: function() {
+      let url = "/tic-api/playlists/new";
       if (this.playlistId) {
-        url = `/tic-api/playlists/settings/${this.playlistId}/save`
+        url = `/tic-api/playlists/settings/${this.playlistId}/save`;
       }
       let data = {
         enabled: this.enabled,
         name: this.name,
         url: this.url,
         connections: this.connections,
-      }
+        use_hls_proxy: this.use_hls_proxy
+      };
       axios({
-        method: 'POST',
+        method: "POST",
         url: url,
         data: data
       }).then((response) => {
         // Save success, show feedback
         this.$q.notify({
-          color: 'positive',
-          position: 'top',
-          icon: 'cloud_done',
-          message: 'Saved',
+          color: "positive",
+          position: "top",
+          icon: "cloud_done",
+          message: "Saved",
           timeout: 200
-        })
-        this.hide()
+        });
+        this.hide();
       }).catch(() => {
         this.$q.notify({
-          color: 'negative',
-          position: 'top',
-          message: 'Failed to save settings',
-          icon: 'report_problem',
-          actions: [{icon: 'close', color: 'white'}]
-        })
+          color: "negative",
+          position: "top",
+          message: "Failed to save settings",
+          icon: "report_problem",
+          actions: [{ icon: "close", color: "white" }]
+        });
       });
     },
 
-    updateAndTriggerSave: function (key, value) {
+    updateAndTriggerSave: function(key, value) {
       for (let i = 0; i < this.settings.length; i++) {
         if (this.settings[i].key_id === key) {
           this.settings[i].value = value;
-          break
+          break;
         }
       }
-      this.save()
-    },
+      this.save();
+    }
   },
   watch: {
     uuid(value) {
@@ -255,7 +265,7 @@ export default {
       }
     }
   }
-}
+};
 </script>
 
 <style>

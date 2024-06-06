@@ -78,6 +78,7 @@ class Playlist(db.Model):
     name = db.Column(db.String(500), index=True, unique=False)
     tvh_uuid = db.Column(db.String(64), index=True, unique=True)
     url = db.Column(db.String(500), index=True, unique=False)
+    use_hls_proxy = db.Column(db.Boolean, nullable=False, unique=False)
 
     # Backref to all associated linked sources
     channel_sources = db.relationship('ChannelSource', backref='playlist', lazy=True, cascade="all, delete-orphan")
