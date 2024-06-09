@@ -55,7 +55,11 @@ class EpgChannelProgrammes(db.Model):
 
     channel_id = db.Column(db.String(256), index=True, unique=False)
     title = db.Column(db.String(500), index=True, unique=False)
+    sub_title = db.Column(db.String(500), index=False, unique=False)
     desc = db.Column(db.String(500), index=False, unique=False)
+    series_desc = db.Column(db.String(500), index=False, unique=False)
+    country = db.Column(db.String(500), index=False, unique=False)
+    icon_url = db.Column(db.String(500), index=False, unique=False)
     start = db.Column(db.String(256), index=False, unique=False)
     stop = db.Column(db.String(256), index=False, unique=False)
     start_timestamp = db.Column(db.String(256), index=False, unique=False)

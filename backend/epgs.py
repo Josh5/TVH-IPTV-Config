@@ -107,6 +107,7 @@ def try_unzip(output: str) -> None:
     except:
         pass
 
+
 def clear_previous_epg_data(config, epg_id):
     # Delete all existing playlist programmes
     logger.info("Clearing previous programmes for EPG #%s", epg_id)
@@ -126,6 +127,7 @@ def clear_previous_epg_data(config, epg_id):
     db.session.execute(stmt)
     # Commit DB changes
     db.session.commit()
+
 
 def store_epg_channels(config, epg_id):
     xmltv_file = os.path.join(config.config_path, 'cache', 'epgs', f"{epg_id}.xml")
@@ -197,17 +199,30 @@ def store_epg_programmes(config, epg_id, channel_id_list):
             stop_timestamp = programme.attrib.get('stop_timestamp', None)
             # Parse sub-elements
             title = programme.findtext("title", default=None)
+            sub_title = programme.findtext("sub-title", default=None)
             desc = programme.findtext("desc", default=None)
+            series_desc = programme.findtext("series-desc", default=None)
+            country = programme.findtext("country", default=None)
+            # Import icon
+            icon = programme.find("icon")
+            icon_url = icon.attrib.get('src', None) if icon is not None else None
+            # Import categories
             categories = []
             for category in programme.findall("category"):
                 categories.append(category.text)
+            # TODO: Import rating
+            # TODO: Import star rating
             # Create new line entry for the programmes table
             items.append(
                 EpgChannelProgrammes(
                     epg_channel_id=epg_channel_id,
                     channel_id=channel_id,
                     title=title,
+                    sub_title=sub_title,
                     desc=desc,
+                    series_desc=series_desc,
+                    icon_url=icon_url,
+                    country=country,
                     start=start,
                     stop=stop,
                     start_timestamp=start_timestamp,
@@ -305,7 +320,11 @@ def build_custom_epg(config):
                     'start_timestamp': programme.start_timestamp,
                     'stop_timestamp':  programme.stop_timestamp,
                     'title':           programme.title,
+                    'sub-title':       programme.sub_title,
                     'desc':            programme.desc,
+                    'series-desc':     programme.series_desc,
+                    'country':         programme.country,
+                    'icon_url':        programme.icon_url,
                     'categories':      json.loads(programme.categories)
                 })
             all_channel_programmes_data.append({
@@ -321,7 +340,7 @@ def build_custom_epg(config):
         channel.set('id', str(channel_info['channel_id']))
         # Add a <display-name> element to the <channel> element
         display_name = ET.SubElement(channel, 'display-name')
-        display_name.text = channel_info['display_name']
+        display_name.text = channel_info['display_name'].strip()
         # Add a <icon> element to the <channel> element
         icon = ET.SubElement(channel, 'icon')
         icon.set('src', channel_info['logo_url'])
@@ -343,11 +362,17 @@ def build_custom_epg(config):
             # Set the "channel" ident here
             output_programme.set('channel', str(channel_programmes_data.get('channel')))
             # Loop through all child elements of the input programme and copy them to the output programme
-            for child in ['title', 'desc']:
+            for child in ['title', 'sub-title', 'desc', 'series-desc', 'country']:
                 # Copy all other child elements to the output programme if they exist
-                if child in epg_channel_programme:
+                if child in epg_channel_programme and epg_channel_programme[child] is not None:
                     output_child = ET.SubElement(output_programme, child)
                     output_child.text = epg_channel_programme[child]
+            # If we have a programme icon, add it
+            if epg_channel_programme['icon_url']:
+                output_child = ET.SubElement(output_programme, 'icon')
+                output_child.set('src', epg_channel_programme['icon_url'])
+                output_child.set('height', "")
+                output_child.set('width', "")
             # Loop through all categories for this programme and add them as "category" child elements
             if epg_channel_programme['categories']:
                 for category in epg_channel_programme['categories']:

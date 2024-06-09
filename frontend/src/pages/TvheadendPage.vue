@@ -22,6 +22,7 @@
                   v-else
                   v-model="tvhHost"
                   label="TVheadend Host"
+                  hint="Set Ensure you also set this to an hostname or IP that is accessible to all applications that will connect to TVH. Not just this application."
                 />
               </div>
               <div class="q-gutter-sm">
