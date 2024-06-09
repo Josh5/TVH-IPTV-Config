@@ -54,3 +54,6 @@ PyYAML~=6.0.1
 requests~=2.31.0
     #   Reason:             HTTP requests
     #   Import example:     import requests
+beautifulsoup4>=4.12.3
+    #   Reason:             HTTP parsing
+    #   Import example:     from bs4 import BeautifulSoup

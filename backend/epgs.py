@@ -7,12 +7,14 @@ import os
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from mimetypes import guess_extension
+from urllib.parse import quote
 
 import requests
 import time
 import xml.etree.ElementTree as ET
 from types import NoneType
 
+from bs4 import BeautifulSoup
 from sqlalchemy.orm import joinedload
 from sqlalchemy import and_
 from backend import db
@@ -311,7 +313,7 @@ def build_custom_epg(config):
                              EpgChannelProgrammes.channel.has(channel_id=result.guide_channel_id)
                              )) \
                 .order_by(EpgChannelProgrammes.channel_id.asc(), EpgChannelProgrammes.start.asc())
-            logger.debug(db_programmes_query)
+            # logger.debug(db_programmes_query)
             db_programmes = db_programmes_query.all()
             programmes = []
             logger.info("       - Building programme list for %s - %s.", channel_id, result.name)
@@ -400,6 +402,7 @@ def search_tmdb_for_movie(api_key, title, cache, lock):
         if 'tmdb' not in cache:
             cache['tmdb'] = {}
         if title in cache['tmdb']:
+            logger.debug("       - Fetching data for program '%s' from TMDB. [CACHED]", title)
             return cache['tmdb'][title]
     search_url = f'https://api.themoviedb.org/3/search/movie?api_key={api_key}&query={title}'
     response = requests.get(search_url)
@@ -408,32 +411,72 @@ def search_tmdb_for_movie(api_key, title, cache, lock):
         if results:
             with lock:
                 cache['tmdb'][title] = results[0]  # Cache the first search result
+            logger.debug("       - Fetching data for program '%s' from TMDB. [FETCHED]", title)
             return results[0]
     with lock:
         cache['tmdb'][title] = None  # Cache None if no results found
+    logger.debug("       - Fetching data for program '%s' from TMDB. [NONE]", title)
+    return None
+
+
+def search_google_images(title, cache, lock):
+    with lock:
+        if 'google_images' not in cache:
+            cache['google_images'] = {}
+        if title in cache['google_images']:
+            logger.debug("       - Fetching data for program '%s' from Google Images. [CACHED]", title)
+            return cache['google_images'][title]
+
+    search_query = f'"{title}" television show'
+    encoded_query = quote(search_query)
+    search_url = f'https://www.google.com/search?tbm=isch&safe=active&tbs=isz:m&q={encoded_query}'
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+    }
+    response = requests.get(search_url, headers=headers)
+    logger.warning(response)
+    if response.status_code == 200:
+        soup = BeautifulSoup(response.text, 'html.parser')
+        images = soup.find_all('img')
+        if images:
+            image_url = images[1]['src']  # The first image might be the Google logo, so we take the second one
+            with lock:
+                cache['google_images'][title] = image_url  # Cache the first image URL
+            logger.debug("       - Fetching data for program '%s' from Google Images. [FETCHED]", title)
+            return image_url
+
+    with lock:
+        cache['google_images'][title] = None  # Cache None if no results found
+    logger.debug("       - Fetching data for program '%s' from Google Images. [NONE]", title)
     return None
 
 
 def update_programme_with_online_data(settings, programme, categories, cache, lock):
-    # Only fetch data if required fields are missing
-    if not (programme.sub_title and programme.desc and programme.icon_url):
-        updated = False
-        title = programme.title
-        categories = [category.lower() for category in categories]
+    updated = False
+    title = programme.title
+    categories = [category.lower() for category in categories]
+
+    # Fetch updated data from TMDB
+    if not (programme.sub_title or programme.desc or programme.icon_url):
         if settings['settings'].get('epgs', {}).get('enable_tmdb_metadata'):
-            if not updated:
-                logger.debug("       - Fetching data for program '%s' from TMDB.", programme.title)
-                api_key = settings['settings'].get('epgs', {}).get('tmdb_api_key', '')
-                tmdb_data = search_tmdb_for_movie(api_key, title, cache, lock)
-                if tmdb_data:
-                    # Update programme with fetched data if fields are missing
-                    if not programme.sub_title:
-                        programme.sub_title = tmdb_data.get('title')
-                    if not programme.desc:
-                        programme.desc = tmdb_data.get('overview')
-                    if not programme.icon_url:
-                        programme.icon_url = f"https://image.tmdb.org/t/p/w500{tmdb_data.get('poster_path')}"
-                    updated = True
+            api_key = settings['settings'].get('epgs', {}).get('tmdb_api_key', '')
+            tmdb_data = search_tmdb_for_movie(api_key, title, cache, lock)
+            if tmdb_data:
+                # Update programme with fetched data if fields are missing
+                if not programme.sub_title:
+                    programme.sub_title = tmdb_data.get('title')
+                if not programme.desc:
+                    programme.desc = tmdb_data.get('overview')
+                if not programme.icon_url:
+                    programme.icon_url = f"https://image.tmdb.org/t/p/w500{tmdb_data.get('poster_path')}"
+
+    # Fetch icon_url from Google Images if still missing
+    if not programme.icon_url:
+        google_image_url = search_google_images(title, cache, lock)
+        logger.warning(google_image_url)
+        if google_image_url:
+            programme.icon_url = google_image_url
+
     return programme
 
 
@@ -441,8 +484,8 @@ def update_programmes_concurrently(settings, programmes, cache, lock):
     with ThreadPoolExecutor(max_workers=10) as executor:
         future_to_programme = {
             executor.submit(
-                settings,
                 update_programme_with_online_data,
+                settings,
                 programme,
                 json.loads(programme.categories),
                 cache,
@@ -483,10 +526,12 @@ def update_channel_epg_with_online_data(config):
                              )) \
                 .order_by(EpgChannelProgrammes.channel_id.asc(), EpgChannelProgrammes.start.asc())
             db_programmes = db_programmes_query.all()
-            programmes = []
             logger.info("   - Updating programme list for %s - %s.", channel_id, result.name)
             programmes = update_programmes_concurrently(settings, db_programmes, cache, lock)
-            # Here, you can save the updated programmes to the database or handle them as needed
+            # Save all new
+            db.session.bulk_save_objects(programmes)
+            # Commit all updates to channel programmes
+            db.session.commit()
     execution_time = time.time() - start_time
     logger.info("Updating online EPG data for configured channels took '%s' seconds", int(execution_time))
 

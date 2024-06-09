@@ -64,17 +64,20 @@ class Config:
                     "username": "",
                     "password": "",
                 },
-                "create_client_user":       False,
-                "client_username":          "user",
-                "client_password":          "user",
+                "app_url":                  None,
+                "hls_proxy_prefix":         None,
                 "enable_stream_buffer":     True,
                 "default_ffmpeg_pipe_args": "-hide_banner -loglevel error "
                                             "-probesize 10M -analyzeduration 0 -fpsprobesize 0 "
                                             "-i [URL] -c copy -metadata service_name=[SERVICE_NAME] "
                                             "-f mpegts pipe:1",
+                "create_client_user":       False,
+                "client_username":          "user",
+                "client_password":          "user",
                 "epgs":                     {
-                    "enable_tmdb_metadata": False,
-                    "tmdb_api_key":         ""
+                    "enable_tmdb_metadata":                False,
+                    "tmdb_api_key":                        "",
+                    "enable_google_image_search_metadata": False,
                 }
 
             }

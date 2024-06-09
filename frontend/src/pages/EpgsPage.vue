@@ -131,6 +131,22 @@
           />
         </div>
 
+        <q-separator />
+
+        <div class="q-gutter-sm">
+          <q-item tag="label" dense class="q-pl-none q-mr-none">
+            <q-item-section avatar>
+              <q-checkbox v-model="enableGoogleImageSearchMetadata" val="createClientUser" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>Attempt to fetch missing programme images from Google Image Search</q-item-label>
+              <q-item-label caption>This will only fetch the first google image search result for the programme title.
+                It will only be done if TMDB did not find anything.
+              </q-item-label>
+            </q-item-section>
+          </q-item>
+        </div>
+
         <div>
           <q-btn label="Save" type="submit" color="primary" />
         </div>
@@ -157,7 +173,8 @@ export default defineComponent({
     return {
       listOfEpgs: ref([]),
       enableTmdbMetadata: ref(null),
-      tmdbApiKey: ref(null)
+      tmdbApiKey: ref(null),
+      enableGoogleImageSearchMetadata: ref(null)
     };
   },
   methods: {
@@ -183,6 +200,7 @@ export default defineComponent({
       }).then((response) => {
         this.enableTmdbMetadata = response.data.data.epgs.enable_tmdb_metadata;
         this.tmdbApiKey = response.data.data.epgs.tmdb_api_key;
+        this.enableGoogleImageSearchMetadata = response.data.data.epgs.enable_google_image_search_metadata;
       }).catch(() => {
         this.$q.notify({
           color: "negative",
@@ -267,7 +285,8 @@ export default defineComponent({
         settings: {
           epgs: {
             enable_tmdb_metadata: this.enableTmdbMetadata,
-            tmdb_api_key: this.tmdbApiKey
+            tmdb_api_key: this.tmdbApiKey,
+            enable_google_image_search_metadata: this.enableGoogleImageSearchMetadata
           }
         }
       };

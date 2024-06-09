@@ -8,6 +8,8 @@ alembic==1.13.1
     # via flask-migrate
 apscheduler==3.10.4
     # via flask-apscheduler
+beautifulsoup4==4.12.3
+    # via -r ./requirements.in
 blinker==1.8.2
     # via flask
 certifi==2024.2.2
@@ -81,6 +83,8 @@ six==1.16.0
     #   apscheduler
     #   flask-minify
     #   python-dateutil
+soupsieve==2.5
+    # via beautifulsoup4
 sqlalchemy==2.0.30
     # via
     #   alembic
