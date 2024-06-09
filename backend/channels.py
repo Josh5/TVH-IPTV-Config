@@ -550,6 +550,7 @@ def cleanup_old_channels(config):
 
 
 def queue_background_channel_update_tasks(config):
+    settings = config.read_settings()
     # Update TVH
     from backend.api.tasks import TaskQueueBroker
     task_broker = TaskQueueBroker.get_instance()
@@ -577,17 +578,25 @@ def queue_background_channel_update_tasks(config):
         'function': cleanup_old_channels,
         'args':     [config],
     }, priority=14)
+    # Fetch additional EPG data from the internet
+    from backend.epgs import update_channel_epg_with_online_data
+    if settings['settings'].get('epgs', {}).get('enable_tmdb_metadata'):
+        task_broker.add_task({
+            'name':     'Update EPG Data with online metadata',
+            'function': update_channel_epg_with_online_data,
+            'args':     [config],
+        }, priority=21)
     # Generate 'epg.xml' file in .tvh_iptv_config directory
     from backend.epgs import build_custom_epg
     task_broker.add_task({
         'name':     'Recreating static XMLTV file',
         'function': build_custom_epg,
         'args':     [config],
-    }, priority=21)
+    }, priority=23)
     # Trigger an update in TVH to fetch the latest EPG
     from backend.epgs import run_tvh_epg_grabbers
     task_broker.add_task({
         'name':     'Triggering an update in TVH to fetch the latest XMLTV',
         'function': run_tvh_epg_grabbers,
         'args':     [config],
-    }, priority=22)
+    }, priority=31)

@@ -39,17 +39,24 @@ def update_yaml(file, new_data):
         yaml.dump(data, outfile, default_flow_style=False)
 
 
+def recursive_dict_update(defaults, updates):
+    for key, value in updates.items():
+        if isinstance(value, dict) and key in defaults:
+            recursive_dict_update(defaults[key], value)
+        else:
+            defaults[key] = value
+    return defaults
+
+
 class Config:
 
     def __init__(self, **kwargs):
         # Set default directories
         self.config_path = os.path.join(get_home_dir(), '.tvh_iptv_config')
         self.config_file = os.path.join(self.config_path, 'settings.yml')
-
+        # Set default settings
         self.settings = None
-
-    def create_default_settings_yaml(self):
-        self.settings = {
+        self.default_settings = {
             "settings": {
                 "tvheadend":                {
                     "host":     os.environ.get("APP_HOST_IP", "127.0.0.1"),
@@ -65,10 +72,16 @@ class Config:
                                             "-probesize 10M -analyzeduration 0 -fpsprobesize 0 "
                                             "-i [URL] -c copy -metadata service_name=[SERVICE_NAME] "
                                             "-f mpegts pipe:1",
+                "epgs":                     {
+                    "enable_tmdb_metadata": False,
+                    "tmdb_api_key":         ""
+                }
 
             }
         }
-        self.write_settings_yaml(self.settings)
+
+    def create_default_settings_yaml(self):
+        self.write_settings_yaml(self.default_settings)
 
     def write_settings_yaml(self, data):
         write_yaml(self.config_file, data)
@@ -79,8 +92,10 @@ class Config:
         return read_yaml(self.config_file)
 
     def read_settings(self):
+        yaml_settings = {}
         if self.settings is None:
-            self.settings = self.read_config_yaml()
+            yaml_settings = self.read_config_yaml()
+        self.settings = recursive_dict_update(self.default_settings, yaml_settings)
         return self.settings
 
     def save_settings(self):
@@ -90,8 +105,8 @@ class Config:
 
     def update_settings(self, updated_settings):
         if self.settings is None:
-            self.settings = self.read_config_yaml()
-        merge(self.settings, updated_settings)
+            self.read_settings()
+        self.settings = recursive_dict_update(self.default_settings, updated_settings)
 
 
 class FlaskConfig(object):

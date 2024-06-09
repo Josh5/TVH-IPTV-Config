@@ -4,6 +4,8 @@ import gzip
 import json
 import logging
 import os
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from mimetypes import guess_extension
 
 import requests
@@ -392,6 +394,104 @@ def build_custom_epg(config):
     logger.info("The custom XMLTV EPG file for TVH was generated in '%s' seconds", int(execution_time))
 
 
+# --- Online Metadata ---
+def search_tmdb_for_movie(api_key, title, cache, lock):
+    with lock:
+        if 'tmdb' not in cache:
+            cache['tmdb'] = {}
+        if title in cache['tmdb']:
+            return cache['tmdb'][title]
+    search_url = f'https://api.themoviedb.org/3/search/movie?api_key={api_key}&query={title}'
+    response = requests.get(search_url)
+    if response.status_code == 200:
+        results = response.json().get('results', [])
+        if results:
+            with lock:
+                cache['tmdb'][title] = results[0]  # Cache the first search result
+            return results[0]
+    with lock:
+        cache['tmdb'][title] = None  # Cache None if no results found
+    return None
+
+
+def update_programme_with_online_data(settings, programme, categories, cache, lock):
+    # Only fetch data if required fields are missing
+    if not (programme.sub_title and programme.desc and programme.icon_url):
+        updated = False
+        title = programme.title
+        categories = [category.lower() for category in categories]
+        if settings['settings'].get('epgs', {}).get('enable_tmdb_metadata'):
+            if not updated:
+                logger.debug("       - Fetching data for program '%s' from TMDB.", programme.title)
+                api_key = settings['settings'].get('epgs', {}).get('tmdb_api_key', '')
+                tmdb_data = search_tmdb_for_movie(api_key, title, cache, lock)
+                if tmdb_data:
+                    # Update programme with fetched data if fields are missing
+                    if not programme.sub_title:
+                        programme.sub_title = tmdb_data.get('title')
+                    if not programme.desc:
+                        programme.desc = tmdb_data.get('overview')
+                    if not programme.icon_url:
+                        programme.icon_url = f"https://image.tmdb.org/t/p/w500{tmdb_data.get('poster_path')}"
+                    updated = True
+    return programme
+
+
+def update_programmes_concurrently(settings, programmes, cache, lock):
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        future_to_programme = {
+            executor.submit(
+                settings,
+                update_programme_with_online_data,
+                programme,
+                json.loads(programme.categories),
+                cache,
+                lock
+            ): programme for programme in programmes
+        }
+
+        for future in as_completed(future_to_programme):
+            programme = future_to_programme[future]
+            try:
+                updated_programme = future.result()
+                index = programmes.index(programme)
+                programmes[index] = updated_programme
+            except Exception as exc:
+                logger.error(f"Error updating programme: {exc}")
+
+    return programmes
+
+
+def update_channel_epg_with_online_data(config):
+    settings = config.read_settings()
+    update_with_online_data = False
+    if settings['settings'].get('epgs', {}).get('enable_tmdb_metadata'):
+        update_with_online_data = True
+    if not update_with_online_data:
+        return
+    start_time = time.time()
+    cache = {}
+    lock = threading.Lock()
+    logger.info("Update EPG with missing data from online sources for each configured channel.")
+    for result in db.session.query(Channel).order_by(Channel.number.asc()).all():
+        if result.enabled:
+            channel_id = generate_epg_channel_id(result.number, result.name)
+            db_programmes_query = db.session.query(EpgChannelProgrammes) \
+                .options(joinedload(EpgChannelProgrammes.channel)) \
+                .filter(and_(EpgChannelProgrammes.channel.has(epg_id=result.guide_id),
+                             EpgChannelProgrammes.channel.has(channel_id=result.guide_channel_id)
+                             )) \
+                .order_by(EpgChannelProgrammes.channel_id.asc(), EpgChannelProgrammes.start.asc())
+            db_programmes = db_programmes_query.all()
+            programmes = []
+            logger.info("   - Updating programme list for %s - %s.", channel_id, result.name)
+            programmes = update_programmes_concurrently(settings, db_programmes, cache, lock)
+            # Here, you can save the updated programmes to the database or handle them as needed
+    execution_time = time.time() - start_time
+    logger.info("Updating online EPG data for configured channels took '%s' seconds", int(execution_time))
+
+
+# --- TVH Functions ---
 def run_tvh_epg_grabbers(config):
     # Trigger a re-grab of the EPG in TVH
     tvh = get_tvh(config)

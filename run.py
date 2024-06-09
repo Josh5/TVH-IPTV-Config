@@ -98,12 +98,6 @@ def every_12_hours():
             'function': update_epgs,
             'args':     [app],
         }, priority=100)
-
-
-@scheduler.task('cron', id='do_job_once_a_day', hour=0, minute=10, misfire_grace_time=900)
-def every_24_hours():
-    with app.app_context():
-        task_broker = TaskQueueBroker.get_instance()
         task_broker.add_task({
             'name':     'Recreating static XMLTV file',
             'function': rebuild_custom_epg,

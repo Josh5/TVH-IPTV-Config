@@ -120,6 +120,8 @@ def update_epgs(app):
 def rebuild_custom_epg(app):
     logger.info("Rebuilding custom EPG")
     config = app.config['APP_CONFIG']
+    from backend.epgs import update_channel_epg_with_online_data
+    update_channel_epg_with_online_data(config)
     from backend.epgs import build_custom_epg
     build_custom_epg(config)
 
