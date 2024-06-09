@@ -20,10 +20,10 @@
 #
 
 # -- Server or stand-alone executables
-Flask==3.0.1
+Flask~=3.0.3
     #   Reason:             This is Flask
     #   Import example:     N/A
-gunicorn==22.0.0
+gunicorn~=22.0.0
     #   Reason:             Used to serve the Django application in production
     #   Import example:     N/A (Executed from bin directory)
 
@@ -42,7 +42,7 @@ Flask-APScheduler~=1.13.1
     #   Import example:     from flask_apscheduler import APScheduler
 
 # -- Support libraries
-m3u-ipytv==0.2.7
+m3u-ipytv~=0.2.7
     #   Reason:             A library for handling M3U playlists for IPTV (AKA m3u_plus)
     #   Import example:     from ipytv import playlist
 mergedeep~=1.3.4
@@ -54,6 +54,6 @@ PyYAML~=6.0.1
 requests~=2.31.0
     #   Reason:             HTTP requests
     #   Import example:     import requests
-beautifulsoup4>=4.12.3
+beautifulsoup4~=4.12.3
     #   Reason:             HTTP parsing
     #   Import example:     from bs4 import BeautifulSoup
