@@ -27,7 +27,7 @@ app = create_app(app_config, debugging_enabled)
 Migrate(app, db)
 
 if not debugging_enabled:
-    Minify(app=app, html=True, js=False, cssless=False)
+    Minify(app=app, html=True, js=False, cssless=False, go=False)
 
 if debugging_enabled:
     app.logger.info(' DEBUGGING   = ' + str(debugging_enabled))

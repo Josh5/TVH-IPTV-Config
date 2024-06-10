@@ -14,8 +14,6 @@ blinker==1.8.2
     # via flask
 certifi==2024.6.2
     # via requests
-cffi==1.16.0
-    # via tdewolff-minify
 charset-normalizer==3.3.2
     # via requests
 click==8.1.7
@@ -31,10 +29,8 @@ flask-apscheduler==1.13.1
     # via -r ./requirements.in
 flask-migrate==4.0.7
     # via -r ./requirements.in
-flask-minify[go]==0.46
-    # via
-    #   -r ./requirements.in
-    #   flask-minify
+flask-minify==0.46
+    # via -r ./requirements.in
 flask-sqlalchemy==3.1.1
     # via
     #   -r ./requirements.in
@@ -70,8 +66,6 @@ packaging==24.1
     # via gunicorn
 ply==3.11
     # via lesscpy
-pycparser==2.22
-    # via cffi
 python-dateutil==2.9.0.post0
     # via flask-apscheduler
 pytz==2024.1
@@ -95,8 +89,6 @@ sqlalchemy==2.0.30
     # via
     #   alembic
     #   flask-sqlalchemy
-tdewolff-minify==2.20.33
-    # via flask-minify
 typing-extensions==4.12.2
     # via
     #   alembic
