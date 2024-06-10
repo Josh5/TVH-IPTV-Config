@@ -28,7 +28,7 @@ gunicorn~=22.0.0
     #   Import example:     N/A (Executed from bin directory)
 
 # -- Flask Extensions
-Flask-Minify~=0.42
+Flask-Minify[go]~=0.42
     #   Reason:             Extension to minify html, css, js and less
     #   Import example:     from flask_minify import Minify
 Flask-SQLAlchemy~=3.1.1
