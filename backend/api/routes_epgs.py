@@ -4,7 +4,7 @@ from backend.api.tasks import TaskQueueBroker
 from backend.epgs import read_config_all_epgs, add_new_epg, read_config_one_epg, update_epg, delete_epg, \
     import_epg_data, read_channels_from_all_epgs
 from backend.api import blueprint
-from flask import request, jsonify, current_app
+from quart import request, jsonify, current_app
 
 
 @blueprint.route('/tic-api/epgs/get', methods=['GET'])
@@ -63,10 +63,10 @@ def api_delete_epg(epg_id):
 
 
 @blueprint.route('/tic-api/epgs/update/<epg_id>', methods=['POST'])
-def api_update_epg(epg_id):
+async def api_update_epg(epg_id):
     config = current_app.config['APP_CONFIG']
-    task_broker = TaskQueueBroker.get_instance()
-    task_broker.add_task({
+    task_broker = await TaskQueueBroker.get_instance()
+    await task_broker.add_task({
         'name':     f'Update EPG - ID: {epg_id}',
         'function': import_epg_data,
         'args':     [config, epg_id],

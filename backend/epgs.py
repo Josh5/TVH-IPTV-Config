@@ -17,9 +17,8 @@ from types import NoneType
 from bs4 import BeautifulSoup
 from sqlalchemy.orm import joinedload
 from sqlalchemy import and_
-from backend import db
 from backend.channels import read_base46_image_string
-from backend.models import Epg, Channel, EpgChannels, EpgChannelProgrammes
+from backend.models import db, Epg, Channel, EpgChannels, EpgChannelProgrammes
 from backend.tvheadend.tvh_requests import get_tvh
 
 logger = logging.getLogger('werkzeug.epgs')

@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
+from flask_sqlalchemy import SQLAlchemy
 
-from backend import db
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
+
+db = SQLAlchemy()
 
 
 class Epg(db.Model):

@@ -5,7 +5,7 @@
 # File Created: Monday, 13th May 2024 4:20:35 pm
 # Author: Josh.5 (jsunnex@gmail.com)
 # -----
-# Last Modified: Friday, 7th June 2024 12:24:22 am
+# Last Modified: Thursday, 13th June 2024 5:14:15 am
 # Modified By: Josh.5 (jsunnex@gmail.com)
 ###
 
@@ -52,13 +52,13 @@ else
     # Execute migrations
     if [ "${SKIP_MIGRATIONS}" != "true" ]; then
         print_log info "Running TVH-IPTV-Config DB migrations"
-        flask db upgrade
+        alembic upgrade head
     fi
 
     # Run proxy
-    gunicorn -w 2 --threads 4 -b 0.0.0.0:9987 proxy:app &
+    python3 /app/proxy.py &
     proxy_pid=$!
 
     # Run Flask server
-    flask run
+    python3 /app/run.py
 fi

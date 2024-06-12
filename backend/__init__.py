@@ -2,23 +2,28 @@
 # -*- coding:utf-8 -*-
 import logging
 from logging.config import dictConfig
-
-from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
 from importlib import import_module
+
+import quart_flask_patch
+from quart import Quart
+
+from backend import config
 from backend.api import tasks
 
-db = SQLAlchemy()
 dictConfig({
     'version':    1,
-    'formatters': {'default': {
-        'format': '%(asctime)s:%(levelname)s:%(name)s: %(message)s',
-    }},
-    'handlers':   {'wsgi': {
-        'class':     'logging.StreamHandler',
-        'stream':    'ext://flask.logging.wsgi_errors_stream',
-        'formatter': 'default'
-    }},
+    'formatters': {
+        'default': {
+            'format': '%(asctime)s:%(levelname)s:%(name)s: %(message)s',
+        }
+    },
+    'handlers':   {
+        'wsgi': {
+            'class':     'logging.StreamHandler',
+            'stream':    'ext://sys.stderr',
+            'formatter': 'default'
+        }
+    },
     'root':       {
         'level':    'INFO',
         'handlers': ['wsgi']
@@ -34,8 +39,17 @@ class IgnoreLoggingRoutesFilter(logging.Filter):
         return True
 
 
-def register_extensions(app):
+def init_db(app):
+    from backend.models import db
+    app.config["SQLALCHEMY_DATABASE_URI"] = config.sqlalchemy_database_uri
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = config.sqlalchemy_track_modifications
     db.init_app(app)
+
+    @app.teardown_appcontext
+    def shutdown_session(exception=None):
+        db.session.remove()
+
+    return db
 
 
 def register_blueprints(app):
@@ -47,35 +61,27 @@ def register_blueprints(app):
     app.register_blueprint(module.blueprint)
 
 
-def configure_database(app):
-    @app.teardown_request
-    def shutdown_session(exception=None):
-        db.session.remove()
+def create_app():
+    # Create app
+    app = Quart(__name__, instance_relative_config=True)
+    app.config["SECRET_KEY"] = config.secret_key
+    app.config["SCHEDULER_API_ENABLED"] = config.scheduler_api_enabled
+    app.config["APP_CONFIG"] = config.Config()
+    app.config["ASSETS_ROOT"] = config.assets_root
 
+    # Init the DB connection
+    db = init_db(app)
 
-def start_scheduler(app):
-    tasks.scheduler.init_app(app)
-    tasks.scheduler.start()
-
-
-def create_app(config, debugging_enabled):
-    app = Flask(__name__)
-    app.config.from_object(config)
-    register_extensions(app)
-
+    # Register the route blueprints
     register_blueprints(app)
 
-    configure_database(app)
-
-    start_scheduler(app)
-
+    # TODO: Configure logging
     log = logging.getLogger('werkzeug')
     app.logger.setLevel(logging.INFO)
     log.setLevel(logging.INFO)
-    if debugging_enabled:
+    if config.enable_debugging:
         app.logger.setLevel(logging.DEBUG)
         log.setLevel(logging.DEBUG)
-
     app.logger.addFilter(IgnoreLoggingRoutesFilter())
 
     return app

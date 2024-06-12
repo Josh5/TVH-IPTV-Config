@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
 from backend.api import blueprint
-from flask import jsonify, current_app, render_template_string, Response
+from quart import jsonify, current_app, render_template_string, Response
 
 device_xml_template = """<?xml version="1.0" encoding="UTF-8"?>
 <root xmlns="urn:schemas-upnp-org:device-1-0">

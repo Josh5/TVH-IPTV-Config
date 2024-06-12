@@ -2,18 +2,17 @@
 # -*- coding:utf-8 -*-
 import itertools
 import logging
-import threading
-from queue import PriorityQueue
-from flask_apscheduler import APScheduler
+from asyncio import PriorityQueue, Lock
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-scheduler = APScheduler()
+scheduler = AsyncIOScheduler()
 
 logger = logging.getLogger('werkzeug.tasks')
 
 
 class TaskQueueBroker:
     __instance = None
-    __lock = threading.Lock()
+    __lock = Lock()
 
     def __init__(self):
         if TaskQueueBroker.__instance is not None:
@@ -29,15 +28,15 @@ class TaskQueueBroker:
             self.__priority_counter = itertools.count()
 
     @staticmethod
-    def get_instance():
-        # Ensure no other threads can access this method at the same time
-        with TaskQueueBroker.__lock:
+    async def get_instance():
+        # Ensure no other coroutines can access this method at the same time
+        async with TaskQueueBroker.__lock:
             # If the singleton instance has not been created yet, create it
             if TaskQueueBroker.__instance is None:
                 TaskQueueBroker()
         return TaskQueueBroker.__instance
 
-    def get_status(self):
+    async def get_status(self):
         return self.__status
 
     def toggle_status(self):
@@ -47,22 +46,23 @@ class TaskQueueBroker:
             self.__status = "paused"
         return self.__status
 
-    def add_task(self, task, priority=100):
+    async def add_task(self, task, priority=100):
         if task['name'] in self.__task_names:
             logger.debug("Task already queued. Ignoring.")
             return
-        self.__task_queue.put((priority, next(self.__priority_counter), task))
+        await self.__task_queue.put((priority, next(self.__priority_counter), task))
         self.__task_names.add(task['name'])
 
-    def get_next_task(self):
+    async def get_next_task(self):
         # Get the next task from the queue
         if not self.__task_queue.empty():
-            task = self.__task_queue.get()
+            task = await self.__task_queue.get()
             self.__task_names.remove(task['name'])
+            return task
         else:
             return None
 
-    def execute_tasks(self):
+    async def execute_tasks(self):
         if self.__running_task is not None:
             logger.warning("Another process is already running scheduled tasks.")
         if self.__task_queue.empty():
@@ -74,91 +74,99 @@ class TaskQueueBroker:
         while not self.__task_queue.empty():
             if self.__status == "paused":
                 break
-            priority, i, task = self.__task_queue.get()
+            priority, i, task = await self.__task_queue.get()
             self.__task_names.remove(task['name'])
             self.__running_task = task['name']
             # Execute task here
             try:
                 logger.info("Executing task - %s.", task['name'])
-                task['function'](*task['args'])
+                await task['function'](*task['args'])
             except Exception as e:
                 logger.error("Failed to run task %s - %s", task['name'], str(e))
         self.__running_task = None
 
-    def get_currently_running_task(self):
+    async def get_currently_running_task(self):
         return self.__running_task
 
-    def get_pending_tasks(self):
+    async def get_pending_tasks(self):
         results = []
-        for i in range(self.__task_queue.qsize()):
-            priority, i, task = self.__task_queue.queue[i]
-            results.append(task['name'])
+        async with self.__lock:
+            # Temporarily hold tasks to restore them later
+            temp_tasks = []
+            while not self.__task_queue.empty():
+                task = await self.__task_queue.get()
+                temp_tasks.append(task)
+                priority, i, task_data = task
+                results.append(task_data['name'])
+            # Put tasks back into the queue
+            for task in temp_tasks:
+                await self.__task_queue.put(task)
         return results
 
 
-def configure_tvh_with_defaults(app):
+async def configure_tvh_with_defaults(app):
     logger.info("Configuring TVH")
     config = app.config['APP_CONFIG']
     from backend.tvheadend.tvh_requests import configure_tvh
-    configure_tvh(config)
+    await configure_tvh(config)
 
 
-def update_playlists(app):
+async def update_playlists(app):
     logger.info("Updating Playlists")
     config = app.config['APP_CONFIG']
     from backend.playlists import import_playlist_data_for_all_playlists
-    import_playlist_data_for_all_playlists(config)
+    await import_playlist_data_for_all_playlists(config)
 
 
-def update_epgs(app):
+async def update_epgs(app):
     logger.info("Updating EPGs")
     config = app.config['APP_CONFIG']
     from backend.epgs import import_epg_data_for_all_epgs
-    import_epg_data_for_all_epgs(config)
+    await import_epg_data_for_all_epgs(config)
 
 
-def rebuild_custom_epg(app):
+async def rebuild_custom_epg(app):
     logger.info("Rebuilding custom EPG")
     config = app.config['APP_CONFIG']
     from backend.epgs import update_channel_epg_with_online_data
-    update_channel_epg_with_online_data(config)
+    await update_channel_epg_with_online_data(config)
     from backend.epgs import build_custom_epg
-    build_custom_epg(config)
+    await build_custom_epg(config)
 
 
-def update_tvh_epg(app):
+async def update_tvh_epg(app):
     logger.info("Triggering update of TVH EPG")
     config = app.config['APP_CONFIG']
     from backend.epgs import run_tvh_epg_grabbers
-    run_tvh_epg_grabbers(config)
+    await run_tvh_epg_grabbers(config)
 
 
-def update_tvh_networks(app):
+async def update_tvh_networks(app):
     logger.info("Updating channels in TVH")
     config = app.config['APP_CONFIG']
     from backend.playlists import publish_playlist_networks
-    publish_playlist_networks(config)
+    await publish_playlist_networks(config)
 
 
-def update_tvh_channels(app):
+async def update_tvh_channels(app):
     logger.info("Updating channels in TVH")
     config = app.config['APP_CONFIG']
     from backend.channels import publish_bulk_channels_to_tvh
-    publish_bulk_channels_to_tvh(config)
+    await publish_bulk_channels_to_tvh(config)
 
 
-def update_tvh_muxes(app):
+async def update_tvh_muxes(app):
     logger.info("Updating muxes in TVH")
     config = app.config['APP_CONFIG']
     from backend.channels import publish_channel_muxes
-    publish_channel_muxes(config)
+    await publish_channel_muxes(config)
 
 
-def map_new_tvh_services(app):
+async def map_new_tvh_services(app):
     logger.info("Mapping new services in TVH")
     config = app.config['APP_CONFIG']
     # Map any new services
     from backend.channels import map_all_services, cleanup_old_channels
-    map_all_services(config)
+    await map_all_services(config)
     # Clear out old channels
-    cleanup_old_channels(config)
+    await cleanup_old_channels(config)

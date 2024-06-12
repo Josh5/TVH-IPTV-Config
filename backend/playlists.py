@@ -8,9 +8,8 @@ from operator import attrgetter
 from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 
-from backend import db
 from backend.ffmpeg import ffprobe_file
-from backend.models import Playlist, PlaylistStreams
+from backend.models import db, Playlist, PlaylistStreams
 from backend.tvheadend.tvh_requests import get_tvh, network_template
 
 logger = logging.getLogger('werkzeug.playlists')
