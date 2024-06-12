@@ -8,7 +8,7 @@ from backend.playlists import read_config_all_playlists, add_new_playlist, read_
     delete_playlist, import_playlist_data, read_stream_details_from_all_playlists, probe_playlist_stream, \
     read_filtered_stream_details_from_all_playlists
 from backend.api import blueprint
-from flask import request, jsonify, current_app
+from quart import request, jsonify, current_app
 
 frontend_dir = os.path.join(os.path.dirname(os.path.abspath(os.path.dirname(__file__))), 'frontend')
 static_assets = os.path.join(frontend_dir, 'dist', 'spa')
@@ -71,10 +71,10 @@ def api_delete_playlist(playlist_id):
 
 
 @blueprint.route('/tic-api/playlists/update/<playlist_id>', methods=['POST'])
-def api_update_playlist(playlist_id):
+async def api_update_playlist(playlist_id):
     config = current_app.config['APP_CONFIG']
-    task_broker = TaskQueueBroker.get_instance()
-    task_broker.add_task({
+    task_broker = await TaskQueueBroker.get_instance()
+    await task_broker.add_task({
         'name':     f'Update playlist - ID: {playlist_id}',
         'function': import_playlist_data,
         'args':     [config, playlist_id],

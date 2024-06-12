@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
+import asyncio
 import os
 
+from quart import request, jsonify, redirect, send_from_directory, current_app
+
 from backend.api import blueprint
-from flask import request, jsonify, redirect, send_from_directory, current_app
 
 from backend.api.tasks import TaskQueueBroker
 from backend.tvheadend.tvh_requests import configure_tvh
@@ -42,25 +44,25 @@ def ping():
 
 
 @blueprint.route('/tic-api/get-background-tasks', methods=['GET'])
-def api_get_background_tasks():
-    task_broker = TaskQueueBroker.get_instance()
-    task_broker.get_pending_tasks()
+async def api_get_background_tasks():
+    task_broker = await TaskQueueBroker.get_instance()
+    await task_broker.get_pending_tasks()
     return jsonify(
         {
             "success": True,
             "data":    {
-                "task_queue_status": task_broker.get_status(),
-                "current_task":      task_broker.get_currently_running_task(),
-                "pending_tasks":     task_broker.get_pending_tasks(),
+                "task_queue_status": await task_broker.get_status(),
+                "current_task":      await task_broker.get_currently_running_task(),
+                "pending_tasks":     await task_broker.get_pending_tasks(),
             },
         }
     )
 
 
 @blueprint.route('/tic-api/toggle-pause-background-tasks', methods=['GET'])
-def api_toggle_background_tasks_status():
-    task_broker = TaskQueueBroker.get_instance()
-    task_broker.toggle_status()
+async def api_toggle_background_tasks_status():
+    task_broker = await TaskQueueBroker.get_instance()
+    await task_broker.toggle_status()
     return jsonify(
         {
             "success": True

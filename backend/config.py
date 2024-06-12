@@ -3,8 +3,6 @@ import os
 import yaml
 from mergedeep import merge
 
-frontend_dir = os.path.join(os.path.dirname(os.path.abspath(os.path.dirname(__file__))), 'frontend')
-
 
 def get_home_dir():
     home_dir = os.environ.get('HOME_DIR')
@@ -112,40 +110,27 @@ class Config:
         self.settings = recursive_dict_update(self.default_settings, updated_settings)
 
 
-class FlaskConfig(object):
-    basedir = os.path.abspath(os.path.dirname(__file__))
-    config_path = os.path.join(get_home_dir(), '.tvh_iptv_config')
-    if not os.path.exists(config_path):
-        os.makedirs(config_path)
+frontend_dir = os.path.join(os.path.dirname(os.path.abspath(os.path.dirname(__file__))), 'frontend')
 
-    # Configure SQLite DB
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(config_path, 'db.sqlite3')
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
+enable_debugging = False
+if os.environ.get('ENABLE_DEBUGGING', 'false').lower() == 'true':
+    enable_debugging = True
 
-    # Configure scheduler
-    SCHEDULER_API_ENABLED = True
+app_basedir = os.path.abspath(os.path.dirname(__file__))
+config_path = os.path.join(get_home_dir(), '.tvh_iptv_config')
+if not os.path.exists(config_path):
+    os.makedirs(config_path)
 
-    # App configuration
-    APP_CONFIG = Config()
+# Configure SQLite DB
+sqlalchemy_database_uri = 'sqlite:///' + os.path.join(config_path, 'db.sqlite3')
+sqlalchemy_track_modifications = False
 
-    # Set up the App SECRET_KEY
-    # SECRET_KEY = config('SECRET_KEY'  , default='S#perS3crEt_007')
-    SECRET_KEY = os.getenv('SECRET_KEY', 'S#perS3crEt_007')
+# Configure scheduler
+scheduler_api_enabled = True
 
-    # Assets Management
-    ASSETS_ROOT = os.getenv('ASSETS_ROOT', os.path.join(frontend_dir, 'dist', 'spa'))
+# Set up the App SECRET_KEY
+# SECRET_KEY = config('SECRET_KEY'  , default='S#perS3crEt_007')
+secret_key = os.getenv('SECRET_KEY', 'S#perS3crEt_007')
 
-
-class FlaskProductionConfig(FlaskConfig):
-    DEBUG = False
-
-
-class FlaskDebugConfig(FlaskConfig):
-    DEBUG = True
-
-
-# Load all possible configurations
-config_dict = {
-    'Production': FlaskProductionConfig,
-    'Debug':      FlaskDebugConfig
-}
+# Assets Management
+assets_root = os.getenv('ASSETS_ROOT', os.path.join(frontend_dir, 'dist', 'spa'))

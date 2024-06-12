@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
 
-from flask import Blueprint, current_app
+from quart import Blueprint
 
 blueprint = Blueprint(
     'api_blueprint',

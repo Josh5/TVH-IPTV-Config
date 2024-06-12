@@ -1,104 +1,84 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
-import os
-
-from flask_migrate import Migrate
-from flask_minify import Minify
-from sys import exit
 
 from backend.api.tasks import scheduler, update_playlists, map_new_tvh_services, update_epgs, rebuild_custom_epg, \
     update_tvh_muxes, configure_tvh_with_defaults, update_tvh_channels, update_tvh_networks, update_tvh_epg, \
     TaskQueueBroker
-from backend.config import config_dict
-from backend import create_app, db
+from backend import create_app, config
+import asyncio
 
-debugging_enabled = (os.getenv('ENABLE_DEBUGGING', 'false').lower() == 'true')
-
-# The configuration
-get_config_mode = 'Debug' if debugging_enabled else 'Production'
-
-try:
-    # Load the configuration using the default values
-    app_config = config_dict[get_config_mode.capitalize()]
-except KeyError:
-    exit('Error: Invalid <config_mode>. Expected values [Debug, Production] ')
-
-app = create_app(app_config, debugging_enabled)
-Migrate(app, db)
-
-if not debugging_enabled:
-    Minify(app=app, html=True, js=False, cssless=False, go=False)
-
-if debugging_enabled:
-    app.logger.info(' DEBUGGING   = ' + str(debugging_enabled))
-    app.logger.debug('DBMS        = ' + app_config.SQLALCHEMY_DATABASE_URI)
-    app.logger.debug('ASSETS_ROOT = ' + app_config.ASSETS_ROOT)
+# Create app
+app = create_app()
+if config.enable_debugging:
+    app.logger.info(' DEBUGGING   = ' + str(config.enable_debugging))
+    app.logger.debug('DBMS        = ' + config.sqlalchemy_database_uri)
+    app.logger.debug('ASSETS_ROOT = ' + config.assets_root)
 
 
-@scheduler.task('interval', id='background_tasks', seconds=60)
-def background_tasks():
-    with app.app_context():
-        task_broker = TaskQueueBroker.get_instance()
-        task_broker.execute_tasks()
+@scheduler.scheduled_job('interval', id='background_tasks', seconds=10)
+async def background_tasks():
+    async with app.app_context():
+        task_broker = await TaskQueueBroker.get_instance()
+        await task_broker.execute_tasks()
 
 
-@scheduler.task('interval', id='do_5_mins', minutes=5, misfire_grace_time=60)
-def every_5_mins():
-    with app.app_context():
-        task_broker = TaskQueueBroker.get_instance()
-        task_broker.add_task({
+@scheduler.scheduled_job('interval', id='do_5_mins', minutes=5, misfire_grace_time=60)
+async def every_5_mins():
+    async with app.app_context():
+        task_broker = await TaskQueueBroker.get_instance()
+        await task_broker.add_task({
             'name':     'Mapping all TVH services',
             'function': map_new_tvh_services,
             'args':     [app],
         }, priority=10)
 
 
-@scheduler.task('interval', id='do_60_mins', minutes=60, misfire_grace_time=300)
-def every_60_mins():
-    with app.app_context():
-        task_broker = TaskQueueBroker.get_instance()
-        task_broker.add_task({
+@scheduler.scheduled_job('interval', id='do_60_mins', minutes=60, misfire_grace_time=300)
+async def every_60_mins():
+    async with app.app_context():
+        task_broker = await TaskQueueBroker.get_instance()
+        await task_broker.add_task({
             'name':     'Configuring TVH with global default',
             'function': configure_tvh_with_defaults,
             'args':     [app],
         }, priority=11)
-        task_broker.add_task({
+        await task_broker.add_task({
             'name':     'Configuring TVH networks',
             'function': update_tvh_networks,
             'args':     [app],
         }, priority=12)
-        task_broker.add_task({
+        await task_broker.add_task({
             'name':     'Configuring TVH channels',
             'function': update_tvh_channels,
             'args':     [app],
         }, priority=13)
-        task_broker.add_task({
+        await task_broker.add_task({
             'name':     'Configuring TVH muxes',
             'function': update_tvh_muxes,
             'args':     [app],
         }, priority=14)
-        task_broker.add_task({
+        await task_broker.add_task({
             'name':     'Triggering an update in TVH to fetch the latest XMLTV',
             'function': update_tvh_epg,
             'args':     [app],
         }, priority=30)
 
 
-@scheduler.task('cron', id='do_job_twice_a_day', hour='0/12', minute=1, misfire_grace_time=900)
-def every_12_hours():
-    with app.app_context():
-        task_broker = TaskQueueBroker.get_instance()
-        task_broker.add_task({
+@scheduler.scheduled_job('cron', id='do_job_twice_a_day', hour='0/12', minute=1, misfire_grace_time=900)
+async def every_12_hours():
+    async with app.app_context():
+        task_broker = await TaskQueueBroker.get_instance()
+        await task_broker.add_task({
             'name':     f'Updating all playlists',
             'function': update_playlists,
             'args':     [app],
         }, priority=100)
-        task_broker.add_task({
+        await task_broker.add_task({
             'name':     f'Updating all EPGs',
             'function': update_epgs,
             'args':     [app],
         }, priority=100)
-        task_broker.add_task({
+        await task_broker.add_task({
             'name':     'Recreating static XMLTV file',
             'function': rebuild_custom_epg,
             'args':     [app],
@@ -106,4 +86,15 @@ def every_12_hours():
 
 
 if __name__ == "__main__":
-    app.run()
+    # Create a custom loop
+    loop = asyncio.get_event_loop()
+
+    # Start scheduler
+    app.logger.info("Starting scheduler...")
+    scheduler.start()
+    app.logger.info("Scheduler started.")
+
+    # Start Quart server
+    app.logger.info("Starting Quart server...")
+    app.run(loop=loop, host="0.0.0.0", port=9985)
+    app.logger.info("Quart server completed.")

@@ -20,28 +20,31 @@
 #
 
 # -- Server or stand-alone executables
-Flask~=3.0.3
-    #   Reason:             This is Flask
+Quart~=0.19.6
+    #   Reason:             This is the web server framework
     #   Import example:     N/A
 gunicorn~=22.0.0
     #   Reason:             Used to serve the Django application in production
     #   Import example:     N/A (Executed from bin directory)
 
-# -- Flask Extensions
-Flask-Minify~=0.42
-    #   Reason:             Extension to minify html, css, js and less
-    #   Import example:     from flask_minify import Minify
+# -- Extensions
+quart-flask-patch~=0.3.0
+    #   Reason:             Quart-Flask-Patch is a Quart extension that patches Quart to work with Flask extensions.
+    #   Import example:     import quart_flask_patch
 Flask-SQLAlchemy~=3.1.1
     #   Reason:             Add SQLAlchemy support to your Flask application.
     #   Import example:     from flask_sqlalchemy import SQLAlchemy
-Flask-Migrate~=4.0.5
-    #   Reason:             SQLAlchemy database migrations for Flask applications using Alembic
-    #   Import example:     from flask_migrate import Migrate
-Flask-APScheduler~=1.13.1
-    #   Reason:             Adds APScheduler support to Flask
-    #   Import example:     from flask_apscheduler import APScheduler
+alembic~=1.13.1
+    #   Reason:             SQLAlchemy database migrations for the application
+    #   Import example:     from alembic import context
+APScheduler~=3.10.4
+    #   Reason:             Adds APScheduler for running scheduled tasks
+    #   Import example:     from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 # -- Support libraries
+aiohttp~=3.9.5
+    #   Reason:             Async http client/server framework (asyncio). Required for the proxy server.
+    #   Import example:     import aiohttp
 m3u-ipytv~=0.2.7
     #   Reason:             A library for handling M3U playlists for IPTV (AKA m3u_plus)
     #   Import example:     from ipytv import playlist

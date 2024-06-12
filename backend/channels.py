@@ -9,9 +9,9 @@ from mimetypes import guess_type
 import requests
 from sqlalchemy.orm import joinedload
 from sqlalchemy import and_, func
-from backend import db
+
 from backend.ffmpeg import generate_iptv_url
-from backend.models import Channel, ChannelTag, Epg, ChannelSource, Playlist, EpgChannels, PlaylistStreams, \
+from backend.models import db, Channel, ChannelTag, Epg, ChannelSource, Playlist, EpgChannels, PlaylistStreams, \
     channels_tags_association_table
 from backend.playlists import fetch_playlist_streams
 from backend.tvheadend.tvh_requests import get_tvh
@@ -549,31 +549,31 @@ def cleanup_old_channels(config):
             tvh.delete_channel(channel.get('uuid'))
 
 
-def queue_background_channel_update_tasks(config):
+async def queue_background_channel_update_tasks(config):
     settings = config.read_settings()
     # Update TVH
     from backend.api.tasks import TaskQueueBroker
-    task_broker = TaskQueueBroker.get_instance()
+    task_broker = await TaskQueueBroker.get_instance()
     # Configure TVH with the list of channels
-    task_broker.add_task({
+    await task_broker.add_task({
         'name':     'Configuring TVH channels',
         'function': publish_bulk_channels_to_tvh,
         'args':     [config],
     }, priority=11)
     # Configure TVH with muxes
-    task_broker.add_task({
+    await task_broker.add_task({
         'name':     'Configuring TVH muxes',
         'function': publish_channel_muxes,
         'args':     [config],
     }, priority=12)
     # Map all services
-    task_broker.add_task({
+    await task_broker.add_task({
         'name':     'Mapping all TVH services',
         'function': map_all_services,
         'args':     [config],
     }, priority=13)
     # Clear out old channels
-    task_broker.add_task({
+    await task_broker.add_task({
         'name':     'Cleanup old TVH channels',
         'function': cleanup_old_channels,
         'args':     [config],
@@ -581,21 +581,21 @@ def queue_background_channel_update_tasks(config):
     # Fetch additional EPG data from the internet
     from backend.epgs import update_channel_epg_with_online_data
     if settings['settings'].get('epgs', {}).get('enable_tmdb_metadata'):
-        task_broker.add_task({
+        await task_broker.add_task({
             'name':     'Update EPG Data with online metadata',
             'function': update_channel_epg_with_online_data,
             'args':     [config],
         }, priority=21)
     # Generate 'epg.xml' file in .tvh_iptv_config directory
     from backend.epgs import build_custom_epg
-    task_broker.add_task({
+    await task_broker.add_task({
         'name':     'Recreating static XMLTV file',
         'function': build_custom_epg,
         'args':     [config],
     }, priority=23)
     # Trigger an update in TVH to fetch the latest EPG
     from backend.epgs import run_tvh_epg_grabbers
-    task_broker.add_task({
+    await task_broker.add_task({
         'name':     'Triggering an update in TVH to fetch the latest XMLTV',
         'function': run_tvh_epg_grabbers,
         'args':     [config],
