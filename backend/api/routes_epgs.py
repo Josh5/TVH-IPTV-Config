@@ -19,8 +19,9 @@ def api_get_epgs_list():
 
 
 @blueprint.route('/tic-api/epgs/settings/new', methods=['POST'])
-def api_add_new_epg():
-    add_new_epg(request.json)
+async def api_add_new_epg():
+    json_data = await request.get_json()
+    add_new_epg(json_data)
     return jsonify(
         {
             "success": True
@@ -40,8 +41,9 @@ def api_get_epg_config(epg_id):
 
 
 @blueprint.route('/tic-api/epgs/settings/<epg_id>/save', methods=['POST'])
-def api_set_epg_config(epg_id):
-    update_epg(epg_id, request.json)
+async def api_set_epg_config(epg_id):
+    json_data = await request.get_json()
+    update_epg(epg_id, json_data)
     # TODO: Trigger an update of the cached EPG config
     return jsonify(
         {

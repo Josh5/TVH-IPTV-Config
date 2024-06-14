@@ -22,9 +22,9 @@ def api_get_channels():
 
 @blueprint.route('/tic-api/channels/new', methods=['POST'])
 async def api_add_new_channel():
-    config = current_app.config['APP_CONFIG']
     json_data = await request.get_json()
-    add_new_channel(config, json_data)
+    config = current_app.config['APP_CONFIG']
+    await add_new_channel(config, json_data)
     await queue_background_channel_update_tasks(config)
     return jsonify(
         {
@@ -46,8 +46,8 @@ async def api_get_channel_config(channel_id):
 
 @blueprint.route('/tic-api/channels/settings/<channel_id>/save', methods=['POST'])
 async def api_set_config_channels(channel_id):
-    config = current_app.config['APP_CONFIG']
     json_data = await request.get_json()
+    config = current_app.config['APP_CONFIG']
     update_channel(config, channel_id, json_data)
     await queue_background_channel_update_tasks(config)
     return jsonify(
@@ -59,8 +59,8 @@ async def api_set_config_channels(channel_id):
 
 @blueprint.route('/tic-api/channels/settings/multiple/save', methods=['POST'])
 async def api_set_config_multiple_channels():
-    config = current_app.config['APP_CONFIG']
     json_data = await request.get_json()
+    config = current_app.config['APP_CONFIG']
     for channel_id in json_data.get('channels', {}):
         channel = json_data['channels'][channel_id]
         update_channel(config, channel_id, channel)
@@ -74,9 +74,9 @@ async def api_set_config_multiple_channels():
 
 @blueprint.route('/tic-api/channels/settings/multiple/add', methods=['POST'])
 async def api_add_multiple_channels():
-    config = current_app.config['APP_CONFIG']
     json_data = await request.get_json()
-    add_bulk_channels(config, json_data.get('channels', []))
+    config = current_app.config['APP_CONFIG']
+    await add_bulk_channels(config, json_data.get('channels', []))
     await queue_background_channel_update_tasks(config)
     return jsonify(
         {

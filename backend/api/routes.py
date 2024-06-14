@@ -71,11 +71,12 @@ async def api_toggle_background_tasks_status():
 
 
 @blueprint.route('/tic-api/save-settings', methods=['POST'])
-def api_save_config():
+async def api_save_config():
+    json_data = await request.get_json()
     config = current_app.config['APP_CONFIG']
-    config.update_settings(request.json)
+    config.update_settings(json_data)
     config.save_settings()
-    configure_tvh(config)
+    await configure_tvh(config)
     return jsonify(
         {
             "success": True

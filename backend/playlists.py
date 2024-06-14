@@ -44,7 +44,7 @@ def read_config_one_playlist(playlist_id):
     return return_item
 
 
-def add_new_playlist(config, data):
+async def add_new_playlist(config, data):
     playlist = Playlist(
         enabled=data.get('enabled'),
         name=data.get('name'),
@@ -56,10 +56,10 @@ def add_new_playlist(config, data):
     db.session.add(playlist)
     db.session.commit()
     # Publish changes to TVH
-    publish_playlist_networks(config)
+    await publish_playlist_networks(config)
 
 
-def update_playlist(config, playlist_id, data):
+async def update_playlist(config, playlist_id, data):
     playlist = db.session.query(Playlist).where(Playlist.id == playlist_id).one()
     playlist.enabled = data.get('enabled', playlist.enabled)
     playlist.name = data.get('name', playlist.name)
@@ -68,7 +68,7 @@ def update_playlist(config, playlist_id, data):
     playlist.use_hls_proxy = data.get('use_hls_proxy', playlist.use_hls_proxy)
     db.session.commit()
     # Publish changes to TVH
-    publish_playlist_networks(config)
+    await publish_playlist_networks(config)
 
 
 def delete_playlist(config, playlist_id):
@@ -159,13 +159,13 @@ def fetch_playlist_streams(playlist_id):
     return return_list
 
 
-def import_playlist_data(config, playlist_id):
+async def import_playlist_data(config, playlist_id):
     playlist = read_config_one_playlist(playlist_id)
     # Download playlist data and save to YAML cache file
     logger.info("Downloading updated M3U file for playlist #%s from url - '%s'", playlist_id, playlist['url'])
     start_time = time.time()
     m3u_file = os.path.join(config.config_path, 'cache', 'playlists', f"{playlist_id}.m3u")
-    download_playlist_file(playlist['url'], m3u_file)
+    await download_playlist_file(playlist['url'], m3u_file)
     execution_time = time.time() - start_time
     logger.info("Updated M3U file for playlist #%s was downloaded in '%s' seconds", playlist_id, int(execution_time))
     # Parse the M3U file and cache the data in a YAML file for faster parsing
@@ -175,12 +175,12 @@ def import_playlist_data(config, playlist_id):
     execution_time = time.time() - start_time
     logger.info("Updated data for playlist #%s was imported in '%s' seconds", playlist_id, int(execution_time))
     # Publish changes to TVH
-    publish_playlist_networks(config)
+    await publish_playlist_networks(config)
 
 
-def import_playlist_data_for_all_playlists(config):
+async def import_playlist_data_for_all_playlists(config):
     for playlist in db.session.query(Playlist).all():
-        import_playlist_data(config, playlist.id)
+        await import_playlist_data(config, playlist.id)
 
 
 def read_stream_details_from_all_playlists():
@@ -256,14 +256,14 @@ def read_filtered_stream_details_from_all_playlists(request_json):
     return results
 
 
-def delete_playlist_network_in_tvh(config, net_uuid):
-    tvh = get_tvh(config)
-    tvh.delete_network(net_uuid)
+async def delete_playlist_network_in_tvh(config, net_uuid):
+    tvh = await get_tvh(config)
+    await tvh.delete_network(net_uuid)
 
 
-def publish_playlist_networks(config):
+async def publish_playlist_networks(config):
     logger.info("Publishing all playlist networks to TVH")
-    tvh = get_tvh(config)
+    tvh = await get_tvh(config)
 
     # Loop over configured playlists
     existing_uuids = []
@@ -277,7 +277,7 @@ def publish_playlist_networks(config):
         logger.info("Publishing playlist to TVH - %s.", network_name)
         if net_uuid:
             found = False
-            for net in tvh.list_cur_networks():
+            for net in await tvh.list_cur_networks():
                 if net.get('uuid') == net_uuid:
                     found = True
             if not found:
@@ -285,7 +285,7 @@ def publish_playlist_networks(config):
         if not net_uuid:
             # No network exists, create one
             # Check if network exists with this playlist name
-            net_uuid = tvh.create_network(playlist_name, network_name, max_streams, net_priority)
+            net_uuid = await tvh.create_network(playlist_name, network_name, max_streams, net_priority)
         # Update network
         net_conf = network_template.copy()
         net_conf['uuid'] = net_uuid
@@ -294,7 +294,7 @@ def publish_playlist_networks(config):
         net_conf['pnetworkname'] = network_name
         net_conf['max_streams'] = max_streams
         net_conf['priority'] = net_priority
-        tvh.idnode_save(net_conf)
+        await tvh.idnode_save(net_conf)
         # Save network UUID against playlist in settings
         result.tvh_uuid = net_uuid
         db.session.commit()

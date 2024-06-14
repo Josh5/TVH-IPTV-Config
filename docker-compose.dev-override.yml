@@ -11,6 +11,9 @@ services:
         BUILD_DATE: "NOW"
         VERSION: "UNKNOWN"
 
+    depends_on:
+      - tvheadend
+
     # ENVIRONMENT:
     environment:
       # Skips the DB migrate command execution on container startup

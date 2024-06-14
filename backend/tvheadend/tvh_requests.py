@@ -4,7 +4,8 @@
 import json
 import logging
 import os
-import requests
+import aiohttp
+import asyncio
 
 logger = logging.getLogger('werkzeug.tvh_requests')
 
@@ -164,80 +165,88 @@ class Tvheadend:
         self.admin_username = admin_username
         self.admin_password = admin_password
         self.timeout = 5
-        self.session = requests.Session()
-        if self.admin_username and self.admin_password:
-            self.session.auth = (admin_username, admin_password)
+        self.session = aiohttp.ClientSession(auth=aiohttp.BasicAuth(admin_username,
+                                                                    admin_password)) if admin_username and admin_password else aiohttp.ClientSession()
         self.default_headers = {}
 
-    def __get(self, url, payload=None, rformat='content'):
-        headers = self.default_headers
-        r = self.session.get(url, headers=headers, params=payload, allow_redirects=False, timeout=self.timeout)
-        if r.status_code == 200:
-            if rformat == 'json':
-                return r.json()
-            return r.content
-        raise Exception(f"GET Failed to TVH API - CODE:{r.status_code} - CONTENT:{r.content} - PAYLOAD:{payload}")
+    async def __aenter__(self):
+        return self
 
-    def __post(self, url, payload=None, rformat='content'):
-        headers = self.default_headers
-        r = self.session.post(url, headers=headers, data=payload, allow_redirects=False, timeout=self.timeout)
-        if r.status_code == 200:
-            if rformat == 'json':
-                return r.json()
-            return r.content
-        raise Exception(f"POST Failed to TVH API - CODE:{r.status_code} - CONTENT:{r.content} - PAYLOAD:{payload}")
+    async def __aexit__(self, exc_type, exc, tb):
+        await self.session.close()
 
-    def __json(self, url, payload=None):
+    async def __get(self, url, payload=None, rformat='content'):
+        headers = self.default_headers
+        async with self.session.get(url, headers=headers, params=payload, allow_redirects=False,
+                                    timeout=self.timeout) as r:
+            if r.status == 200:
+                if rformat == 'json':
+                    return await r.json()
+                return await r.text()
+            raise Exception(f"GET Failed to TVH API - CODE:{r.status} - CONTENT:{await r.text()} - PAYLOAD:{payload}")
+
+    async def __post(self, url, payload=None, rformat='content'):
+        headers = self.default_headers
+        async with self.session.post(url, headers=headers, data=payload, allow_redirects=False,
+                                     timeout=self.timeout) as r:
+            if r.status == 200:
+                if rformat == 'json':
+                    return await r.json()
+                return await r.text()
+            raise Exception(f"POST Failed to TVH API - CODE:{r.status} - CONTENT:{await r.text()} - PAYLOAD:{payload}")
+
+    async def __json(self, url, payload=None):
         headers = self.default_headers
         headers['Content-Type'] = 'application/json'
-        r = self.session.post(url, headers=headers, json=payload, allow_redirects=False, timeout=self.timeout)
-        if r.status_code == 200:
-            return r.json()
-        raise Exception(f"JSON Failed to TVH API - CODE:{r.status_code} - CONTENT:{r.content}")
+        async with self.session.post(url, headers=headers, json=payload, allow_redirects=False,
+                                     timeout=self.timeout) as r:
+            if r.status == 200:
+                return await r.json()
+            raise Exception(f"JSON Failed to TVH API - CODE:{r.status} - CONTENT:{await r.text()}")
 
-    def idnode_load(self, data):
+    async def idnode_load(self, data):
         url = f"{self.api_url}/{api_idnode_load}"
-        response = self.__post(url, payload=data)
+        response = await self.__post(url, payload=data)
         try:
             json_list = json.loads(response)
         except json.JSONDecodeError:
             json_list = {"entries": []}
         return json_list
 
-    def idnode_save(self, node):
+    async def idnode_save(self, node):
         url = f"{self.api_url}/{api_idnode_save}"
-        self.__post(url, payload={"node": json.dumps(node)})
+        await self.__post(url, payload={"node": json.dumps(node)})
 
-    def idnode_delete(self, node_uuid):
+    async def idnode_delete(self, node_uuid):
         url = f"{self.api_url}/{api_idnode_delete}"
-        self.__post(url, payload={"uuid": node_uuid})
+        await self.__post(url, payload={"uuid": node_uuid})
 
-    def save_tvh_config(self, node):
+    async def save_tvh_config(self, node):
         url = f"{self.api_url}/{api_config_save}"
-        self.__post(url, payload={"node": json.dumps(node)})
+        await self.__post(url, payload={"node": json.dumps(node)})
 
-    def save_imagecache_config(self, node):
+    async def save_imagecache_config(self, node):
         url = f"{self.api_url}/{api_imagecache_config_save}"
-        self.__post(url, payload={"node": json.dumps(node)})
+        await self.__post(url, payload={"node": json.dumps(node)})
 
-    def create_accessentry_config(self, node):
+    async def create_accessentry_config(self, node):
         url = f"{self.api_url}/{api_imagecache_config_save}"
-        self.__post(url, payload={"node": json.dumps(node)})
+        await self.__post(url, payload={"node": json.dumps(node)})
 
-    def save_epggrab_config(self, node):
+    async def save_epggrab_config(self, node):
         url = f"{self.api_url}/{api_epggrab_config_save}"
-        self.__post(url, payload={"node": json.dumps(node)})
+        await self.__post(url, payload={"node": json.dumps(node)})
 
-    def disable_all_epg_grabbers(self):
+    async def disable_all_epg_grabbers(self):
         url = f"{self.api_url}/{api_epggrab_list}"
-        response = self.__get(url, payload={}, rformat='json')
+        response = await self.__get(url, payload={}, rformat='json')
         for grabber in response.get('entries', []):
-            self.idnode_save({"enabled": False, "uuid": grabber['uuid']})
+            await self.idnode_save({"enabled": False, "uuid": grabber['uuid']})
 
-    def create_and_configure_client_user(self, username, password):
+    async def create_and_configure_client_user(self, username, password):
         # Read current access entries
         url = f"{self.api_url}/{api_accessentry_grid}"
-        response = self.__post(url, payload={'groupBy': 'false', 'groupDir': 'ASC'})
+        response = await self.__post(url, payload={'groupBy': 'false', 'groupDir': 'ASC'})
         try:
             json_list = json.loads(response)
         except json.JSONDecodeError:
@@ -254,7 +263,7 @@ class Tvheadend:
             post_data = {"conf": json.dumps(node)}
             # Send request to server
             url = f"{self.api_url}/{api_accessentry_config_create}"
-            response = self.__post(url, payload=post_data)
+            response = await self.__post(url, payload=post_data)
             try:
                 json_list = json.loads(response)
             except json.JSONDecodeError:
@@ -263,10 +272,10 @@ class Tvheadend:
         # Save and update the client user access control
         node['username'] = username
         node['comment'] = tvh_client_access_entry_comment
-        self.idnode_save(node)
+        await self.idnode_save(node)
         # Read current password entries
         url = f"{self.api_url}/{api_password_grid}"
-        response = self.__post(url, payload={'groupBy': 'false', 'groupDir': 'ASC'})
+        response = await self.__post(url, payload={'groupBy': 'false', 'groupDir': 'ASC'})
         try:
             json_list = json.loads(response)
         except json.JSONDecodeError:
@@ -283,7 +292,7 @@ class Tvheadend:
             post_data = {"conf": json.dumps(node)}
             # Send request to server
             url = f"{self.api_url}/{api_password_config_create}"
-            response = self.__post(url, payload=post_data)
+            response = await self.__post(url, payload=post_data)
             try:
                 json_list = json.loads(response)
             except json.JSONDecodeError:
@@ -293,12 +302,12 @@ class Tvheadend:
         node['username'] = username
         node['password'] = password
         node['comment'] = tvh_client_password_comment
-        self.idnode_save(node)
+        await self.idnode_save(node)
 
-    def remove_client_user(self):
+    async def remove_client_user(self):
         # Read current access entries
         url = f"{self.api_url}/{api_accessentry_grid}"
-        response = self.__post(url, payload={'groupBy': 'false', 'groupDir': 'ASC'})
+        response = await self.__post(url, payload={'groupBy': 'false', 'groupDir': 'ASC'})
         try:
             json_list = json.loads(response)
         except json.JSONDecodeError:
@@ -310,7 +319,7 @@ class Tvheadend:
                 access_entry_uuid = entry['uuid']
         # Read current password entries
         url = f"{self.api_url}/{api_password_grid}"
-        response = self.__post(url, payload={'groupBy': 'false', 'groupDir': 'ASC'})
+        response = await self.__post(url, payload={'groupBy': 'false', 'groupDir': 'ASC'})
         try:
             json_list = json.loads(response)
         except json.JSONDecodeError:
@@ -322,68 +331,72 @@ class Tvheadend:
                 password_uuid = entry['uuid']
         # Delete idnodes
         if access_entry_uuid:
-            self.idnode_delete(access_entry_uuid)
+            await self.idnode_delete(access_entry_uuid)
         if password_uuid:
-            self.idnode_delete(password_uuid)
+            await self.idnode_delete(password_uuid)
 
-    def enable_xmltv_url_epg_grabber(self):
+    async def enable_xmltv_url_epg_grabber(self):
         url = f"{self.api_url}/{api_epggrab_list}"
-        response = self.__get(url, payload={}, rformat='json')
+        response = await self.__get(url, payload={}, rformat='json')
         for grabber in response.get('entries', []):
             if grabber['title'] == "Internal: XMLTV: XMLTV URL grabber":
                 tic_web_host = os.environ.get("APP_HOST_IP", "127.0.0.1")
                 tic_web_port = os.environ.get("APP_PORT", "9985")
-                node = {"enabled": True, "priority": 1, "dn_chnum": 1, "uuid": grabber['uuid'],
-                        "args":    f"http://{tic_web_host}:{tic_web_port}/tic-web/epg.xml"}
-                self.idnode_save(node)
+                node = {
+                    "enabled": True, "priority": 1, "dn_chnum": 1, "uuid": grabber['uuid'],
+                    "args":    f"http://{tic_web_host}:{tic_web_port}/tic-web/epg.xml"
+                }
+                await self.idnode_save(node)
 
-    def configure_default_stream_profile(self):
-        response = self.idnode_load({'enum': 1, 'class': 'profile'})
+    async def configure_default_stream_profile(self):
+        response = await self.idnode_load({'enum': 1, 'class': 'profile'})
         for profile in response.get('entries', []):
             if profile['val'] == "pass":
                 node = default_stream_profile_template.copy()
                 node['uuid'] = profile['key']
-                self.idnode_save(node)
+                await self.idnode_save(node)
 
-    def configure_default_recorder_profile(self):
-        response = self.idnode_load({'enum': 1, 'class': 'dvrconfig'})
+    async def configure_default_recorder_profile(self):
+        response = await self.idnode_load({'enum': 1, 'class': 'dvrconfig'})
         for profile in response.get('entries', []):
             if profile['val'] == "(Default profile)":
                 node = default_recorder_profile_template.copy()
                 node['uuid'] = profile['key']
-                self.idnode_save(node)
+                await self.idnode_save(node)
 
-    def list_premade_scanfiles(self, adapter_type):
+    async def list_premade_scanfiles(self, adapter_type):
         url = f"{self.api_url}/{api_list_scanfile}"
         post_data = {"type": adapter_type}
-        response = self.__post(url, payload=post_data)
+        response = await self.__post(url, payload=post_data)
         try:
             json_list = json.loads(response)
         except json.JSONDecodeError:
             json_list = {"entries": []}
         return json_list["entries"]
 
-    def list_all_network_builders(self):
+    async def list_all_network_builders(self):
         url = f"{self.api_url}/{api_view_network_builders}"
-        response = self.__get(url, payload={})
+        response = await self.__get(url, payload={})
         try:
             json_list = json.loads(response)
         except json.JSONDecodeError:
             json_list = {"entries": []}
         return json_list["entries"]
 
-    def list_cur_networks(self):
+    async def list_cur_networks(self):
         url = f"{self.api_url}/{api_view_networks}"
-        post_data = {"start":    "0", "limit": "999999999", "sort": "networkname", "dir": "ASC", "groupBy": "false",
-                     "groupDir": "ASC"}
-        response = self.__post(url, payload=post_data)
+        post_data = {
+            "start":    "0", "limit": "999999999", "sort": "networkname", "dir": "ASC", "groupBy": "false",
+            "groupDir": "ASC"
+        }
+        response = await self.__post(url, payload=post_data)
         try:
             json_list = json.loads(response)
         except json.JSONDecodeError:
             json_list = {"entries": []}
         return json_list["entries"]
 
-    def create_network(self, name, network_name, max_streams, priority):
+    async def create_network(self, name, network_name, max_streams, priority):
         url = f"{self.api_url}/{api_create_network}"
         net_conf = network_template.copy()
         net_conf['networkname'] = name
@@ -392,74 +405,76 @@ class Tvheadend:
         net_conf['priority'] = priority
         post_data = {"class": "iptv_network", "conf": json.dumps(net_conf)}
         # Send request to server
-        response = self.__get(url, payload=post_data)
+        response = await self.__get(url, payload=post_data)
         try:
             json_list = json.loads(response)
         except json.JSONDecodeError:
             json_list = {}
         return json_list.get('uuid')
 
-    def delete_network(self, net_uuid):
-        self.idnode_delete(net_uuid)
+    async def delete_network(self, net_uuid):
+        await self.idnode_delete(net_uuid)
 
-    def list_all_muxes(self):
+    async def list_all_muxes(self):
         url = f"{self.api_url}/{api_view_muxes}"
         post_data = {"start": "0", "limit": "999999999", "sort": "name", "dir": "ASC"}
-        response = self.__post(url, payload=post_data)
+        response = await self.__post(url, payload=post_data)
         try:
             json_list = json.loads(response)
         except:
             json_list = {"entries": []}
         return json_list["entries"]
 
-    def network_mux_create(self, net_uuid):
+    async def network_mux_create(self, net_uuid):
         url = f"{self.api_url}/{api_create_mux}"
         mux_conf = mux_template.copy()
         data = {"uuid": net_uuid, "conf": json.dumps(mux_conf)}
-        response = self.__post(url, payload=data)
+        response = await self.__post(url, payload=data)
         try:
             json_list = json.loads(response)
         except json.JSONDecodeError:
             json_list = {}
         return json_list.get('uuid')
 
-    def delete_mux(self, mux_uuid):
+    async def delete_mux(self, mux_uuid):
         url = f"{self.api_url}/{api_idnode_delete}"
-        self.__get(url, payload={"uuid": mux_uuid})
+        await self.__post(url, payload={"uuid": mux_uuid})
 
-    def list_all_services(self):
+    async def list_all_services(self):
         url = f"{self.api_url}/{api_list_all_services}"
-        post_data = {"start":    "0", "limit": "999999999", "sort": "svcname", "dir": "ASC", "groupBy": "false",
-                     "groupDir": "ASC"}
-        response = self.__post(url, payload=post_data)
+        post_data = {
+            "start":    "0", "limit": "999999999", "sort": "svcname", "dir": "ASC", "groupBy": "false",
+            "groupDir": "ASC"
+        }
+        response = await self.__post(url, payload=post_data)
         try:
             json_list = json.loads(response)
         except json.JSONDecodeError:
             json_list = {"entries": []}
         return json_list["entries"]
 
-    def map_all_services_to_channels(self):
+    async def map_all_services_to_channels(self):
         url = f"{self.api_url}/{api_services_mapper}"
-        srv_info = self.list_all_services()
+        srv_info = await self.list_all_services()
         services = []
         for service in srv_info:
             services.append(service["uuid"])
         data = {"node": json.dumps({"services": services, "encrypted": False, "merge_same_name": True})}
-        response = self.__post(url, payload=data)
+        response = await self.__post(url, payload=data)
         try:
             json_list = json.loads(response)
         except json.JSONDecodeError:
             json_list = {}
         return json_list
 
-    def run_internal_epg_grabber(self):
+    async def run_internal_epg_grabber(self):
         url = f"{self.api_url}/{api_int_epggrab_run}"
-        self.__post(url, payload={'rerun': 1})
+        await self.__post(url, payload={'rerun': 1})
 
-    def list_all_managed_channel_tags(self):
+    async def list_all_managed_channel_tags(self):
         url = f"{self.api_url}/{api_list_all_channel_tags}"
         post_data = {"limit": "999999999", "sort": "name", "dir": "ASC", "all": 1}
-        response = self.__post(url, payload=post_data)
+        response = await self.__post(url, payload=post_data)
         return_list = []
         try:
             json_list = json.loads(response)
@@ -470,31 +485,31 @@ class Tvheadend:
             return_list = []
         return return_list
 
-    def create_channel_tag(self, tag_name):
+    async def create_channel_tag(self, tag_name):
         url = f"{self.api_url}/{api_create_channel_tag}"
         channel_conf = channel_tag_template.copy()
         channel_conf["name"] = tag_name
         channel_conf["comment"] = channel_tag_comment
         # Send request to server
         post_data = {"conf": json.dumps(channel_conf)}
-        response = self.__get(url, payload=post_data)
+        response = await self.__get(url, payload=post_data)
         try:
             json_list = json.loads(response)
         except json.JSONDecodeError:
             json_list = {}
         return json_list.get('uuid')
 
-    def list_all_channels(self):
+    async def list_all_channels(self):
         url = f"{self.api_url}/{api_list_all_channels}"
         post_data = {"start": "0", "limit": "999999999", "sort": "services", "dir": "ASC", "all": 1}
-        response = self.__post(url, payload=post_data)
+        response = await self.__post(url, payload=post_data)
         try:
             json_list = json.loads(response)
         except json.JSONDecodeError:
             json_list = {"entries": []}
         return json_list["entries"]
 
-    def create_channel(self, channel_name, channel_number, logo_url):
+    async def create_channel(self, channel_name, channel_number, logo_url):
         url = f"{self.api_url}/{api_create_channel}"
         channel_conf = channel_template.copy()
         channel_conf["name"] = channel_name
@@ -502,25 +517,25 @@ class Tvheadend:
         channel_conf["icon"] = logo_url
         # Send request to server
         post_data = {"conf": json.dumps(channel_conf)}
-        response = self.__get(url, payload=post_data)
+        response = await self.__get(url, payload=post_data)
         try:
             json_list = json.loads(response)
         except json.JSONDecodeError:
             json_list = {}
         return json_list.get('uuid')
 
-    def delete_channel(self, chan_uuid):
+    async def delete_channel(self, chan_uuid):
         url = f"{self.api_url}/{api_idnode_delete}"
-        self.__get(url, payload={"uuid": chan_uuid})
+        await self.__post(url, payload={"uuid": chan_uuid})
 
-    def manage_client_user_access(self, enabled, username, password):
+    async def manage_client_user_access(self, enabled, username, password):
         if enabled:
-            self.create_and_configure_client_user(username, password)
+            await self.create_and_configure_client_user(username, password)
         else:
-            self.remove_client_user()
+            await self.remove_client_user()
 
 
-def get_tvh(config):
+async def get_tvh(config):
     settings = config.read_settings()
     tvh_host = settings['settings']['tvheadend']['host']
     tvh_port = settings['settings']['tvheadend']['port']
@@ -529,25 +544,25 @@ def get_tvh(config):
     return Tvheadend(tvh_host, tvh_port, tvh_username, tvh_password)
 
 
-def configure_tvh(config):
+async def configure_tvh(config):
     settings = config.read_settings()
-    tvh = get_tvh(config)
-    # Update Base Config
-    tvh.save_tvh_config(tvh_config)
-    # Update Image Cache Config
-    tvh.save_imagecache_config(tvh_imagecache_config)
-    # Create a client user
-    enable_client_user = settings.get('settings', {}).get('create_client_user', False)
-    username = settings.get('settings', {}).get('client_username', '')
-    password = settings.get('settings', {}).get('client_password', '')
-    tvh.manage_client_user_access(enable_client_user, username, password)
-    # Configure EPG Grab Config
-    tvh.save_epggrab_config(epggrab_config)
-    # Disable all EPG grabbers
-    tvh.disable_all_epg_grabbers()
-    # Enable XMLTV URL grabber
-    tvh.enable_xmltv_url_epg_grabber()
-    # Configure the default stream profile
-    tvh.configure_default_stream_profile()
-    # Configure the default recorder profile
-    tvh.configure_default_recorder_profile()
+    async with await get_tvh(config) as tvh:
+        # Update Base Config
+        await tvh.save_tvh_config(tvh_config)
+        # Update Image Cache Config
+        await tvh.save_imagecache_config(tvh_imagecache_config)
+        # Create a client user
+        enable_client_user = settings.get('settings', {}).get('create_client_user', False)
+        username = settings.get('settings', {}).get('client_username', '')
+        password = settings.get('settings', {}).get('client_password', '')
+        await tvh.manage_client_user_access(enable_client_user, username, password)
+        # Configure EPG Grab Config
+        await tvh.save_epggrab_config(epggrab_config)
+        # Disable all EPG grabbers
+        await tvh.disable_all_epg_grabbers()
+        # Enable XMLTV URL grabber
+        await tvh.enable_xmltv_url_epg_grabber()
+        # Configure the default stream profile
+        await tvh.configure_default_stream_profile()
+        # Configure the default recorder profile
+        await tvh.configure_default_recorder_profile()
