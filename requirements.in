@@ -42,6 +42,9 @@ APScheduler~=3.10.4
     #   Import example:     from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 # -- Support libraries
+aiosqlite~=0.20.0
+    #   Reason:             Async SQLite driver.
+    #   Import example:     sqlite+aiosqlite:///
 aiohttp~=3.9.5
     #   Reason:             Async http client/server framework (asyncio). Required for the proxy server.
     #   Import example:     import aiohttp

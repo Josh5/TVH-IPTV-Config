@@ -15,8 +15,8 @@ static_assets = os.path.join(frontend_dir, 'dist', 'spa')
 
 
 @blueprint.route('/tic-api/playlists/get', methods=['GET'])
-def api_get_playlists_list():
-    all_playlist_configs = read_config_all_playlists()
+async def api_get_playlists_list():
+    all_playlist_configs = await read_config_all_playlists()
     return jsonify(
         {
             "success": True,
@@ -38,8 +38,8 @@ async def api_add_new_playlist():
 
 
 @blueprint.route('/tic-api/playlists/settings/<playlist_id>', methods=['GET'])
-def api_get_playlist_config(playlist_id):
-    playlist_config = read_config_one_playlist(playlist_id)
+async def api_get_playlist_config(playlist_id):
+    playlist_config = await read_config_one_playlist(playlist_id)
     return jsonify(
         {
             "success": True,

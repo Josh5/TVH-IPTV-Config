@@ -122,7 +122,9 @@ if not os.path.exists(config_path):
     os.makedirs(config_path)
 
 # Configure SQLite DB
-sqlalchemy_database_uri = 'sqlite:///' + os.path.join(config_path, 'db.sqlite3')
+sqlalchemy_database_path = os.path.join(config_path, 'db.sqlite3')
+sqlalchemy_database_uri = 'sqlite:///' + sqlalchemy_database_path
+sqlalchemy_database_async_uri = 'sqlite+aiosqlite:///' + sqlalchemy_database_path
 sqlalchemy_track_modifications = False
 
 # Configure scheduler

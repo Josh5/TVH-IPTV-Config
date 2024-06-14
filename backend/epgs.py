@@ -9,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from mimetypes import guess_extension
 from urllib.parse import quote
 
+import aiofiles
 import aiohttp
 import asyncio
 import time
@@ -18,9 +19,9 @@ from types import NoneType
 from bs4 import BeautifulSoup
 from quart.utils import run_sync
 from sqlalchemy.orm import joinedload
-from sqlalchemy import and_
+from sqlalchemy import and_, delete, insert
 from backend.channels import read_base46_image_string
-from backend.models import db, Epg, Channel, EpgChannels, EpgChannelProgrammes
+from backend.models import db, Session, Epg, Channel, EpgChannels, EpgChannelProgrammes
 from backend.tvheadend.tvh_requests import get_tvh
 
 logger = logging.getLogger('werkzeug.epgs')
@@ -93,16 +94,13 @@ async def download_xmltv_epg(url, output):
     logger.info("Downloading EPG from url - '%s'", url)
     if not os.path.exists(os.path.dirname(output)):
         os.makedirs(os.path.dirname(output))
-    mozilla_header = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0"}
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0"}
     async with aiohttp.ClientSession() as session:
-        async with session.get(url, headers=mozilla_header) as response:
+        async with session.get(url, headers=headers) as response:
             response.raise_for_status()
-            with open(output, 'wb') as f:
-                while True:
-                    chunk = await response.content.read(128)
-                    if not chunk:
-                        break
-                    f.write(chunk)
+            async with aiofiles.open(output, 'wb') as f:
+                async for chunk in response.content.iter_chunked(8192):
+                    await f.write(chunk)
     await try_unzip(output)
 
 
@@ -144,45 +142,43 @@ async def clear_previous_epg_data(config, epg_id):
 async def store_epg_channels(config, epg_id):
     xmltv_file = os.path.join(config.config_path, 'cache', 'epgs', f"{epg_id}.xml")
     if not os.path.exists(xmltv_file):
-        # TODO: Add error logging here
         logger.info("No such file '%s'", xmltv_file)
         return False
-
-    def parse_and_save_channels():
-        logger.info("Updating channels list for EPG #%s from path - '%s'", epg_id, xmltv_file)
-        # Open file
-        input_file = ET.parse(xmltv_file)
-
-        # Add an updated list of channels from the XML file to the DB
-        logger.info("Updating channels list for EPG #%s from path - '%s'", epg_id, xmltv_file)
-        items = []
-        channel_id_list = []
-        for channel in input_file.iterfind('.//channel'):
-            channel_id = channel.get('id')
-            display_name = channel.find('display-name').text
-            icon = ''
-            icon_elem = channel.find('icon')
-            if not isinstance(icon_elem, NoneType):
-                icon = icon_elem.attrib.get('src', '')
-            logger.debug("Channel ID: '%s', Display Name: '%s', Icon: %s", channel_id, display_name, icon)
-            items.append(
-                EpgChannels(
-                    epg_id=epg_id,
-                    channel_id=channel_id,
-                    name=display_name,
-                    icon_url=icon,
-                )
-            )
-            channel_id_list.append(channel_id)
-        # Save all new
-        db.session.bulk_save_objects(items)
-        # Commit all updates to channels
-        db.session.commit()
-        logger.info("Successfully imported %s channels from path - '%s'", len(channel_id_list), xmltv_file)
+    # Read and parse XML file contents asynchronously
+    async with aiofiles.open(xmltv_file, mode='r', encoding="utf8", errors='ignore') as f:
+        contents = await f.read()
+    input_file = ET.ElementTree(ET.fromstring(contents))
+    async with Session() as session:
+        async with session.begin():
+            # Delete all existing EPG channels
+            stmt = delete(EpgChannels).where(EpgChannels.epg_id == epg_id)
+            await session.execute(stmt)
+            # Add an updated list of channels from the XML file to the DB
+            logger.info("Updating channels list for EPG #%s from path - '%s'", epg_id, xmltv_file)
+            items = []
+            channel_id_list = []
+            for channel in input_file.iterfind('.//channel'):
+                channel_id = channel.get('id')
+                display_name = channel.find('display-name').text
+                icon = ''
+                icon_elem = channel.find('icon')
+                if icon_elem is not None:
+                    icon = icon_elem.attrib.get('src', '')
+                logger.debug("Channel ID: '%s', Display Name: '%s', Icon: %s", channel_id, display_name, icon)
+                items.append({
+                    'epg_id':     epg_id,
+                    'channel_id': channel_id,
+                    'name':       display_name,
+                    'icon_url':   icon,
+                })
+                channel_id_list.append(channel_id)
+            # Perform bulk insert
+            await session.execute(insert(EpgChannels), items)
+            # Commit all updates to channels
+            await session.commit()
+            logger.info("Successfully imported %s channels from path - '%s'", len(channel_id_list), xmltv_file)
         # Return list of channels
         return channel_id_list
-
-    return await run_sync(parse_and_save_channels)()
 
 
 async def store_epg_programmes(config, epg_id, channel_id_list):
@@ -418,63 +414,65 @@ async def build_custom_epg(config):
 
 
 # --- Online Metadata ---
-async def search_tmdb_for_movie(api_key, title, cache, lock):
-    async with lock:
-        if 'tmdb' not in cache:
-            cache['tmdb'] = {}
-        if title in cache['tmdb']:
-            logger.debug("       - Fetching data for program '%s' from TMDB. [CACHED]", title)
-            return cache['tmdb'][title]
-    search_url = f'https://api.themoviedb.org/3/search/movie?api_key={api_key}&query={title}'
-    async with aiohttp.ClientSession() as session:
-        async with session.get(search_url) as response:
-            if response.status == 200:
-                results = await response.json().get('results', [])
-                if results:
-                    async with lock:
-                        cache['tmdb'][title] = results[0]  # Cache the first search result
-                    logger.debug("       - Fetching data for program '%s' from TMDB. [FETCHED]", title)
-                    return results[0]
-    async with lock:
-        cache['tmdb'][title] = None  # Cache None if no results found
-    logger.debug("       - Fetching data for program '%s' from TMDB. [NONE]", title)
-    return None
+async def search_tmdb_for_movie(api_key, title, cache, lock, semaphore):
+    async with semaphore:
+        async with lock:
+            if 'tmdb' not in cache:
+                cache['tmdb'] = {}
+            if title in cache['tmdb']:
+                logger.debug("       - Fetching data for program '%s' from TMDB. [CACHED]", title)
+                return cache['tmdb'][title]
+        search_url = f'https://api.themoviedb.org/3/search/movie?api_key={api_key}&query={title}'
+        async with aiohttp.ClientSession() as session:
+            async with session.get(search_url) as response:
+                if response.status == 200:
+                    results = (await response.json()).get('results', [])
+                    if results:
+                        async with lock:
+                            cache['tmdb'][title] = results[0]  # Cache the first search result
+                        logger.debug("       - Fetching data for program '%s' from TMDB. [FETCHED]", title)
+                        return results[0]
+        async with lock:
+            cache['tmdb'][title] = None  # Cache None if no results found
+        logger.debug("       - Fetching data for program '%s' from TMDB. [NONE]", title)
+        return None
 
 
-async def search_google_images(title, cache, lock):
-    async with lock:
-        if 'google_images' not in cache:
-            cache['google_images'] = {}
-        if title in cache['google_images']:
-            logger.debug("       - Fetching data for program '%s' from Google Images. [CACHED]", title)
-            return cache['google_images'][title]
+async def search_google_images(title, cache, lock, semaphore):
+    async with semaphore:
+        async with lock:
+            if 'google_images' not in cache:
+                cache['google_images'] = {}
+            if title in cache['google_images']:
+                logger.debug("       - Fetching data for program '%s' from Google Images. [CACHED]", title)
+                return cache['google_images'][title]
 
-    search_query = f'"{title}" television show'
-    encoded_query = quote(search_query)
-    search_url = f'https://www.google.com/search?tbm=isch&safe=active&tbs=isz:m&q={encoded_query}'
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
-    }
-    async with aiohttp.ClientSession() as session:
-        async with session.get(search_url, headers=headers) as response:
-            logger.warning(response)
-            if response.status == 200:
-                soup = BeautifulSoup(await response.text(), 'html.parser')
-                images = soup.find_all('img')
-                if images:
-                    image_url = images[1]['src']  # The first image might be the Google logo, so we take the second one
-                    async with lock:
-                        cache['google_images'][title] = image_url  # Cache the first image URL
-                    logger.debug("       - Fetching data for program '%s' from Google Images. [FETCHED]", title)
-                    return image_url
+        search_query = f'"{title}" television show'
+        encoded_query = quote(search_query)
+        search_url = f'https://www.google.com/search?tbm=isch&safe=active&tbs=isz:m&q={encoded_query}'
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+        }
+        async with aiohttp.ClientSession() as session:
+            async with session.get(search_url, headers=headers) as response:
+                if response.status == 200:
+                    soup = BeautifulSoup(await response.text(), 'html.parser')
+                    images = soup.find_all('img')
+                    if images:
+                        image_url = images[1][
+                            'src']  # The first image might be the Google logo, so we take the second one
+                        async with lock:
+                            cache['google_images'][title] = image_url  # Cache the first image URL
+                        logger.debug("       - Fetching data for program '%s' from Google Images. [FETCHED]", title)
+                        return image_url
 
-    async with lock:
-        cache['google_images'][title] = None  # Cache None if no results found
-    logger.debug("       - Fetching data for program '%s' from Google Images. [NONE]", title)
-    return None
+        async with lock:
+            cache['google_images'][title] = None  # Cache None if no results found
+        logger.debug("       - Fetching data for program '%s' from Google Images. [NONE]", title)
+        return None
 
 
-def update_programme_with_online_data(settings, programme, categories, cache, lock):
+async def update_programme_with_online_data(settings, programme, categories, cache, lock, semaphore):
     updated = False
     title = programme.title
     categories = [category.lower() for category in categories]
@@ -483,7 +481,7 @@ def update_programme_with_online_data(settings, programme, categories, cache, lo
     if not (programme.sub_title or programme.desc or programme.icon_url):
         if settings['settings'].get('epgs', {}).get('enable_tmdb_metadata'):
             api_key = settings['settings'].get('epgs', {}).get('tmdb_api_key', '')
-            tmdb_data = asyncio.run(search_tmdb_for_movie(api_key, title, cache, lock))
+            tmdb_data = await search_tmdb_for_movie(api_key, title, cache, lock, semaphore)
             if tmdb_data:
                 # Update programme with fetched data if fields are missing
                 if not programme.sub_title:
@@ -495,7 +493,7 @@ def update_programme_with_online_data(settings, programme, categories, cache, lo
 
     # Fetch icon_url from Google Images if still missing
     if not programme.icon_url:
-        google_image_url = asyncio.run(search_google_images(title, cache, lock))
+        google_image_url = await search_google_images(title, cache, lock, semaphore)
         logger.warning(google_image_url)
         if google_image_url:
             programme.icon_url = google_image_url
@@ -503,32 +501,26 @@ def update_programme_with_online_data(settings, programme, categories, cache, lo
     return programme
 
 
-def update_programmes_concurrently(settings, programmes, cache, lock):
-    with ThreadPoolExecutor(max_workers=10) as executor:
-        future_to_programme = {
-            executor.submit(
-                update_programme_with_online_data,
-                settings,
-                programme,
-                json.loads(programme.categories),
-                cache,
-                lock
-            ): programme for programme in programmes
-        }
+async def update_programmes_concurrently(settings, programmes, cache, lock):
+    semaphore = asyncio.Semaphore(10)
 
-        for future in as_completed(future_to_programme):
-            programme = future_to_programme[future]
-            try:
-                updated_programme = future.result()
-                index = programmes.index(programme)
-                programmes[index] = updated_programme
-            except Exception as exc:
-                logger.error(f"Error updating programme: {exc}")
+    async def update_wrapper(programme):
+        categories = json.loads(programme.categories)
+        return await update_programme_with_online_data(settings, programme, categories, cache, lock, semaphore)
+
+    tasks = [update_wrapper(programme) for programme in programmes]
+    updated_programmes = await asyncio.gather(*tasks, return_exceptions=True)
+
+    for i, result in enumerate(updated_programmes):
+        if isinstance(result, Exception):
+            logger.error(f"Error updating programme: {result}")
+        else:
+            programmes[i] = result
 
     return programmes
 
 
-def update_channel_epg_with_online_data(config):
+async def update_channel_epg_with_online_data(config):
     settings = config.read_settings()
     update_with_online_data = False
     if settings['settings'].get('epgs', {}).get('enable_tmdb_metadata'):
@@ -537,7 +529,7 @@ def update_channel_epg_with_online_data(config):
         return
     start_time = time.time()
     cache = {}
-    lock = threading.Lock()
+    lock = asyncio.Lock()
     logger.info("Update EPG with missing data from online sources for each configured channel.")
     for result in db.session.query(Channel).order_by(Channel.number.asc()).all():
         if result.enabled:
@@ -550,7 +542,7 @@ def update_channel_epg_with_online_data(config):
                 .order_by(EpgChannelProgrammes.channel_id.asc(), EpgChannelProgrammes.start.asc())
             db_programmes = db_programmes_query.all()
             logger.info("   - Updating programme list for %s - %s.", channel_id, result.name)
-            programmes = update_programmes_concurrently(settings, db_programmes, cache, lock)
+            programmes = await update_programmes_concurrently(settings, db_programmes, cache, lock)
             # Save all new
             db.session.bulk_save_objects(programmes)
             # Commit all updates to channel programmes
