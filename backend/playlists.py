@@ -2,45 +2,55 @@
 # -*- coding:utf-8 -*-
 import logging
 import os
+
+import aiofiles
+import aiohttp
 import requests
 import time
 from operator import attrgetter
-from sqlalchemy import or_
+from sqlalchemy import or_, select, delete, insert
 from sqlalchemy.orm import joinedload
 
 from backend.ffmpeg import ffprobe_file
-from backend.models import db, Playlist, PlaylistStreams
+from backend.models import db, Session, Playlist, PlaylistStreams
 from backend.tvheadend.tvh_requests import get_tvh, network_template
 
 logger = logging.getLogger('werkzeug.playlists')
 
 
-def read_config_all_playlists():
+async def read_config_all_playlists():
     return_list = []
-    for result in db.session.query(Playlist).all():
-        return_list.append({
-            'id':            result.id,
-            'enabled':       result.enabled,
-            'connections':   result.connections,
-            'name':          result.name,
-            'url':           result.url,
-            'use_hls_proxy': result.use_hls_proxy,
-        })
+    async with Session() as session:
+        async with session.begin():
+            query = await session.execute(select(Playlist))
+            results = query.scalars().all()
+            for result in results:
+                return_list.append({
+                    'id':            result.id,
+                    'enabled':       result.enabled,
+                    'connections':   result.connections,
+                    'name':          result.name,
+                    'url':           result.url,
+                    'use_hls_proxy': result.use_hls_proxy,
+                })
     return return_list
 
 
-def read_config_one_playlist(playlist_id):
+async def read_config_one_playlist(playlist_id):
     return_item = {}
-    result = db.session.query(Playlist).filter(Playlist.id == playlist_id).one()
-    if result:
-        return_item = {
-            'id':            result.id,
-            'enabled':       result.enabled,
-            'name':          result.name,
-            'url':           result.url,
-            'connections':   result.connections,
-            'use_hls_proxy': result.use_hls_proxy,
-        }
+    async with Session() as session:
+        async with session.begin():
+            query = await session.execute(select(Playlist).filter(Playlist.id == playlist_id))
+            result = query.scalar_one()
+            if result:
+                return_item = {
+                    'id':            result.id,
+                    'enabled':       result.enabled,
+                    'name':          result.name,
+                    'url':           result.url,
+                    'connections':   result.connections,
+                    'use_hls_proxy': result.use_hls_proxy,
+                }
     return return_item
 
 
@@ -92,56 +102,58 @@ def delete_playlist(config, playlist_id):
     db.session.commit()
 
 
-def download_playlist_file(url, output):
+async def download_playlist_file(url, output):
     logger.info("Downloading Playlist from url - '%s'", url)
     if not os.path.exists(os.path.dirname(output)):
         os.makedirs(os.path.dirname(output))
     headers = {
         'User-Agent': 'VLC/3.0.0-git LibVLC/3.0.0-gi',
     }
-    with requests.get(url, headers=headers, stream=True) as r:
-        r.raise_for_status()
-        with open(output, 'wb') as f:
-            for chunk in r.iter_content(chunk_size=8192):
-                f.write(chunk)
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url, headers=headers) as response:
+            response.raise_for_status()
+            async with aiofiles.open(output, 'wb') as f:
+                async for chunk in response.content.iter_chunked(8192):
+                    await f.write(chunk)
     return output
 
 
-def store_playlist_streams(config, playlist_id):
+async def store_playlist_streams(config, playlist_id):
     m3u_file = os.path.join(config.config_path, 'cache', 'playlists', f"{playlist_id}.m3u")
     if not os.path.exists(m3u_file):
-        # TODO: Add error logging here
         logger.error("No such file '%s'", m3u_file)
         return False
-    # Read cache file contents
-    with open(m3u_file, encoding="utf8", errors='ignore') as f:
-        contents = f.read()
+    # Read cache file contents asynchronously
+    async with aiofiles.open(m3u_file, mode='r', encoding="utf8", errors='ignore') as f:
+        contents = await f.read()
+    # noinspection PyPackageRequirements
     from ipytv import playlist
     pl = playlist.loads(contents)
-    # Delete all existing playlist streams
-    stmt = PlaylistStreams.__table__.delete().where(PlaylistStreams.playlist_id == playlist_id)
-    db.session.execute(stmt)
-    # Add an updated list of streams from the XML file to the DB
-    logger.info("Updating list of available streams for playlist #%s from path - '%s'", playlist_id, m3u_file)
-    items = []
-    for stream in pl:
-        items.append(
-            PlaylistStreams(
-                playlist_id=playlist_id,
-                name=stream.name,
-                url=stream.url,
-                channel_id=stream.attributes.get('channel-id'),
-                group_title=stream.attributes.get('group-title'),
-                tvg_chno=stream.attributes.get('tvg-chno'),
-                tvg_id=stream.attributes.get('tvg-id'),
-                tvg_logo=stream.attributes.get('tvg-logo'),
-            )
-        )
-    # Save all new
-    db.session.bulk_save_objects(items)
-    # Commit all updates to playlist sources
-    db.session.commit()
-    logger.info("Successfully imported %s streams from path - '%s'", len(items), m3u_file)
+    async with Session() as session:
+        async with session.begin():
+            # Delete all existing playlist streams
+            stmt = delete(PlaylistStreams).where(PlaylistStreams.playlist_id == playlist_id)
+            await session.execute(stmt)
+            # Add an updated list of streams from the M3U file to the DB
+            logger.info("Updating list of available streams for playlist #%s from path - '%s'", playlist_id, m3u_file)
+            items = []
+            for stream in pl:
+                tvg_channel_number = stream.attributes.get('tvg-chno')
+                items.append({
+                    'playlist_id': playlist_id,
+                    'name':        stream.name,
+                    'url':         stream.url,
+                    'channel_id':  stream.attributes.get('channel-id'),
+                    'group_title': stream.attributes.get('group-title'),
+                    'tvg_chno':    int(tvg_channel_number) if tvg_channel_number is not None else None,
+                    'tvg_id':      stream.attributes.get('tvg-id'),
+                    'tvg_logo':    stream.attributes.get('tvg-logo'),
+                })
+            # Perform bulk insert
+            await session.execute(insert(PlaylistStreams), items)
+            # Commit all updates to playlist sources
+            await session.commit()
+            logger.info("Successfully imported %s streams from path - '%s'", len(items), m3u_file)
 
 
 def fetch_playlist_streams(playlist_id):
@@ -160,7 +172,7 @@ def fetch_playlist_streams(playlist_id):
 
 
 async def import_playlist_data(config, playlist_id):
-    playlist = read_config_one_playlist(playlist_id)
+    playlist = await read_config_one_playlist(playlist_id)
     # Download playlist data and save to YAML cache file
     logger.info("Downloading updated M3U file for playlist #%s from url - '%s'", playlist_id, playlist['url'])
     start_time = time.time()
@@ -171,7 +183,7 @@ async def import_playlist_data(config, playlist_id):
     # Parse the M3U file and cache the data in a YAML file for faster parsing
     logger.info("Importing updated data for playlist #%s", playlist_id)
     start_time = time.time()
-    store_playlist_streams(config, playlist_id)
+    await store_playlist_streams(config, playlist_id)
     execution_time = time.time() - start_time
     logger.info("Updated data for playlist #%s was imported in '%s' seconds", playlist_id, int(execution_time))
     # Publish changes to TVH

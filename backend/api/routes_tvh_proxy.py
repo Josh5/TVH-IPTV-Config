@@ -63,7 +63,7 @@ async def _get_channels(playlist_id):
 
 async def _get_playlist_connection_count(playlist_id):
     from backend.playlists import read_config_one_playlist
-    playlist_config = read_config_one_playlist(playlist_id)
+    playlist_config = await read_config_one_playlist(playlist_id)
     return playlist_config.get('connections', 1)
 
 

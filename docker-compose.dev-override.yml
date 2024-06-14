@@ -4,6 +4,7 @@ services:
   # -- TVH IPTV CONFIG --
   tvh-iptv-config:
     image: josh5/tvh-iptv-config:latest
+    restart: no
     build:
       context: .
       dockerfile: docker/Dockerfile
