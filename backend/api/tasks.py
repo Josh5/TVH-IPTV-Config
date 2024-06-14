@@ -1,20 +1,23 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
-import itertools
+import asyncio
 import logging
-from asyncio import PriorityQueue, Lock
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 scheduler = AsyncIOScheduler()
 
 logger = logging.getLogger('werkzeug.tasks')
 
+import itertools
+from asyncio import Lock, PriorityQueue
+
 
 class TaskQueueBroker:
     __instance = None
     __lock = Lock()
+    __logger = None
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         if TaskQueueBroker.__instance is not None:
             raise Exception("Singleton instance already exists!")
         else:
@@ -28,6 +31,10 @@ class TaskQueueBroker:
             self.__priority_counter = itertools.count()
 
     @staticmethod
+    def initialize(app_logger):
+        TaskQueueBroker.__logger = app_logger
+
+    @staticmethod
     async def get_instance():
         # Ensure no other coroutines can access this method at the same time
         async with TaskQueueBroker.__lock:
@@ -35,6 +42,9 @@ class TaskQueueBroker:
             if TaskQueueBroker.__instance is None:
                 TaskQueueBroker()
         return TaskQueueBroker.__instance
+
+    def set_logger(self, app_logger):
+        self.__logger = app_logger
 
     async def get_status(self):
         return self.__status
@@ -48,7 +58,7 @@ class TaskQueueBroker:
 
     async def add_task(self, task, priority=100):
         if task['name'] in self.__task_names:
-            logger.debug("Task already queued. Ignoring.")
+            self.__logger.debug("Task already queued. Ignoring.")
             return
         await self.__task_queue.put((priority, next(self.__priority_counter), task))
         self.__task_names.add(task['name'])
@@ -64,12 +74,12 @@ class TaskQueueBroker:
 
     async def execute_tasks(self):
         if self.__running_task is not None:
-            logger.warning("Another process is already running scheduled tasks.")
+            self.__logger.warning("Another process is already running scheduled tasks.")
         if self.__task_queue.empty():
-            logger.debug("No pending tasks found.")
+            self.__logger.debug("No pending tasks found.")
             return
         if self.__status == "paused":
-            logger.debug("Pending tasks queue paused.")
+            self.__logger.debug("Pending tasks queue paused.")
             return
         while not self.__task_queue.empty():
             if self.__status == "paused":
@@ -79,10 +89,10 @@ class TaskQueueBroker:
             self.__running_task = task['name']
             # Execute task here
             try:
-                logger.info("Executing task - %s.", task['name'])
+                self.__logger.info("Executing task - %s.", task['name'])
                 await task['function'](*task['args'])
             except Exception as e:
-                logger.error("Failed to run task %s - %s", task['name'], str(e))
+                self.__logger.exception("Failed to run task %s - %s", task['name'], str(e))
         self.__running_task = None
 
     async def get_currently_running_task(self):

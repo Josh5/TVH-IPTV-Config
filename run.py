@@ -14,8 +14,11 @@ if config.enable_debugging:
     app.logger.debug('DBMS        = ' + config.sqlalchemy_database_uri)
     app.logger.debug('ASSETS_ROOT = ' + config.assets_root)
 
+task_logger = app.logger.getChild('tasks')
+TaskQueueBroker.initialize(task_logger)
 
-@scheduler.scheduled_job('interval', id='background_tasks', seconds=10)
+
+@scheduler.scheduled_job('interval', id='background_tasks', seconds=5)
 async def background_tasks():
     async with app.app_context():
         task_broker = await TaskQueueBroker.get_instance()

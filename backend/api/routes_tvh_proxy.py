@@ -22,7 +22,7 @@ device_xml_template = """<?xml version="1.0" encoding="UTF-8"?>
 </root>"""
 
 
-def _get_tvh_settings():
+async def _get_tvh_settings():
     config = current_app.config['APP_CONFIG']
     settings = config.read_settings()
     tvh_host = settings['settings']['tvheadend']['host']
@@ -51,7 +51,7 @@ def _get_tvh_settings():
     }
 
 
-def _get_channels(playlist_id):
+async def _get_channels(playlist_id):
     return_channels = []
     from backend.channels import read_config_all_channels
     channels_config = read_config_all_channels(filter_playlist_ids=[int(playlist_id)])
@@ -61,18 +61,18 @@ def _get_channels(playlist_id):
     return return_channels
 
 
-def _get_playlist_connection_count(playlist_id):
+async def _get_playlist_connection_count(playlist_id):
     from backend.playlists import read_config_one_playlist
     playlist_config = read_config_one_playlist(playlist_id)
     return playlist_config.get('connections', 1)
 
 
-def _get_discover_data(playlist_id=0):
+async def _get_discover_data(playlist_id=0):
     config = current_app.config['APP_CONFIG']
     settings = config.read_settings()
-    tvh_settings = _get_tvh_settings()
+    tvh_settings = await _get_tvh_settings()
     device_name = f'TVH-IPTV-Config-{playlist_id}'
-    tuner_count = _get_playlist_connection_count(playlist_id)
+    tuner_count = await _get_playlist_connection_count(playlist_id)
     device_id = f'tic-12345678-{playlist_id}'
     device_auth = f'tic-{playlist_id}'
     base_url = f'{tvh_settings["tic_base_url"]}/tic-api/hdhr_device/{playlist_id}'
@@ -90,12 +90,12 @@ def _get_discover_data(playlist_id=0):
     }
 
 
-def _get_lineup_list(playlist_id):
+async def _get_lineup_list(playlist_id):
     use_tvh_source = True
-    tvh_settings = _get_tvh_settings()
+    tvh_settings = await _get_tvh_settings()
     lineup_list = []
     from backend.epgs import generate_epg_channel_id
-    for channel_details in _get_channels(playlist_id):
+    for channel_details in await _get_channels(playlist_id):
         channel_id = generate_epg_channel_id(channel_details["number"], channel_details["name"])
         # TODO: Add support for fetching a stream from this application without using TVH as a proxy
         if use_tvh_source and channel_details.get('tvh_uuid'):
@@ -113,19 +113,19 @@ def _get_lineup_list(playlist_id):
 
 
 @blueprint.route('/tic-api/hdhr_device/<playlist_id>/discover.json', methods=['GET'])
-def discover_json(playlist_id):
-    discover_data = _get_discover_data(playlist_id=playlist_id)
+async def discover_json(playlist_id):
+    discover_data = await _get_discover_data(playlist_id=playlist_id)
     return jsonify(discover_data)
 
 
 @blueprint.route('/tic-api/hdhr_device/<playlist_id>/lineup.json', methods=['GET'])
-def lineup_json(playlist_id):
-    lineup_list = _get_lineup_list(playlist_id)
+async def lineup_json(playlist_id):
+    lineup_list = await _get_lineup_list(playlist_id)
     return jsonify(lineup_list)
 
 
 @blueprint.route('/tic-api/hdhr_device/<playlist_id>/lineup_status.json', methods=['GET'])
-def lineup_status_json(playlist_id=None):
+async def lineup_status_json(playlist_id=None):
     return jsonify(
         {
             'ScanInProgress': 0,
@@ -137,12 +137,12 @@ def lineup_status_json(playlist_id=None):
 
 
 @blueprint.route('/tic-api/hdhr_device/<playlist_id>/lineup.post', methods=['GET', 'POST'])
-def lineup_post(playlist_id=None):
+async def lineup_post(playlist_id=None):
     return ''
 
 
 @blueprint.route('/tic-api/hdhr_device/<playlist_id>/device.xml', methods=['GET'])
-def device_xml(playlist_id):
-    discover_data = _get_discover_data()
-    xml_content = render_template_string(device_xml_template, data=discover_data)
+async def device_xml(playlist_id):
+    discover_data = await _get_discover_data(playlist_id)
+    xml_content = await render_template_string(device_xml_template, data=discover_data)
     return Response(xml_content, mimetype='application/xml')
