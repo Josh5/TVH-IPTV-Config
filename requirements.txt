@@ -44,8 +44,6 @@ frozenlist==1.4.1
     #   aiosignal
 greenlet==3.0.3
     # via sqlalchemy
-gunicorn==22.0.0
-    # via -r ./requirements.in
 h11==0.14.0
     # via
     #   hypercorn
@@ -86,8 +84,6 @@ multidict==6.0.5
     # via
     #   aiohttp
     #   yarl
-packaging==24.1
-    # via gunicorn
 priority==2.0.0
     # via hypercorn
 pytz==2024.1
@@ -110,6 +106,7 @@ soupsieve==2.5
     # via beautifulsoup4
 sqlalchemy==2.0.30
     # via
+    #   -r ./requirements.in
     #   alembic
     #   flask-sqlalchemy
 typing-extensions==4.12.2

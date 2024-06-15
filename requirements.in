@@ -23,17 +23,17 @@
 Quart~=0.19.6
     #   Reason:             This is the web server framework
     #   Import example:     N/A
-gunicorn~=22.0.0
-    #   Reason:             Used to serve the Django application in production
-    #   Import example:     N/A (Executed from bin directory)
 
 # -- Extensions
 quart-flask-patch~=0.3.0
     #   Reason:             Quart-Flask-Patch is a Quart extension that patches Quart to work with Flask extensions.
     #   Import example:     import quart_flask_patch
 Flask-SQLAlchemy~=3.1.1
-    #   Reason:             Add SQLAlchemy support to your Flask application.
+    #   Reason:             Needed for legacy support of some endpoints that have yet to be converted to plain SQLAlchemy.
     #   Import example:     from flask_sqlalchemy import SQLAlchemy
+SQLAlchemy~=2.0.30
+    #   Reason:             Database Abstraction Library.
+    #   Import example:     from sqlalchemy import
 alembic~=1.13.1
     #   Reason:             SQLAlchemy database migrations for the application
     #   Import example:     from alembic import context

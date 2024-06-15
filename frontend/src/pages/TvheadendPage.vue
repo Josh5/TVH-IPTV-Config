@@ -68,38 +68,6 @@
 
               <q-separator />
 
-              <h5 class="q-mb-none">HDHomeRun Proxy Config</h5>
-
-              <div class="q-gutter-sm">
-                <q-skeleton
-                  v-if="appUrl === null"
-                  type="QInput" />
-                <q-input
-                  v-else
-                  v-model="appUrl"
-                  label="TVH-IPTV-Config Host"
-                  hint="This is needed for other applications to contact this proxy."
-                />
-              </div>
-
-              <q-separator />
-
-              <h5 class="q-mb-none">HLS Proxy Prefix</h5>
-
-              <div class="q-gutter-sm">
-                <q-skeleton
-                  v-if="hlsProxyPrefix === null"
-                  type="QInput" />
-                <q-input
-                  v-else
-                  v-model="hlsProxyPrefix"
-                  label="TVH-IPTV-Config Host"
-                  hint="TVH-IPTV-Config comes with an inbuilt HLS proxy running on port 9987. This is used for the HLS proxy that can be enabled when editing Playlists. It should be something like 'http://tvh-iptv-config:9987'"
-                />
-              </div>
-
-              <q-separator />
-
               <h5 class="q-mb-none">TVheadend Stream Config</h5>
 
               <div class="q-gutter-sm">
@@ -181,7 +149,7 @@
               </div>
 
               <div>
-                <q-btn label="Save" type="submit" color="primary" />
+                <q-btn label="Save" type="submit" color="primary" class="q-mt-lg" />
               </div>
 
             </q-form>

@@ -40,7 +40,7 @@ def ping():
             "success": True,
             "data":    "pong"
         }
-    )
+    ), 200
 
 
 @blueprint.route('/tic-api/get-background-tasks', methods=['GET'])
@@ -56,7 +56,7 @@ async def api_get_background_tasks():
                 "pending_tasks":     await task_broker.get_pending_tasks(),
             },
         }
-    )
+    ), 200
 
 
 @blueprint.route('/tic-api/toggle-pause-background-tasks', methods=['GET'])
@@ -67,7 +67,7 @@ async def api_toggle_background_tasks_status():
         {
             "success": True
         }
-    )
+    ), 200
 
 
 @blueprint.route('/tic-api/save-settings', methods=['POST'])
@@ -76,12 +76,21 @@ async def api_save_config():
     config = current_app.config['APP_CONFIG']
     config.update_settings(json_data)
     config.save_settings()
-    await configure_tvh(config)
+    if json_data.get('settings', {}).get('tvheadend'):
+        try:
+            await configure_tvh(config)
+        except Exception as e:
+            current_app.logger.warning(f"Error while configuring TVH: %s", e)
+            return jsonify(
+                {
+                    "success": False
+                }
+            ), 400
     return jsonify(
         {
             "success": True
         }
-    )
+    ), 200
 
 
 @blueprint.route('/tic-api/get-settings')
@@ -93,4 +102,4 @@ def api_get_config_tvheadend():
             "success": True,
             "data":    settings.get('settings', {})
         }
-    )
+    ), 200

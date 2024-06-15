@@ -139,6 +139,20 @@ export default defineComponent({
           actions: [{ icon: "close", color: "white" }]
         });
       });
+      axios({
+        method: "get",
+        url: "/tic-api/get-settings"
+      }).then((response) => {
+        this.appUrl = response.data.data.app_url;
+      }).catch(() => {
+        this.$q.notify({
+          color: "negative",
+          position: "top",
+          message: "Failed to fetch settings",
+          icon: "report_problem",
+          actions: [{ icon: "close", color: "white" }]
+        });
+      });
     },
     openPlaylistSettings: function(playlistId) {
       if (!playlistId) {
@@ -229,6 +243,37 @@ export default defineComponent({
             message: "Failed to copy URL"
           });
         });
+    },
+    save: function() {
+      // Save settings
+      let postData = {
+        settings: {
+          app_url: this.appUrl
+        }
+      };
+      axios({
+        method: "POST",
+        url: "/tic-api/save-settings",
+        data: postData
+      }).then((response) => {
+        // Save success, show feedback
+        this.fetchSettings();
+        this.$q.notify({
+          color: "positive",
+          position: "top",
+          icon: "cloud_done",
+          message: "Saved",
+          timeout: 200
+        });
+      }).catch(() => {
+        this.$q.notify({
+          color: "negative",
+          position: "top",
+          message: "Failed to save settings",
+          icon: "report_problem",
+          actions: [{ icon: "close", color: "white" }]
+        });
+      });
     }
   },
   created() {
