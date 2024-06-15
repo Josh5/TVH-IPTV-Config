@@ -75,6 +75,7 @@ RUN \
 COPY --from=frontend_build_stage /build/dist/spa /app/frontend/dist/spa
 COPY backend /app/backend
 COPY migrations /app/migrations
+COPY alembic.ini /app/alembic.ini
 COPY run.py /app/run.py
 COPY db-migrate.sh /app/db-migrate.sh
 
