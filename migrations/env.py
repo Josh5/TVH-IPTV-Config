@@ -2,43 +2,21 @@ import logging
 from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
-from quart import current_app
-import asyncio
+from sqlalchemy import create_engine, MetaData
 
-from backend import create_app
-from backend.models import db
-
-# This is the Alembic Config object, which provides
-# access to the values within the .ini file in use.
-config = context.config
+# Import the database uri configuration from config.py
+from backend.config import sqlalchemy_database_uri
 
 # Interpret the config file for Python logging.
-# This line sets up loggers basically.
-fileConfig(config.config_file_name)
+fileConfig(context.config.config_file_name)
 logger = logging.getLogger('alembic.env')
 
-
-def get_engine_url():
-    try:
-        return current_app.config['SQLALCHEMY_DATABASE_URI']
-    except RuntimeError:
-        # Create a temporary app context to fetch the configuration
-        app = create_app()
-        loop = asyncio.get_event_loop()
-        return loop.run_until_complete(get_config_async(app))
-
-
-async def get_config_async(app):
-    async with app.app_context():
-        return app.config['SQLALCHEMY_DATABASE_URI']
-
+# Define your metadata
+metadata = MetaData()
 
 # Add your model's MetaData object here
 # for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
-
-target_metadata = db.metadata
+target_metadata = metadata
 
 
 def run_migrations_offline():
@@ -52,9 +30,8 @@ def run_migrations_offline():
     Calls to context.execute() here emit the given string to the
     script output.
     """
-    url = get_engine_url()
     context.configure(
-        url=url, target_metadata=target_metadata, literal_binds=True
+        url=sqlalchemy_database_uri, target_metadata=target_metadata, literal_binds=True
     )
 
     with context.begin_transaction():
@@ -72,17 +49,15 @@ def run_migrations_online():
     # when there are no changes to the schema
     # Reference: http://alembic.zzzcomputing.com/en/latest/cookbook.html
     def process_revision_directives(context, revision, directives):
-        if getattr(config.cmd_opts, 'autogenerate', False):
+        if getattr(context.config.cmd_opts, 'autogenerate', False):
             script = directives[0]
             if script.upgrade_ops.is_empty():
                 directives[:] = []
                 logger.info('No changes in schema detected.')
 
-    connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
-        prefix='sqlalchemy.',
+    connectable = create_engine(
+        sqlalchemy_database_uri,
         poolclass=pool.NullPool,
-        url=get_engine_url()  # Dynamically get the database URL
     )
 
     with connectable.connect() as connection:
