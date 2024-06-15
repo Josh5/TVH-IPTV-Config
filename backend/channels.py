@@ -259,9 +259,9 @@ def update_channel(config, channel_id, data):
             playlist_streams = fetch_playlist_streams(playlist_info.id)
             playlist_stream = playlist_streams.get(source_info['stream_name'])
             if playlist_info.use_hls_proxy:
-                hls_proxy_prefix = settings['settings']['hls_proxy_prefix']
+                app_url = settings['settings']['app_url']
                 # noinspection HttpUrlsUsage
-                playlist_stream['url'] = f'{hls_proxy_prefix}/proxy.m3u8?url={playlist_stream['url']}'
+                playlist_stream['url'] = f'{app_url}/tic-hls-proxy.m3u8?url={playlist_stream['url']}'
             channel_source = ChannelSource(
                 playlist_id=playlist_info.id,
                 playlist_stream_name=source_info['stream_name'],
@@ -281,9 +281,9 @@ def update_channel(config, channel_id, data):
                     playlist_streams = fetch_playlist_streams(playlist_info.id)
                     playlist_stream = playlist_streams.get(source_info['stream_name'])
                     if playlist_info.use_hls_proxy:
-                        hls_proxy_prefix = settings['settings']['hls_proxy_prefix']
+                        app_url = settings['settings']['app_url']
                         # noinspection HttpUrlsUsage
-                        playlist_stream['url'] = f'{hls_proxy_prefix}/proxy.m3u8?url={playlist_stream['url']}'
+                        playlist_stream['url'] = f'{app_url}/tic-hls-proxy.m3u8?url={playlist_stream['url']}'
                     # Update playlist stream url
                     logger.info("    - Updating channel %s source from '%s' to '%s'", channel.name,
                                 channel_source.playlist_stream_url, playlist_stream['url'])

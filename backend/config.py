@@ -63,7 +63,6 @@ class Config:
                     "password": "",
                 },
                 "app_url":                  None,
-                "hls_proxy_prefix":         None,
                 "enable_stream_buffer":     True,
                 "default_ffmpeg_pipe_args": "-hide_banner -loglevel error "
                                             "-probesize 10M -analyzeduration 0 -fpsprobesize 0 "

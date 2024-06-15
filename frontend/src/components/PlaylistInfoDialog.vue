@@ -123,8 +123,12 @@
                 <q-skeleton
                   v-if="use_hls_proxy === null"
                   type="QCheckbox" />
-                <q-checkbox v-model="use_hls_proxy" label="Use HLS proxy" />
+                <q-checkbox
+                  v-model="use_hls_proxy"
+                  label="Use HLS proxy" />
               </div>
+              TVH-IPTV-Config comes with an inbuilt HLS (M3U8) playlist proxy. Selecting this will modify all playlist
+              URLs to use it.
 
               <div>
                 <q-btn label="Save" type="submit" color="primary" />

@@ -102,13 +102,19 @@
 </style>
 
 <script>
-import { defineComponent, ref } from "vue";
+import { defineComponent, onMounted, ref } from "vue";
 import EssentialLink from "components/EssentialLink.vue";
 import pollForBackgroundTasks from "src/mixins/backgroundTasksMixin";
 import axios from "axios";
 import { copyToClipboard, useQuasar } from "quasar";
 
 const linksList = [
+  {
+    title: "General",
+    caption: "General TVH-IPTV-Config settings",
+    icon: "tune",
+    link: "/general"
+  },
   {
     title: "TVheadend",
     caption: "Connect to TVheadend",
@@ -189,6 +195,17 @@ export default defineComponent({
         });
       });
     };
+
+    onMounted(() => {
+      // Fetch current settings
+      axios({
+        method: "get",
+        url: "/tic-api/get-settings"
+      }).then((response) => {
+        epgUrl.value = `${response.data.data.app_url}/tic-web/epg.xml`;
+      }).catch(() => {
+      });
+    });
 
     return {
       epgUrl,

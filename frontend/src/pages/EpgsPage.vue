@@ -97,16 +97,11 @@
         </q-card-section>
       </q-card>
 
-      <q-separator />
-
-      <q-form
-        @submit="save"
-        class="q-gutter-md"
-      >
+      <q-form @submit="save">
 
         <h5 class="q-mb-none">Additional EPG Metadata</h5>
 
-        <div class="q-gutter-sm">
+        <div class="q-gutter-sm q-mt-sm">
           <q-item tag="label" dense class="q-pl-none q-mr-none">
             <q-item-section avatar>
               <q-checkbox v-model="enableTmdbMetadata" val="createClientUser" />
@@ -119,7 +114,7 @@
 
         <div
           v-if="enableTmdbMetadata"
-          class="q-gutter-sm">
+          class="q-gutter-sm q-mt-sm">
           <q-skeleton
             v-if="tmdbApiKey === null"
             type="QInput" />
@@ -133,7 +128,7 @@
 
         <q-separator />
 
-        <div class="q-gutter-sm">
+        <div class="q-gutter-sm q-mt-sm">
           <q-item tag="label" dense class="q-pl-none q-mr-none">
             <q-item-section avatar>
               <q-checkbox v-model="enableGoogleImageSearchMetadata" val="createClientUser" />
@@ -148,7 +143,7 @@
         </div>
 
         <div>
-          <q-btn label="Save" type="submit" color="primary" />
+          <q-btn label="Save" type="submit" color="primary" class="q-mt-lg" />
         </div>
 
       </q-form>
