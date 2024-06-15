@@ -30,7 +30,7 @@ jobs:
           platforms: all
 
       # Use docker buildx to build the docker image
-      - name: Build the Docker image
+      - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
         if: success()
         id: buildx

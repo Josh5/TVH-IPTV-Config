@@ -20,7 +20,7 @@ attrs==23.2.0
     # via aiohttp
 beautifulsoup4==4.12.3
     # via -r ./requirements.in
-blinker==1.6.3
+blinker==1.8.2
     # via
     #   flask
     #   quart
@@ -96,7 +96,7 @@ quart==0.19.6
     #   quart-flask-patch
 quart-flask-patch==0.3.0
     # via -r ./requirements.in
-requests==2.31.0
+requests==2.32.3
     # via
     #   -r ./requirements.in
     #   m3u-ipytv
