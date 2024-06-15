@@ -5,8 +5,8 @@
 # File Created: Monday, 13th May 2024 4:20:35 pm
 # Author: Josh.5 (jsunnex@gmail.com)
 # -----
-# Last Modified: Thursday, 13th June 2024 5:14:15 am
-# Modified By: Josh.5 (jsunnex@gmail.com)
+# Last Modified: Saturday, 15th June 2024 9:03:55 pm
+# Modified By: Josh5 (jsunnex@gmail.com)
 ###
 
 set -e -x
@@ -54,10 +54,6 @@ else
         print_log info "Running TVH-IPTV-Config DB migrations"
         alembic upgrade head
     fi
-
-    # Run proxy
-    python3 /app/proxy.py &
-    proxy_pid=$!
 
     # Run Flask server
     python3 /app/run.py
