@@ -40,9 +40,10 @@ api_int_epggrab_run = "epggrab/internal/rerun"
 api_epggrab_list = "epggrab/module/list"
 
 tvh_config = {
-    "server_name": "TVH-IPTV",
-    "uilevel":     2,
-    "digest":      2,
+    "server_name":    "TVH-IPTV",
+    "uilevel":        2,
+    "digest":         2,
+    "parser_backlog": True,  # See link above default_stream_profile_template config below
 }
 tvh_imagecache_config = {"enabled": True, "ignore_sslcert": True, "expire": 7, "ok_period": 168, "fail_period": 24}
 tvh_client_access_entry_comment = "TVH IPTV Config client access entry"
@@ -138,15 +139,40 @@ mux_template = {
     "iptv_buffer_limit": 0, "tsid_zero": False, "pmt_06_ac3": 0, "eit_tsid_nocheck": False, "sid_filter": 0,
     "iptv_respawn":      False, "iptv_kill": 0, "iptv_kill_timeout": 5, "iptv_env": "", "iptv_hdr": ""
 }
+# REF: https://tvheadend.org/d/5282-iptv-buffering-stalls-general-drop-outs-settings-that-resolved-things-for-me/41
 default_stream_profile_template = {
+    "enabled":     True,
     "default":     True,
     "comment":     "MPEG-TS Pass-thru",
     "timeout":     0,
+    "priority":    3,
+    "fpriority":   0,
     "restart":     True,
+    "contaccess":  True,
     "catimeout":   2000,
-    "priority":    3, "fpriority": 0, "contaccess": True, "swservice": True, "svfilter": 0, "sid": 1,
-    "rewrite_pmt": True, "rewrite_pat": True, "rewrite_sdt": True, "rewrite_nit": True, "rewrite_eit": True
+    "swservice":   True,
+    "svfilter":    0,
+    "sid":         0,
+    "rewrite_pmt": False,
+    "rewrite_pat": False,
+    "rewrite_sdt": False,
+    "rewrite_nit": False,
+    "rewrite_eit": False,
 }
+htsp_stream_profile_template = {
+    "enabled":    True,
+    "default":    False,
+    "comment":    "HTSP Default Stream Settings",
+    "timeout":    0,
+    "priority":   3,
+    "fpriority":  0,
+    "restart":    True,
+    "contaccess": True,
+    "catimeout":  2000,
+    "swservice":  True,
+    "svfilter":   0,
+}
+
 default_recorder_profile_template = {
     "pre-extra-time":               1,
     "post-extra-time":              5,
@@ -353,6 +379,14 @@ class Tvheadend:
         for profile in response.get('entries', []):
             if profile['val'] == "pass":
                 node = default_stream_profile_template.copy()
+                node['uuid'] = profile['key']
+                await self.idnode_save(node)
+
+    async def configure_htsp_stream_profile(self):
+        response = await self.idnode_load({'enum': 1, 'class': 'profile'})
+        for profile in response.get('entries', []):
+            if profile['val'] == "htsp":
+                node = htsp_stream_profile_template.copy()
                 node['uuid'] = profile['key']
                 await self.idnode_save(node)
 
@@ -564,5 +598,7 @@ async def configure_tvh(config):
         await tvh.enable_xmltv_url_epg_grabber()
         # Configure the default stream profile
         await tvh.configure_default_stream_profile()
+        # Configure the htsp stream profile
+        await tvh.configure_htsp_stream_profile()
         # Configure the default recorder profile
         await tvh.configure_default_recorder_profile()
