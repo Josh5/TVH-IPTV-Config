@@ -54,7 +54,7 @@ async def _get_tvh_settings():
 async def _get_channels(playlist_id):
     return_channels = []
     from backend.channels import read_config_all_channels
-    channels_config = read_config_all_channels(filter_playlist_ids=[int(playlist_id)])
+    channels_config = await read_config_all_channels(filter_playlist_ids=[int(playlist_id)])
     for channel in channels_config:
         if channel['enabled']:
             return_channels.append(channel)

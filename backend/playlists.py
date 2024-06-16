@@ -5,7 +5,6 @@ import os
 
 import aiofiles
 import aiohttp
-import requests
 import time
 from operator import attrgetter
 from sqlalchemy import or_, select, delete, insert
@@ -18,13 +17,22 @@ from backend.tvheadend.tvh_requests import get_tvh, network_template
 logger = logging.getLogger('werkzeug.playlists')
 
 
-async def read_config_all_playlists():
+async def read_config_all_playlists(output_for_export=False):
     return_list = []
     async with Session() as session:
         async with session.begin():
             query = await session.execute(select(Playlist))
             results = query.scalars().all()
             for result in results:
+                if output_for_export:
+                    return_list.append({
+                        'enabled':       result.enabled,
+                        'connections':   result.connections,
+                        'name':          result.name,
+                        'url':           result.url,
+                        'use_hls_proxy': result.use_hls_proxy,
+                    })
+                    continue
                 return_list.append({
                     'id':            result.id,
                     'enabled':       result.enabled,

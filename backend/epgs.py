@@ -19,7 +19,7 @@ from types import NoneType
 from bs4 import BeautifulSoup
 from quart.utils import run_sync
 from sqlalchemy.orm import joinedload
-from sqlalchemy import and_, delete, insert
+from sqlalchemy import and_, delete, insert, select
 from backend.channels import read_base46_image_string
 from backend.models import db, Session, Epg, Channel, EpgChannels, EpgChannelProgrammes
 from backend.tvheadend.tvh_requests import get_tvh
@@ -32,15 +32,26 @@ def generate_epg_channel_id(number, name):
     return str(number)
 
 
-def read_config_all_epgs():
+async def read_config_all_epgs(output_for_export=False):
     return_list = []
-    for result in db.session.query(Epg).all():
-        return_list.append({
-            'id':      result.id,
-            'enabled': result.enabled,
-            'name':    result.name,
-            'url':     result.url,
-        })
+    async with Session() as session:
+        async with session.begin():
+            query = await session.execute(select(Epg))
+            results = query.scalars().all()
+            for result in results:
+                if output_for_export:
+                    return_list.append({
+                        'enabled': result.enabled,
+                        'name':    result.name,
+                        'url':     result.url,
+                    })
+                    continue
+                return_list.append({
+                    'id':      result.id,
+                    'enabled': result.enabled,
+                    'name':    result.name,
+                    'url':     result.url,
+                })
     return return_list
 
 

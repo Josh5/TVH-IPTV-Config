@@ -8,8 +8,8 @@ from quart import request, jsonify, current_app
 
 
 @blueprint.route('/tic-api/epgs/get', methods=['GET'])
-def api_get_epgs_list():
-    all_epg_configs = read_config_all_epgs()
+async def api_get_epgs_list():
+    all_epg_configs = await read_config_all_epgs()
     return jsonify(
         {
             "success": True,

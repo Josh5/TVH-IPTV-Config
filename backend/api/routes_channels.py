@@ -10,8 +10,8 @@ from backend.channels import read_config_all_channels, add_new_channel, read_con
 
 
 @blueprint.route('/tic-api/channels/get', methods=['GET'])
-def api_get_channels():
-    channels_config = read_config_all_channels()
+async def api_get_channels():
+    channels_config = await read_config_all_channels()
     return jsonify(
         {
             "success": True,

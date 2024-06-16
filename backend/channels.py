@@ -8,10 +8,10 @@ from mimetypes import guess_type
 
 import requests
 from sqlalchemy.orm import joinedload
-from sqlalchemy import and_, func
+from sqlalchemy import and_, func, select
 
 from backend.ffmpeg import generate_iptv_url
-from backend.models import db, Channel, ChannelTag, Epg, ChannelSource, Playlist, EpgChannels, PlaylistStreams, \
+from backend.models import db, Session, Channel, ChannelTag, Epg, ChannelSource, Playlist, EpgChannels, PlaylistStreams, \
     channels_tags_association_table
 from backend.playlists import fetch_playlist_streams
 from backend.tvheadend.tvh_requests import get_tvh
@@ -19,47 +19,76 @@ from backend.tvheadend.tvh_requests import get_tvh
 logger = logging.getLogger('werkzeug.channels')
 
 
-def read_config_all_channels(filter_playlist_ids=None):
+async def read_config_all_channels(filter_playlist_ids=None, output_for_export=False):
     if filter_playlist_ids is None:
         filter_playlist_ids = []
-    return_list = []
-    for result in db.session.query(Channel) \
-            .options(joinedload(Channel.tags), joinedload(Channel.sources).subqueryload(ChannelSource.playlist)) \
-            .order_by(Channel.id) \
-            .all():
-        tags = []
-        for tag in result.tags:
-            tags.append(tag.name)
-        sources = []
-        for source in result.sources:
-            # If filtering on playlist IDs, then only return sources from that playlist
-            if filter_playlist_ids and source.playlist_id not in filter_playlist_ids:
-                continue
-            sources.append({
-                'playlist_id':   source.playlist_id,
-                'playlist_name': source.playlist.name,
-                'priority':      source.priority,
-                'stream_name':   source.playlist_stream_name,
-            })
-        # Filter out this channel if we have provided a playlist ID filter list and no sources were found
-        if filter_playlist_ids and not sources:
-            continue
 
-        return_list.append({
-            'id':       result.id,
-            'enabled':  result.enabled,
-            'tvh_uuid': result.tvh_uuid,
-            'name':     result.name,
-            'logo_url': result.logo_url,
-            'number':   result.number,
-            'tags':     tags,
-            'guide':    {
-                'epg_id':     result.guide_id,
-                'epg_name':   result.guide_name,
-                'channel_id': result.guide_channel_id,
-            },
-            'sources':  sources,
-        })
+    return_list = []
+
+    async with Session() as session:
+        async with session.begin():
+            query = select(Channel).options(
+                joinedload(Channel.tags),
+                joinedload(Channel.sources).subqueryload(ChannelSource.playlist)
+            ).order_by(Channel.id)
+
+            result = await session.execute(query)
+            channels = result.scalars().unique().all()
+
+            for result in channels:
+                tags = [tag.name for tag in result.tags]
+                sources = []
+                for source in result.sources:
+                    # If filtering on playlist IDs, then only return sources from that playlist
+                    if filter_playlist_ids and source.playlist_id not in filter_playlist_ids:
+                        continue
+                    if output_for_export:
+                        sources.append({
+                            'playlist_name': source.playlist.name,
+                            'priority':      source.priority,
+                            'stream_name':   source.playlist_stream_name,
+                        })
+                        continue
+                    sources.append({
+                        'playlist_id':   source.playlist_id,
+                        'playlist_name': source.playlist.name,
+                        'priority':      source.priority,
+                        'stream_name':   source.playlist_stream_name,
+                    })
+                # Filter out this channel if we have provided a playlist ID filter list and no sources were found
+                if filter_playlist_ids and not sources:
+                    continue
+
+                if output_for_export:
+                    return_list.append({
+                        'enabled':  result.enabled,
+                        'name':     result.name,
+                        'logo_url': result.logo_url,
+                        'number':   result.number,
+                        'tags':     tags,
+                        'guide':    {
+                            'epg_name':   result.guide_name,
+                            'channel_id': result.guide_channel_id,
+                        },
+                        'sources':  sources,
+                    })
+                    continue
+                return_list.append({
+                    'id':       result.id,
+                    'enabled':  result.enabled,
+                    'tvh_uuid': result.tvh_uuid,
+                    'name':     result.name,
+                    'logo_url': result.logo_url,
+                    'number':   result.number,
+                    'tags':     tags,
+                    'guide':    {
+                        'epg_id':     result.guide_id,
+                        'epg_name':   result.guide_name,
+                        'channel_id': result.guide_channel_id,
+                    },
+                    'sources':  sources,
+                })
+
     return return_list
 
 
