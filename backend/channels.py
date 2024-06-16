@@ -355,7 +355,7 @@ async def add_bulk_channels(config, data):
         # Fetch the playlist channel by ID
         playlist_stream = db.session.query(PlaylistStreams).where(PlaylistStreams.id == channel['stream_id']).one()
         # Auto assign the name
-        new_channel_data['name'] = playlist_stream.name
+        new_channel_data['name'] = playlist_stream.name.strip()
         # Auto assign the image URL
         new_channel_data['logo_url'] = playlist_stream.tvg_logo
         # Auto assign the channel number to the next available number
