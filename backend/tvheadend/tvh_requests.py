@@ -45,7 +45,7 @@ tvh_config = {
     "digest":         2,
     "parser_backlog": True,  # See link above default_stream_profile_template config below
 }
-tvh_imagecache_config = {"enabled": True, "ignore_sslcert": True, "expire": 7, "ok_period": 168, "fail_period": 24}
+tvh_imagecache_config = {"enabled": False, "ignore_sslcert": True, "expire": 7, "ok_period": 168, "fail_period": 24}
 tvh_client_access_entry_comment = "TVH IPTV Config client access entry"
 tvh_client_password_comment = "TVH IPTV Config client password entry"
 tvh_client_access_entry = {
