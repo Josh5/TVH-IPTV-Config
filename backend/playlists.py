@@ -81,12 +81,12 @@ async def update_playlist(config, playlist_id, data):
     await publish_playlist_networks(config)
 
 
-def delete_playlist(config, playlist_id):
+async def delete_playlist(config, playlist_id):
     playlist = db.session.query(Playlist).where(Playlist.id == playlist_id).one()
     net_uuid = playlist.tvh_uuid
     # Remove from TVH
     try:
-        delete_playlist_network_in_tvh(config, net_uuid)
+        await delete_playlist_network_in_tvh(config, net_uuid)
     except Exception as e:
         logger.warning("Failed to remove playlist from TVH by UUID")
     # Remove cached copy of playlist

@@ -29,7 +29,7 @@ async def api_get_playlists_list():
 async def api_add_new_playlist():
     json_data = await request.get_json()
     config = current_app.config['APP_CONFIG']
-    add_new_playlist(config, json_data)
+    await add_new_playlist(config, json_data)
     return jsonify(
         {
             "success": True
@@ -61,10 +61,10 @@ async def api_set_config_playlists(playlist_id):
 
 
 @blueprint.route('/tic-api/playlists/<playlist_id>/delete', methods=['DELETE'])
-def api_delete_playlist(playlist_id):
+async def api_delete_playlist(playlist_id):
     config = current_app.config['APP_CONFIG']
-    delete_playlist(config, playlist_id)
-    queue_background_channel_update_tasks(config)
+    await delete_playlist(config, playlist_id)
+    await queue_background_channel_update_tasks(config)
     return jsonify(
         {
             "success": True
