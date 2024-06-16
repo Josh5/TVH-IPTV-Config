@@ -410,10 +410,12 @@ async def build_custom_epg(config):
                 for category in epg_channel_programme['categories']:
                     output_child = ET.SubElement(output_programme, 'category')
                     output_child.text = category
+                    output_child.set('lang', 'en')
             # Loop through all tags for this channel and add them as "category" child elements
             for tag in channel_programmes_data.get('tags', []):
                 output_child = ET.SubElement(output_programme, 'category')
                 output_child.text = tag
+                output_child.set('lang', 'en')
     # Create an XML file and write the output root element to it
     logger.info("   - Writing out XMLTV file.")
     output_tree = ET.ElementTree(output_root)
