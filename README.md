@@ -47,7 +47,8 @@ I will probably not be acknowledging any issue reports or testing. But feel free
  - NodeJS ([Install](https://nodejs.org/en/download)).
  - Python 3.x ([Install](https://www.python.org/downloads/)).
  - Various Python requirements listed in 'requirements.txt' in the project root.
-
+ - A TVHeadend server
+   - Only TVHeadend v4.3+ is tested, though 4.2.8 may work fine.
 
 ## Install and Run
 
@@ -70,7 +71,7 @@ This will create a directory within this project root called `./dev_env` which c
 From the project root run:
 ```
 mkdir -p ./dev_env/config
-docker compose -f docker-compose.yml -f docker-compose.dev-override.yml up --build
+docker compose -f docker-compose.side-tvh.yml up --build
 ```
 
 This will create a directory within this project root called `./dev_env` which contains all configuration and cache data.

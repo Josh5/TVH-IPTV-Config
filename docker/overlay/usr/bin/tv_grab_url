@@ -1,0 +1,61 @@
+#!/bin/sh
+
+dflag=
+vflag=
+cflag=
+
+if [ $# -lt 1 ]; then
+  exit 0
+fi
+
+OPTARG=""
+URL=$1
+
+args=""
+for arg in "$@"; do
+    delim=""
+    case "$arg" in
+    --description) args="${args}-d ";;
+    --version) args="${args}-v ";;
+    --capabilities) args="${args}-c ";;
+    *) 
+      if [ "${arg#-}" != "$arg" ]; then
+        args="${args}${delim}${arg}${delim} "
+      else
+        OPTARG=${arg}
+      fi
+      ;;
+    esac
+done
+
+# Reset the positional parameters to the short options
+set -- $args
+
+while getopts "dvc" option; do
+    case $option in
+        d)  dflag=1;;
+        v)  vflag=1;;
+        c)  cflag=1;;
+        \?) printf "unknown option: -%s\n" "$OPTARG"
+            printf "Usage: %s: [--description] [--version] [--capabilities] \n" "$(basename "$0")"
+            exit 2
+            ;;
+    esac
+done
+
+if [ "$dflag" ]; then
+   printf "XMLTV URL grabber\n"
+   exit 0
+fi
+if [ "$vflag" ]; then
+   printf "0.1\n"
+   exit 0
+fi
+if [ "$cflag" ]; then
+   printf "baseline\n"
+   exit 0
+fi
+
+curl -s "$URL"
+
+exit 0

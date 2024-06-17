@@ -63,7 +63,8 @@ tvh_client_access_entry = {
     "streaming":           ["basic", "htsp"],
     "dvr":                 ["basic", "htsp", "all", "all_rw", "failed"],
     "prefix":              "0.0.0.0/0,::/0",
-    "lang":                "", "themeui": "",
+    "lang":                "",
+    "themeui":             "",
     "langui":              "",
     "profile":             "",
     "dvr_config":          "",
@@ -79,7 +80,43 @@ tvh_client_access_entry = {
     "conn_limit":          0,
     "htsp_anonymize":      False
 }
-tvh_client_password = {
+tvh_admin_access_entry_comment = "TVH IPTV Config admin access entry"
+tvh_admin_password_comment = "TVH IPTV Config admin password entry"
+tvh_admin_access_entry = {
+    "comment":             "COMMENT",
+    "enabled":             True,
+    "username":            "admin",
+    "change":              [
+        "change_rights", "change_chrange",
+        "change_chtags", "change_dvr_configs",
+        "change_profiles", "change_conn_limit",
+        "change_lang", "change_lang_ui",
+        "change_theme", "change_uilevel",
+        "change_xmltv_output", "change_htsp_output"
+    ],
+    "webui":               True,
+    "admin":               True,
+    "streaming":           ["basic", "advanced", "htsp"],
+    "dvr":                 ["basic", "htsp"],
+    "prefix":              "0.0.0.0/0,::/0",
+    "lang":                "",
+    "themeui":             "",
+    "langui":              "",
+    "profile":             [],
+    "dvr_config":          [],
+    "channel_min":         "0",
+    "channel_max":         "0",
+    "channel_tag_exclude": False,
+    "channel_tag":         [],
+    "xmltv_output_format": 0,
+    "htsp_output_format":  0,
+    "uilevel":             -1,
+    "uilevel_nochange":    -1,
+    "conn_limit_type":     0,
+    "conn_limit":          0,
+    "htsp_anonymize":      False
+}
+tvh_u_password = {
     "comment":  "COMMENT",
     "username": "USERNAME",
     "password": "PASSWORD",
@@ -207,7 +244,7 @@ class Tvheadend:
                                     timeout=self.timeout) as r:
             if r.status == 200:
                 if rformat == 'json':
-                    return await r.json()
+                    return await r.json(content_type=None)
                 return await r.text()
             raise Exception(f"GET Failed to TVH API - CODE:{r.status} - CONTENT:{await r.text()} - PAYLOAD:{payload}")
 
@@ -217,7 +254,7 @@ class Tvheadend:
                                      timeout=self.timeout) as r:
             if r.status == 200:
                 if rformat == 'json':
-                    return await r.json()
+                    return await r.json(content_type=None)
                 return await r.text()
             raise Exception(f"POST Failed to TVH API - CODE:{r.status} - CONTENT:{await r.text()} - PAYLOAD:{payload}")
 
@@ -227,7 +264,7 @@ class Tvheadend:
         async with self.session.post(url, headers=headers, json=payload, allow_redirects=False,
                                      timeout=self.timeout) as r:
             if r.status == 200:
-                return await r.json()
+                return await r.json(content_type=None)
             raise Exception(f"JSON Failed to TVH API - CODE:{r.status} - CONTENT:{await r.text()}")
 
     async def idnode_load(self, data):
@@ -279,9 +316,10 @@ class Tvheadend:
             json_list = {"entries": []}
         # Create template for access entry
         node = tvh_client_access_entry.copy()
-        node['comment'] = tvh_client_access_entry_comment
+        user_comment = tvh_client_access_entry_comment
+        node['comment'] = user_comment
         for entry in json_list.get('entries', []):
-            if entry.get('comment') == tvh_client_access_entry_comment:
+            if entry.get('comment') == user_comment:
                 node['uuid'] = entry['uuid']
         # Create the access control if it does not yet exist
         if not node.get('uuid'):
@@ -297,7 +335,7 @@ class Tvheadend:
             node['uuid'] = json_list.get('uuid')
         # Save and update the client user access control
         node['username'] = username
-        node['comment'] = tvh_client_access_entry_comment
+        node['comment'] = user_comment
         await self.idnode_save(node)
         # Read current password entries
         url = f"{self.api_url}/{api_password_grid}"
@@ -307,10 +345,11 @@ class Tvheadend:
         except json.JSONDecodeError:
             json_list = {"entries": []}
         # Create template for password
-        node = tvh_client_password.copy()
-        node['comment'] = tvh_client_password_comment
+        node = tvh_u_password.copy()
+        pass_comment = tvh_client_password_comment
+        node['comment'] = pass_comment
         for entry in json_list.get('entries', []):
-            if entry.get('comment') == tvh_client_password_comment:
+            if entry.get('comment') == pass_comment:
                 node['uuid'] = entry['uuid']
         # Create the password if it does not yet exist
         if not node.get('uuid'):
@@ -327,7 +366,40 @@ class Tvheadend:
         # Save and update the client user access control
         node['username'] = username
         node['password'] = password
-        node['comment'] = tvh_client_password_comment
+        node['comment'] = pass_comment
+        await self.idnode_save(node)
+
+    async def update_admin_user_password(self, password):
+        # Read current password entries
+        url = f"{self.api_url}/{api_password_grid}"
+        response = await self.__post(url, payload={'groupBy': 'false', 'groupDir': 'ASC'})
+        try:
+            json_list = json.loads(response)
+        except json.JSONDecodeError:
+            json_list = {"entries": []}
+        # Create template for password
+        node = tvh_u_password.copy()
+        pass_comment = tvh_admin_password_comment
+        node['comment'] = pass_comment
+        for entry in json_list.get('entries', []):
+            if entry.get('comment') == pass_comment:
+                node['uuid'] = entry['uuid']
+        # Create the password if it does not yet exist
+        if not node.get('uuid'):
+            # Create access control
+            post_data = {"conf": json.dumps(node)}
+            # Send request to server
+            url = f"{self.api_url}/{api_password_config_create}"
+            response = await self.__post(url, payload=post_data)
+            try:
+                json_list = json.loads(response)
+            except json.JSONDecodeError:
+                json_list = {}
+            node['uuid'] = json_list.get('uuid')
+        # Save and update the client user access control
+        node['username'] = 'admin'
+        node['password'] = password
+        node['comment'] = pass_comment
         await self.idnode_save(node)
 
     async def remove_client_user(self):
@@ -366,6 +438,7 @@ class Tvheadend:
         response = await self.__get(url, payload={}, rformat='json')
         for grabber in response.get('entries', []):
             if grabber['title'] == "Internal: XMLTV: XMLTV URL grabber":
+                # TODO: Read this from the config option 'app_url' if not none
                 tic_web_host = os.environ.get("APP_HOST_IP", "127.0.0.1")
                 tic_web_port = os.environ.get("APP_PORT", "9985")
                 node = {
@@ -570,11 +643,11 @@ class Tvheadend:
 
 
 async def get_tvh(config):
-    settings = config.read_settings()
-    tvh_host = settings['settings']['tvheadend']['host']
-    tvh_port = settings['settings']['tvheadend']['port']
-    tvh_username = settings['settings']['tvheadend']['username']
-    tvh_password = settings['settings']['tvheadend']['password']
+    conn = await config.tvh_connection_settings()
+    tvh_host = conn.get('tvh_host')
+    tvh_port = conn.get('tvh_port')
+    tvh_username = conn.get('tvh_username')
+    tvh_password = conn.get('tvh_password')
     return Tvheadend(tvh_host, tvh_port, tvh_username, tvh_password)
 
 
@@ -602,3 +675,7 @@ async def configure_tvh(config):
         await tvh.configure_htsp_stream_profile()
         # Configure the default recorder profile
         await tvh.configure_default_recorder_profile()
+        # Update admin user (should be done last)
+        admin_password = settings.get('settings', {}).get('tvheadend', {}).get('password', 'admin')
+        await tvh.update_admin_user_password(admin_password)
+        await asyncio.sleep(5)  # Added a sleep here because the password change takes a few seconds to show in the file

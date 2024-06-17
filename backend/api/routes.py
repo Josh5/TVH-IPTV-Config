@@ -8,6 +8,7 @@ from quart import request, jsonify, redirect, send_from_directory, current_app
 from backend.api import blueprint
 
 from backend.api.tasks import TaskQueueBroker
+from backend.config import is_tvh_process_running_locally, get_local_tvh_proc_admin_password
 from backend.tvheadend.tvh_requests import configure_tvh
 
 
@@ -70,6 +71,19 @@ async def api_toggle_background_tasks_status():
     ), 200
 
 
+@blueprint.route('/tic-api/tvh-running', methods=['GET'])
+async def api_check_if_tvh_running_status():
+    running = await is_tvh_process_running_locally()
+    return jsonify(
+        {
+            "success": True,
+            "data":    {
+                "running": running
+            }
+        }
+    ), 200
+
+
 @blueprint.route('/tic-api/save-settings', methods=['POST'])
 async def api_save_config():
     json_data = await request.get_json()
@@ -94,13 +108,18 @@ async def api_save_config():
 
 
 @blueprint.route('/tic-api/get-settings')
-def api_get_config_tvheadend():
+async def api_get_config_tvheadend():
     config = current_app.config['APP_CONFIG']
     settings = config.read_settings()
+    return_data = settings.get('settings', {})
+    if await is_tvh_process_running_locally():
+        tvh_password = await get_local_tvh_proc_admin_password()
+        return_data['tvheadend']['username'] = 'admin'
+        return_data['tvheadend']['password'] = tvh_password
     return jsonify(
         {
             "success": True,
-            "data":    settings.get('settings', {})
+            "data":    return_data
         }
     ), 200
 

@@ -14,7 +14,7 @@ services:
       args:
         VERSION: "UNKNOWN"
         BUILD_DATE: "NOW"
-        BASE_IMAGE: "python:3.12-alpine"
+        BASE_IMAGE: "ghcr.io/tvheadend/tvheadend:edge"
     user: "${PUID:-1000}:${PGID:-1000}"
 
     # NETWORK:
@@ -25,6 +25,10 @@ services:
       - 9985:9985
       # Proxy Port (9987)
       - 9987:9987
+      # TVH Webui
+      - 9981:9981
+      # TVH HTSP
+      - 9982:9982
 
     # ENVIRONMENT:
     environment:
@@ -34,10 +38,18 @@ services:
       - APP_HOST_IP=192.168.1.102
       # Application Port (needs to match the exposed port listed above)
       - APP_PORT=9985
-      # Enable debugging in TIC application logs
-      - ENABLE_DEBUGGING=false
+      # Skips the DB migrate command execution on container startup
+      - SKIP_MIGRATIONS=false
+      # Executes a pip install on container startup (might be required to generate the venv)
+      - RUN_PIP_INSTALL=false
+      # Enables debug logging
+      - ENABLE_DEBUGGING=true
+      # Sets Flask Debug mode on. Will restart the process if changes to files are made
+      - FLASK_DEBUG=true
 
     # VOLUMES:
     volumes:
       # Configuration files
       - ./dev_env/config:/config
+      # Application source passthrough
+      - ./:/app

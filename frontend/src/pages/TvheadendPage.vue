@@ -37,18 +37,19 @@
               </div>
               <div class="q-gutter-sm">
                 <q-skeleton
-                  v-if="tvhUsername === null"
+                  v-if="tvhUsername === null || aioMode === null"
                   type="QInput" />
                 <q-input
                   v-else
                   v-model="tvhUsername"
+                  :readonly="aioMode"
                   label="TVheadend Admin Username"
                   hint="This is optional. If your TVH server is not configured with an admin user, leave this blank."
                 />
               </div>
               <div class="q-gutter-sm">
                 <q-skeleton
-                  v-if="tvhPassword === null"
+                  v-if="tvhPassword === null || aioMode === null"
                   type="QInput" />
                 <q-input
                   v-else
@@ -177,6 +178,7 @@ export default defineComponent({
       // UI Elements
       hideTvhPassword: ref(true),
       hideclientPassword: ref(true),
+      aioMode: ref(null),
 
       // Application Settings
       tvhHost: ref(null),
@@ -250,6 +252,20 @@ export default defineComponent({
           actions: [{ icon: "close", color: "white" }]
         });
       });
+      axios({
+        method: "get",
+        url: "/tic-api/tvh-running"
+      }).then((response) => {
+        this.aioMode = response.data.data.running;
+      }).catch(() => {
+        this.$q.notify({
+          color: "negative",
+          position: "top",
+          message: "Failed to fetch container mode",
+          icon: "report_problem",
+          actions: [{ icon: "close", color: "white" }]
+        });
+      });
     },
     save: function() {
       // Save settings
@@ -258,7 +274,6 @@ export default defineComponent({
           tvheadend: {}
         }
       };
-
       // Dynamically populate settings from component data, falling back to defaults
       Object.keys(this.defSet).forEach((key) => {
         const snakeCaseKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
@@ -272,12 +287,13 @@ export default defineComponent({
           postData.settings[snakeCaseKey] = this[key] ?? this.defSet[key];
         }
       });
-
+      this.$q.loading.show();
       axios({
         method: "POST",
         url: "/tic-api/save-settings",
         data: postData
       }).then((response) => {
+        this.$q.loading.hide();
         // Save success, show feedback
         this.fetchSettings();
         this.$q.notify({
@@ -288,6 +304,7 @@ export default defineComponent({
           timeout: 200
         });
       }).catch(() => {
+        this.$q.loading.hide();
         this.$q.notify({
           color: "negative",
           position: "top",

@@ -1,5 +1,9 @@
+import asyncio
+import base64
+import json
 import os
 
+import aiofiles
 import yaml
 from mergedeep import merge
 
@@ -9,6 +13,64 @@ def get_home_dir():
     if home_dir is None:
         home_dir = os.path.expanduser("~")
     return home_dir
+
+
+async def is_tvh_process_running_locally():
+    process_name = 'tvheadend'
+    try:
+        process = await asyncio.create_subprocess_exec(
+            'pgrep', '-x', process_name,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await process.communicate()
+
+        if process.returncode == 0:
+            return True
+        else:
+            return False
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return False
+
+
+async def get_admin_file(directory):
+    if os.path.exists(directory) and os.listdir(directory):
+        for filename in os.listdir(directory):
+            file_path = os.path.join(directory, filename)
+            if os.path.isfile(file_path):
+                async with aiofiles.open(file_path, 'r') as file:
+                    try:
+                        contents = await file.read()
+                        data = json.loads(contents)
+                        if data.get('username') == 'admin':
+                            return file_path, data
+                    except (json.JSONDecodeError, IOError) as e:
+                        print(f"Error processing file {file_path}: {e}")
+    return None, None
+
+
+async def update_accesscontrol_files():
+    accesscontrol_path = os.path.join(get_home_dir(), '.tvheadend', 'accesscontrol')
+    file_path, data = await  get_admin_file(accesscontrol_path)
+    if data:
+        data['prefix'] = '0.0.0.0/0,::/0'
+        async with aiofiles.open(file_path, 'w') as outfile:
+            await outfile.write(json.dumps(data, indent=4))
+
+
+async def get_local_tvh_proc_admin_password():
+    passwd_path = os.path.join(get_home_dir(), '.tvheadend', 'passwd')
+    file_path, data = await get_admin_file(passwd_path)
+    if data:
+        encoded_password = data.get('password2')
+        try:
+            decoded_password = base64.b64decode(encoded_password).decode('utf-8')
+            parts = decoded_password.split('-')
+            return parts[2]
+        except Exception as e:
+            print(f"Error decoding password: {e}")
+    return None
 
 
 def write_yaml(file, data):
@@ -107,6 +169,27 @@ class Config:
         if self.settings is None:
             self.read_settings()
         self.settings = recursive_dict_update(self.default_settings, updated_settings)
+
+    async def tvh_connection_settings(self):
+        settings = await asyncio.to_thread(self.read_settings)
+        if await is_tvh_process_running_locally():
+            # Note: Host can be localhost here because the app will publish to TVH from the backend
+            tvh_host = '127.0.0.1'
+            tvh_port = '9981'
+            tvh_username = 'admin'
+            tvh_password = await get_local_tvh_proc_admin_password()
+            return {
+                'tvh_host':     tvh_host,
+                'tvh_port':     tvh_port,
+                'tvh_username': tvh_username,
+                'tvh_password': tvh_password,
+            }
+        return {
+            'tvh_host':     settings['settings']['tvheadend']['host'],
+            'tvh_port':     settings['settings']['tvheadend']['port'],
+            'tvh_username': settings['settings']['tvheadend']['username'],
+            'tvh_password': settings['settings']['tvheadend']['password'],
+        }
 
 
 frontend_dir = os.path.join(os.path.dirname(os.path.abspath(os.path.dirname(__file__))), 'frontend')

@@ -3,6 +3,8 @@
 from backend.api import blueprint
 from quart import jsonify, current_app, render_template_string, Response
 
+from backend.config import is_tvh_process_running_locally
+
 device_xml_template = """<?xml version="1.0" encoding="UTF-8"?>
 <root xmlns="urn:schemas-upnp-org:device-1-0">
     <specVersion>
@@ -25,25 +27,26 @@ device_xml_template = """<?xml version="1.0" encoding="UTF-8"?>
 async def _get_tvh_settings():
     config = current_app.config['APP_CONFIG']
     settings = config.read_settings()
+    # Note: This host needs to be the externally accessible host that third-party apps can then access TVH with
     tvh_host = settings['settings']['tvheadend']['host']
     tvh_port = settings['settings']['tvheadend']['port']
-    tvh_username = settings['settings']['tvheadend']['username']
-    tvh_password = settings['settings']['tvheadend']['password']
     # Configure TVH-IPTV-Config base URL (proto/host/port)
     tic_base_url = settings['settings']['app_url']
     # Configure some connection URLs
+    client_username = settings['settings']['tvheadend']['client_username']
+    client_password = settings['settings']['tvheadend']['client_password']
     tvh_api_url = f"http://{tvh_host}:{tvh_port}/api"
     tvh_http_url = f"http://{tvh_host}:{tvh_port}"
-    if tvh_username:
-        tvh_http_url = f"http://{tvh_username}:{tvh_password}@{tvh_host}:{tvh_port}"
+    if client_username:
+        tvh_http_url = f"http://{client_username}:{client_password}@{tvh_host}:{tvh_port}"
     stream_profile = 'pass'
     stream_priority = 300
     return {
         "tic_base_url":    tic_base_url,
         "tvh_host":        tvh_host,
         "tvh_port":        tvh_port,
-        "tvh_username":    tvh_username,
-        "tvh_password":    tvh_password,
+        "tvh_username":    client_username,
+        "tvh_password":    client_password,
         "tvh_api_url":     tvh_api_url,
         "tvh_http_url":    tvh_http_url,
         "stream_profile":  stream_profile,

@@ -1,22 +1,39 @@
 ---
-version: "2.1"
+version: "2.4"
+
+networks:
+  private-net:
+
 services:
   # -- TVH IPTV CONFIG --
-  tvh-iptv-config:
+  tic:
     image: josh5/tvh-iptv-config:latest
-    restart: no
     build:
       context: .
       dockerfile: docker/Dockerfile
       args:
-        BUILD_DATE: "NOW"
         VERSION: "UNKNOWN"
+        BUILD_DATE: "NOW"
+        BASE_IMAGE: "python:3.12-alpine"
+    user: "${PUID:-1000}:${PGID:-1000}"
 
-    depends_on:
-      - tvheadend
+    # NETWORK:
+    networks:
+      - private-net
+    ports:
+      # WebUI Port (9985)
+      - 9985:9985
+      # Proxy Port (9987)
+      - 9987:9987
 
     # ENVIRONMENT:
     environment:
+      # Timezone
+      - TZ=Pacific/Auckland
+      # The host IP address used to contact this application.
+      - APP_HOST_IP=192.168.1.102
+      # Application Port (needs to match the exposed port listed above)
+      - APP_PORT=9985
       # Skips the DB migrate command execution on container startup
       - SKIP_MIGRATIONS=false
       # Executes a pip install on container startup (might be required to generate the venv)
@@ -28,8 +45,13 @@ services:
 
     # VOLUMES:
     volumes:
+      # Configuration files
       - ./dev_env/config:/config
+      # Application source passthrough
       - ./:/app
+
+    depends_on:
+      - tvheadend
 
   # -- TVHEADEND --
   tvheadend:
