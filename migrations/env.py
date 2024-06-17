@@ -1,22 +1,17 @@
 import logging
 from logging.config import fileConfig
 from alembic import context
-from sqlalchemy import engine_from_config, pool
-from sqlalchemy import create_engine, MetaData
-
-# Import the database uri configuration from config.py
+from sqlalchemy import create_engine, pool
 from backend.config import sqlalchemy_database_uri
+from backend.models import Base
 
 # Interpret the config file for Python logging.
 fileConfig(context.config.config_file_name)
 logger = logging.getLogger('alembic.env')
 
-# Define your metadata
-metadata = MetaData()
-
 # Add your model's MetaData object here
 # for 'autogenerate' support
-target_metadata = metadata
+target_metadata = Base.metadata
 
 
 def run_migrations_offline():

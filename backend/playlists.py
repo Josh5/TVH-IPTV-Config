@@ -44,20 +44,25 @@ async def read_config_all_playlists(output_for_export=False):
     return return_list
 
 
-async def read_config_one_playlist(playlist_id):
+async def read_config_one_playlist(config, playlist_id):
+    settings = config.read_settings()
     return_item = {}
     async with Session() as session:
         async with session.begin():
             query = await session.execute(select(Playlist).filter(Playlist.id == playlist_id))
             result = query.scalar_one()
+
+            app_url = settings['settings']['app_url']
             if result:
                 return_item = {
-                    'id':            result.id,
-                    'enabled':       result.enabled,
-                    'name':          result.name,
-                    'url':           result.url,
-                    'connections':   result.connections,
-                    'use_hls_proxy': result.use_hls_proxy,
+                    'id':                   result.id,
+                    'enabled':              result.enabled,
+                    'name':                 result.name,
+                    'url':                  result.url,
+                    'connections':          result.connections,
+                    'use_hls_proxy':        result.use_hls_proxy,
+                    'use_custom_hls_proxy': result.use_custom_hls_proxy,
+                    'hls_proxy_path':       result.hls_proxy_path if result.hls_proxy_path else f'{app_url}/tic-hls-proxy.m3u8?url=',
                 }
     return return_item
 
@@ -84,6 +89,8 @@ async def update_playlist(config, playlist_id, data):
     playlist.url = data.get('url', playlist.url)
     playlist.connections = data.get('connections', playlist.connections)
     playlist.use_hls_proxy = data.get('use_hls_proxy', playlist.use_hls_proxy)
+    playlist.use_custom_hls_proxy = data.get('use_custom_hls_proxy', playlist.use_custom_hls_proxy)
+    playlist.hls_proxy_path = data.get('hls_proxy_path', playlist.hls_proxy_path)
     db.session.commit()
     # Publish changes to TVH
     await publish_playlist_networks(config)
@@ -180,7 +187,7 @@ def fetch_playlist_streams(playlist_id):
 
 
 async def import_playlist_data(config, playlist_id):
-    playlist = await read_config_one_playlist(playlist_id)
+    playlist = await read_config_one_playlist(config, playlist_id)
     # Download playlist data and save to YAML cache file
     logger.info("Downloading updated M3U file for playlist #%s from url - '%s'", playlist_id, playlist['url'])
     start_time = time.time()

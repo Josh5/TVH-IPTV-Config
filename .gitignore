@@ -3,15 +3,12 @@ __pycache__/
 *.py[cod]
 
 # dev / testing directories
-/config*
 /dev_env*
 /frontend/test_js/**
 
 # venv
 env
-venv
-venv-local
-venv-docker
+venv*
 
 # editor directories and files
 .vscode

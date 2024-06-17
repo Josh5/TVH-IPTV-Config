@@ -39,7 +39,8 @@ async def api_add_new_playlist():
 
 @blueprint.route('/tic-api/playlists/settings/<playlist_id>', methods=['GET'])
 async def api_get_playlist_config(playlist_id):
-    playlist_config = await read_config_one_playlist(playlist_id)
+    config = current_app.config['APP_CONFIG']
+    playlist_config = await read_config_one_playlist(config, playlist_id)
     return jsonify(
         {
             "success": True,

@@ -92,6 +92,8 @@ class Playlist(Base):
     tvh_uuid = Column(String(64), index=True, unique=True)
     url = Column(String(500), index=True, unique=False)
     use_hls_proxy = Column(Boolean, nullable=False, unique=False)
+    use_custom_hls_proxy = Column(Boolean, nullable=False, unique=False)
+    hls_proxy_path = Column(String(256), unique=False)
 
     # Backref to all associated linked sources
     channel_sources = relationship('ChannelSource', backref='playlist', lazy=True, cascade="all, delete-orphan")

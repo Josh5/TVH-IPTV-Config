@@ -61,9 +61,9 @@ async def _get_channels(playlist_id):
     return return_channels
 
 
-async def _get_playlist_connection_count(playlist_id):
+async def _get_playlist_connection_count(config, playlist_id):
     from backend.playlists import read_config_one_playlist
-    playlist_config = await read_config_one_playlist(playlist_id)
+    playlist_config = await read_config_one_playlist(config, playlist_id)
     return playlist_config.get('connections', 1)
 
 
@@ -72,7 +72,7 @@ async def _get_discover_data(playlist_id=0):
     settings = config.read_settings()
     tvh_settings = await _get_tvh_settings()
     device_name = f'TVH-IPTV-Config-{playlist_id}'
-    tuner_count = await _get_playlist_connection_count(playlist_id)
+    tuner_count = await _get_playlist_connection_count(config, playlist_id)
     device_id = f'tic-12345678-{playlist_id}'
     device_auth = f'tic-{playlist_id}'
     base_url = f'{tvh_settings["tic_base_url"]}/tic-api/hdhr_device/{playlist_id}'

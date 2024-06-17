@@ -120,15 +120,50 @@
                 />
               </div>
               <div class="q-gutter-sm">
-                <q-skeleton
-                  v-if="use_hls_proxy === null"
-                  type="QCheckbox" />
-                <q-checkbox
-                  v-model="use_hls_proxy"
-                  label="Use HLS proxy" />
+                <q-item tag="label" v-ripple>
+                  <q-item-section avatar>
+                    <q-skeleton
+                      v-if="useHlsProxy === null"
+                      type="QCheckbox" />
+                    <q-checkbox
+                      v-else
+                      v-model="useHlsProxy" />
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label>Use HLS proxy</q-item-label>
+                    <q-item-label caption>TVH-IPTV-Config comes with an inbuilt HLS (M3U8) playlist proxy. Selecting
+                      this will modify all playlist URLs to use it.
+                    </q-item-label>
+                  </q-item-section>
+                </q-item>
               </div>
-              TVH-IPTV-Config comes with an inbuilt HLS (M3U8) playlist proxy. Selecting this will modify all playlist
-              URLs to use it.
+              <div
+                v-if="useHlsProxy"
+                class="q-gutter-sm">
+                <q-item tag="label" v-ripple>
+                  <q-item-section avatar>
+                    <q-skeleton
+                      v-if="useCustomHlsProxy === null"
+                      type="QCheckbox" />
+                    <q-checkbox
+                      v-else
+                      v-model="useCustomHlsProxy" />
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label>Use a custom HLS Proxy path</q-item-label>
+                    <q-item-label caption>If unselected, the playlist will be prefixed with the inbuilt HLS proxy URL.
+                    </q-item-label>
+                  </q-item-section>
+                </q-item>
+              </div>
+              <div
+                v-if="useHlsProxy && useCustomHlsProxy"
+                class="q-gutter-sm">
+                <q-input
+                  v-model="hlsProxyPath"
+                  label="HLS Proxy Path"
+                />
+              </div>
 
               <div>
                 <q-btn label="Save" type="submit" color="primary" />
@@ -170,7 +205,9 @@ export default {
       name: ref(null),
       url: ref(null),
       connections: ref(null),
-      use_hls_proxy: ref(null)
+      useHlsProxy: ref(null),
+      useCustomHlsProxy: ref(null),
+      hlsProxyPath: ref(null)
     };
   },
   methods: {
@@ -186,7 +223,7 @@ export default {
       this.name = "";
       this.url = "";
       this.connections = 1;
-      this.use_hls_proxy = false;
+      this.useHlsProxy = false;
     },
 
     // following method is REQUIRED
@@ -212,7 +249,9 @@ export default {
         this.name = response.data.data.name;
         this.url = response.data.data.url;
         this.connections = response.data.data.connections;
-        this.use_hls_proxy = response.data.data.use_hls_proxy;
+        this.useHlsProxy = response.data.data.use_hls_proxy;
+        this.useCustomHlsProxy = response.data.data.use_custom_hls_proxy;
+        this.hlsProxyPath = response.data.data.hls_proxy_path;
       });
     },
     save: function() {
@@ -225,7 +264,9 @@ export default {
         name: this.name,
         url: this.url,
         connections: this.connections,
-        use_hls_proxy: this.use_hls_proxy
+        use_hls_proxy: this.useHlsProxy,
+        use_custom_hls_proxy: this.useCustomHlsProxy,
+        hls_proxy_path: this.hlsProxyPath
       };
       axios({
         method: "POST",
