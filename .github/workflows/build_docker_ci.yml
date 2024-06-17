@@ -14,6 +14,9 @@ jobs:
   build_docker:
     name: Build Docker Image
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        base-image: ["python:3.12-alpine", "ghcr.io/tvheadend/tvheadend:edge"]
 
     steps:
       # Fetch shallow git repository
@@ -50,6 +53,9 @@ jobs:
           echo  "GITHUB_REF:${GITHUB_REF}"
           echo  "GITHUB_REPOSITORY:${GITHUB_REPOSITORY}"
           DOCKER_IMAGE=docker.io/josh5/tvh-iptv-config
+          if [[ "${{ matrix.base-image }}" == *"tvheadend"* ]]; then
+            DOCKER_IMAGE=docker.io/josh5/tvh-iptv
+          fi
           VERSION_TAG=${GITHUB_REF#refs/*/}
 
           DOCKER_TAGS=""
@@ -69,9 +75,6 @@ jobs:
           fi
 
           DOCKER_PUSH="true"
-          if [[ ${DOCKER_IMAGE} != 'docker.io/josh5/tvh-iptv-config' ]]; then
-            DOCKER_PUSH="false"
-          fi
           if [[ ${VERSION_TAG%/merge} =~ "pr-"* ]]; then
             DOCKER_PUSH="false"
           fi
@@ -83,6 +86,7 @@ jobs:
           echo "docker_tags=$(echo ${DOCKER_TAGS} | sed 's/,$//')" >> $GITHUB_OUTPUT
           echo "docker_platforms=linux/amd64" >> $GITHUB_OUTPUT
           echo "docker_push=${DOCKER_PUSH}" >> $GITHUB_OUTPUT
+          echo "docker_build_date=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_OUTPUT
 
       # Cache the build
       - name: Cache Docker layers
@@ -102,18 +106,35 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
+      # Create meta labels
+      - name: Docker meta
+        if: success()
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: |
+            ${{ steps.prepare.outputs.docker_image }}
+          labels: |
+            org.opencontainers.image.created=${{ steps.prepare.outputs.docker_build_date }}
+
       # Run docker build and push
       - name: Docker Build and Push
         if: success()
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: docker/Dockerfile
+          build-args: |
+            VERSION=${{ github.sha }}
+            BUILD_DATE=${{ steps.prepare.outputs.docker_build_date }}
+            BASE_IMAGE=${{ matrix.base-image }}
           platforms: ${{ steps.prepare.outputs.docker_platforms }}
           pull: true
           push: ${{ steps.prepare.outputs.docker_push }}
           tags: |
             ${{ steps.prepare.outputs.docker_tags }}
+          labels: |
+            ${{ steps.meta.outputs.labels }}
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,mode=max,dest=/tmp/.buildx-cache-new
 
