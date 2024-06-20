@@ -53,15 +53,20 @@ tvh_client_access_entry = {
     "enabled":             True,
     "username":            "user",
     "change":              [
+        "change_rights",
+        "change_chrange",
+        "change_chtags",
+        "change_dvr_configs",
         "change_profiles",
+        "change_conn_limit",
         "change_uilevel",
         "change_xmltv_output",
         "change_htsp_output"
     ],
     "webui":               True,
     "admin":               False,
-    "streaming":           ["basic", "htsp"],
-    "dvr":                 ["basic", "htsp", "all", "all_rw", "failed"],
+    "streaming":           ["basic", "advanced", "htsp"],
+    "dvr":                 ["basic", "htsp", "all"],
     "prefix":              "0.0.0.0/0,::/0",
     "lang":                "",
     "themeui":             "",
@@ -223,10 +228,11 @@ default_recorder_profile_template = {
 
 class Tvheadend:
 
-    def __init__(self, host, port, admin_username, admin_password):
-        self.api_url = f"http://{host}:{port}/api"
+    def __init__(self, host, port, path, admin_username, admin_password, local_conn):
+        self.api_url = f"http://{host}:{port}{path}/api"
         self.admin_username = admin_username
         self.admin_password = admin_password
+        self.local_conn = local_conn
         self.timeout = 5
         self.session = aiohttp.ClientSession(auth=aiohttp.BasicAuth(admin_username,
                                                                     admin_password)) if admin_username and admin_password else aiohttp.ClientSession()
@@ -433,17 +439,14 @@ class Tvheadend:
         if password_uuid:
             await self.idnode_delete(password_uuid)
 
-    async def enable_xmltv_url_epg_grabber(self):
+    async def enable_xmltv_url_epg_grabber(self, tic_base_url):
         url = f"{self.api_url}/{api_epggrab_list}"
         response = await self.__get(url, payload={}, rformat='json')
         for grabber in response.get('entries', []):
             if grabber['title'] == "Internal: XMLTV: XMLTV URL grabber":
-                # TODO: Read this from the config option 'app_url' if not none
-                tic_web_host = os.environ.get("APP_HOST_IP", "127.0.0.1")
-                tic_web_port = os.environ.get("APP_PORT", "9985")
                 node = {
                     "enabled": True, "priority": 1, "dn_chnum": 1, "uuid": grabber['uuid'],
-                    "args":    f"http://{tic_web_host}:{tic_web_port}/tic-web/epg.xml"
+                    "args":    f"{tic_base_url}/tic-web/epg.xml"
                 }
                 await self.idnode_save(node)
 
@@ -644,11 +647,13 @@ class Tvheadend:
 
 async def get_tvh(config):
     conn = await config.tvh_connection_settings()
+    tvh_local = conn.get('tvh_local', False)
     tvh_host = conn.get('tvh_host')
     tvh_port = conn.get('tvh_port')
+    tvh_path = conn.get('tvh_path')
     tvh_username = conn.get('tvh_username')
     tvh_password = conn.get('tvh_password')
-    return Tvheadend(tvh_host, tvh_port, tvh_username, tvh_password)
+    return Tvheadend(tvh_host, tvh_port, tvh_path, tvh_username, tvh_password, tvh_local)
 
 
 async def configure_tvh(config):
@@ -668,7 +673,8 @@ async def configure_tvh(config):
         # Disable all EPG grabbers
         await tvh.disable_all_epg_grabbers()
         # Enable XMLTV URL grabber
-        await tvh.enable_xmltv_url_epg_grabber()
+        tic_base_url = settings['settings']['app_url']
+        await tvh.enable_xmltv_url_epg_grabber(tic_base_url)
         # Configure the default stream profile
         await tvh.configure_default_stream_profile()
         # Configure the htsp stream profile
@@ -676,6 +682,7 @@ async def configure_tvh(config):
         # Configure the default recorder profile
         await tvh.configure_default_recorder_profile()
         # Update admin user (should be done last)
-        admin_password = settings.get('settings', {}).get('tvheadend', {}).get('password', 'admin')
-        await tvh.update_admin_user_password(admin_password)
-        await asyncio.sleep(5)  # Added a sleep here because the password change takes a few seconds to show in the file
+        if tvh.local_conn:
+            admin_password = settings.get('settings', {}).get('tvheadend', {}).get('password', 'admin')
+            await tvh.update_admin_user_password(admin_password)
+            await asyncio.sleep(.5)  # Added a sleep here because the password change takes a few seconds to show in the file

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+import asyncio
 import json
 import re
 import subprocess
@@ -17,9 +18,9 @@ class FFProbeError(Exception):
         self.info = info
 
 
-def ffprobe_cmd(params):
+async def ffprobe_cmd(params):
     """
-    Execute a ffprobe command subprocess and read the output
+    Execute a ffprobe command subprocess and read the output asynchronously
     :param params:
     :return:
     """
@@ -27,15 +28,21 @@ def ffprobe_cmd(params):
 
     print(" ".join(command))
 
-    pipe = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    out, err = pipe.communicate()
+    process = await asyncio.create_subprocess_exec(
+        *command,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.STDOUT
+    )
+
+    out, _ = await process.communicate()
 
     # Check for results
     try:
         raw_output = out.decode("utf-8")
     except Exception as e:
         raise FFProbeError(command, str(e))
-    if pipe.returncode == 1 or 'error' in raw_output:
+
+    if process.returncode == 1 or 'error' in raw_output.lower():
         raise FFProbeError(command, raw_output)
     if not raw_output:
         raise FFProbeError(command, 'No info found')
@@ -43,9 +50,9 @@ def ffprobe_cmd(params):
     return raw_output
 
 
-def ffprobe_file(vid_file_path):
+async def ffprobe_file(vid_file_path):
     """
-    Returns a dictionary result from ffprobe command line prove of a file
+    Returns a dictionary result from ffprobe command line probe of a file
     :param vid_file_path: The absolute (full) path of the video file, string.
     :return:
     """
@@ -63,7 +70,7 @@ def ffprobe_file(vid_file_path):
     ]
 
     # Check result
-    results = ffprobe_cmd(params)
+    results = await ffprobe_cmd(params)
     try:
         info = json.loads(results)
     except Exception as e:

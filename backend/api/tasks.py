@@ -49,7 +49,7 @@ class TaskQueueBroker:
     async def get_status(self):
         return self.__status
 
-    def toggle_status(self):
+    async def toggle_status(self):
         if self.__status == "paused":
             self.__status = "running"
         else:

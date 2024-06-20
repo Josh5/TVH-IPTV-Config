@@ -40,11 +40,12 @@
                   <q-item-label caption lines="1">
                     Maximum Connections: {{ playlist.connections }}
                   </q-item-label>
-                  <q-item-label lines="1" class="q-mt-xs text-body2 text-primary">
-                    <span class="text-weight-bold text-uppercase">HDHomeRun Device URL: </span>
-                    <span
-                      class="cursor-pointer"
-                      @click="copyUrlToClipboard(`${appUrl}/tic-api/hdhr_device/${playlist.id}`)">
+                  <q-item-label
+                    @click="copyUrlToClipboard(`${appUrl}/tic-api/hdhr_device/${playlist.id}`)"
+                    lines="1"
+                    class="q-mt-xs text-body2 cursor-pointer">
+                    <span class="text-weight-bold text-uppercase text-blue-7">HDHomeRun Device URL: </span>
+                    <span class="text-blue-10">
                       {{ appUrl }}/tic-api/hdhr_device/{{ playlist.id }}
                     </span>
                   </q-item-label>
@@ -96,6 +97,62 @@
 
             </q-list>
           </div>
+          <q-card class="note-card q-mt-md">
+            <q-card-section>
+              <div class="text-h6">Note:</div>
+              TIC comes with an HDHomeRun emulator API endpoint. Configure it as follows:
+              <br>
+              1) For every playlist added above, copy the
+              <span class="text-bold text-blue-7">HDHOMERUN DEVICE URL</span>, highlighted in blue above, as a
+              HDHomeRun tuner to Plex, Emby or JellyFin.
+              <br>
+              2) Copy the <span class="text-bold text-orange-7">EPG URL</span> highlighted in orange at the top right
+              corner to Plex, Emby or JellyFin as the XMLTV EPG.
+              <br>
+              3) Channels should be mapped automatically from the EPG.
+            </q-card-section>
+          </q-card>
+        </q-card-section>
+      </q-card>
+
+      <q-card flat>
+        <q-card-section :class="$q.platform.is.mobile ? 'q-px-none' : ''">
+          <q-form @submit="save">
+
+            <h5 class="q-mt-none q-mb-none">Stream Config</h5>
+
+            <div class="q-gutter-sm">
+              <q-item tag="label" dense class="q-pl-none q-mr-none">
+                <q-item-section avatar>
+                  <q-checkbox v-model="enableStreamBuffer" val="createClientUser" />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label>Enable Stream Buffer</q-item-label>
+                </q-item-section>
+              </q-item>
+            </div>
+
+            <div
+              v-if="enableStreamBuffer"
+              class="q-gutter-sm">
+              <q-skeleton
+                v-if="defaultFfmpegPipeArgs === null"
+                type="QInput" />
+              <q-input
+                v-else
+                v-model="defaultFfmpegPipeArgs"
+                label="Default FFmpeg Stream Buffer Options"
+                hint="Note: [URL] and [SERVICE_NAME] will be replaced with the stream source and the service name respectively."
+              />
+            </div>
+
+            <q-separator />
+
+            <div>
+              <q-btn label="Save" type="submit" color="primary" class="q-mt-lg" />
+            </div>
+
+          </q-form>
         </q-card-section>
       </q-card>
 
@@ -119,7 +176,11 @@ export default defineComponent({
   data() {
     return {
       listOfPlaylists: ref([]),
-      appUrl: ref(`${window.location.origin}`)
+      appUrl: ref(`${window.location.origin}`),
+
+      // Application Settings
+      enableStreamBuffer: ref(null),
+      defaultFfmpegPipeArgs: ref(null)
     };
   },
   methods: {
@@ -144,6 +205,8 @@ export default defineComponent({
         url: "/tic-api/get-settings"
       }).then((response) => {
         this.appUrl = response.data.data.app_url;
+        this.enableStreamBuffer = response.data.data.enable_stream_buffer;
+        this.defaultFfmpegPipeArgs = response.data.data.default_ffmpeg_pipe_args;
       }).catch(() => {
         this.$q.notify({
           color: "negative",
@@ -179,7 +242,6 @@ export default defineComponent({
         this.$q.loading.hide();
         this.$q.notify({
           color: "positive",
-          position: "top",
           icon: "cloud_done",
           message: "Playlist update queued",
           timeout: 200
@@ -205,7 +267,6 @@ export default defineComponent({
         this.$q.loading.hide();
         this.$q.notify({
           color: "positive",
-          position: "top",
           icon: "cloud_done",
           message: "Playlist removed",
           timeout: 200
@@ -230,11 +291,11 @@ export default defineComponent({
             color: "green",
             textColor: "white",
             icon: "done",
-            message: "EPG URL copied to clipboard"
+            message: "HDHomeRun Tuner Device URL copied to clipboard"
           });
         })
         .catch((err) => {
-          // Handle the error (e.g., clipboard API not supported)
+          // Handle the error (e.g., clipboard API not supported)et
           console.error("Copy failed", err);
           this.$q.notify({
             color: "red",
@@ -248,7 +309,9 @@ export default defineComponent({
       // Save settings
       let postData = {
         settings: {
-          app_url: this.appUrl
+          app_url: this.appUrl,
+          enable_stream_buffer: this.enableStreamBuffer,
+          default_ffmpeg_pipe_args: this.defaultFfmpegPipeArgs
         }
       };
       axios({
@@ -260,7 +323,6 @@ export default defineComponent({
         this.fetchSettings();
         this.$q.notify({
           color: "positive",
-          position: "top",
           icon: "cloud_done",
           message: "Saved",
           timeout: 200

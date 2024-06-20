@@ -181,9 +181,6 @@
 </template>
 
 <script>
-/*
-tab          - The tab to display first ['info', 'settings']
-*/
 
 import axios from "axios";
 import { ref } from "vue";
@@ -219,11 +216,14 @@ export default {
         this.fetchPlaylistData();
         return;
       }
+      // Set default values for new playlist
       this.enabled = true;
       this.name = "";
       this.url = "";
       this.connections = 1;
       this.useHlsProxy = false;
+      this.useCustomHlsProxy = false;
+      this.hlsProxyPath = window.location.origin + '/tic-hls-proxy.m3u8?url=';
     },
 
     // following method is REQUIRED
@@ -276,7 +276,6 @@ export default {
         // Save success, show feedback
         this.$q.notify({
           color: "positive",
-          position: "top",
           icon: "cloud_done",
           message: "Saved",
           timeout: 200

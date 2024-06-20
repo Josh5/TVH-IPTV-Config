@@ -55,42 +55,60 @@ async def read_config_all_epgs(output_for_export=False):
     return return_list
 
 
-def read_config_one_epg(epg_id):
+async def read_config_one_epg(epg_id):
     return_item = {}
-    result = db.session.query(Epg).filter(Epg.id == epg_id).one()
-    if result:
-        return_item = {
-            'id':      result.id,
-            'enabled': result.enabled,
-            'name':    result.name,
-            'url':     result.url,
-        }
+    async with Session() as session:
+        async with session.begin():
+            query = await session.execute(select(Epg).where(Epg.id == epg_id))
+            results = query.scalar_one_or_none()
+            if results:
+                return_item = {
+                    'id':      results.id,
+                    'enabled': results.enabled,
+                    'name':    results.name,
+                    'url':     results.url,
+                }
     return return_item
 
 
-def add_new_epg(data):
-    epg = Epg(
-        enabled=data.get('enabled'),
-        name=data.get('name'),
-        url=data.get('url'),
-    )
-    # This is a new entry. Add it to the session before commit
-    db.session.add(epg)
-    db.session.commit()
+async def add_new_epg(data):
+    async with Session() as session:
+        async with session.begin():
+            epg = Epg(
+                enabled=data.get('enabled'),
+                name=data.get('name'),
+                url=data.get('url'),
+            )
+            # This is a new entry. Add it to the session before commit
+            session.add(epg)
 
 
-def update_epg(epg_id, data):
-    epg = db.session.query(Epg).where(Epg.id == epg_id).one()
-    epg.enabled = data.get('enabled')
-    epg.name = data.get('name')
-    epg.url = data.get('url')
-    db.session.commit()
+async def update_epg(epg_id, data):
+    async with Session() as session:
+        async with session.begin():
+            result = await session.execute(select(Epg).where(Epg.id == epg_id))
+            epg = result.scalar_one()
+            epg.enabled = data.get('enabled')
+            epg.name = data.get('name')
+            epg.url = data.get('url')
 
 
-def delete_epg(config, epg_id):
-    epg = db.session.query(Epg).where(Epg.id == epg_id).one()
-    db.session.delete(epg)
-    db.session.commit()
+async def delete_epg(config, epg_id):
+    async with Session() as session:
+        async with session.begin():
+            # Get all channel IDs for the given EPG
+            # noinspection DuplicatedCode
+            result = await session.execute(select(EpgChannels.id).where(EpgChannels.epg_id == epg_id))
+            channel_ids = [row[0] for row in result.fetchall()]
+            if channel_ids:
+                # Delete all EpgChannelProgrammes where epg_channel_id is in the list of channel IDs
+                await session.execute(
+                    delete(EpgChannelProgrammes).where(EpgChannelProgrammes.epg_channel_id.in_(channel_ids)))
+                # Delete all EpgChannels where id is in the list of channel IDs
+                await session.execute(delete(EpgChannels).where(EpgChannels.id.in_(channel_ids)))
+            # Delete the Epg entry
+            await session.execute(delete(Epg).where(Epg.id == epg_id))
+
     # Remove cached copy of epg
     cache_files = [
         os.path.join(config.config_path, 'cache', 'epgs', f"{epg_id}.xml"),
@@ -99,6 +117,21 @@ def delete_epg(config, epg_id):
     for f in cache_files:
         if os.path.isfile(f):
             os.remove(f)
+
+
+async def clear_epg_channel_data(epg_id):
+    async with Session() as session:
+        async with session.begin():
+            # Get all channel IDs for the given EPG
+            # noinspection DuplicatedCode
+            result = await session.execute(select(EpgChannels.id).where(EpgChannels.epg_id == epg_id))
+            channel_ids = [row[0] for row in result.fetchall()]
+            if channel_ids:
+                # Delete all EpgChannelProgrammes where epg_channel_id is in the list of channel IDs
+                await session.execute(
+                    delete(EpgChannelProgrammes).where(EpgChannelProgrammes.epg_channel_id.in_(channel_ids)))
+                # Delete all EpgChannels where id is in the list of channel IDs
+                await session.execute(delete(EpgChannels).where(EpgChannels.id.in_(channel_ids)))
 
 
 async def download_xmltv_epg(url, output):
@@ -124,30 +157,6 @@ async def try_unzip(output: str) -> None:
         await loop.run_in_executor(None, lambda: open(output, 'wb').writelines(out))
     except:
         pass
-
-
-async def clear_previous_epg_data(config, epg_id):
-    def clear_data():
-        # Delete all existing playlist programmes
-        logger.info("Clearing previous programmes for EPG #%s", epg_id)
-        epg_channel_rows = (
-            db.session.query(EpgChannels)
-            .options(joinedload(EpgChannels.guide))
-            .filter(EpgChannels.epg_id == epg_id)
-            .all()
-        )
-        stmt = EpgChannelProgrammes.__table__.delete().where(
-            EpgChannelProgrammes.epg_channel_id.in_([epg_channel.id for epg_channel in epg_channel_rows])
-        )
-        db.session.execute(stmt)
-        # Delete all existing playlist channels
-        logger.info("Clearing previous channels for EPG #%s", epg_id)
-        stmt = EpgChannels.__table__.delete().where(EpgChannels.epg_id == epg_id)
-        db.session.execute(stmt)
-        # Commit DB changes
-        db.session.commit()
-
-    await run_sync(clear_data)()
 
 
 async def store_epg_channels(config, epg_id):
@@ -269,7 +278,7 @@ async def store_epg_programmes(config, epg_id, channel_id_list):
 
 
 async def import_epg_data(config, epg_id):
-    epg = read_config_one_epg(epg_id)
+    epg = await read_config_one_epg(epg_id)
     # Download a new local copy of the EPG
     logger.info("Downloading updated XMLTV file for EPG #%s from url - '%s'", epg_id, epg['url'])
     start_time = time.time()
@@ -280,7 +289,7 @@ async def import_epg_data(config, epg_id):
     # Read and save EPG data to DB
     logger.info("Importing updated data for EPG #%s", epg_id)
     start_time = time.time()
-    await clear_previous_epg_data(config, epg_id)
+    await clear_epg_channel_data(epg_id)
     channel_id_list = await store_epg_channels(config, epg_id)
     await store_epg_programmes(config, epg_id, channel_id_list)
     execution_time = time.time() - start_time
@@ -292,7 +301,7 @@ async def import_epg_data_for_all_epgs(config):
         await import_epg_data(config, epg.id)
 
 
-def read_channels_from_all_epgs(config):
+async def read_channels_from_all_epgs(config):
     epgs_channels = {}
     for result in db.session.query(Epg).options(joinedload(Epg.epg_channels)).all():
         epgs_channels[result.id] = []

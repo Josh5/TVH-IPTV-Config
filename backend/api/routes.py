@@ -8,6 +8,7 @@ from quart import request, jsonify, redirect, send_from_directory, current_app
 from backend.api import blueprint
 
 from backend.api.tasks import TaskQueueBroker
+from backend.auth import digest_auth_required
 from backend.config import is_tvh_process_running_locally, get_local_tvh_proc_admin_password
 from backend.tvheadend.tvh_requests import configure_tvh
 
@@ -18,13 +19,15 @@ def index():
 
 
 @blueprint.route('/tic-web/')
-def serve_index():
-    return send_from_directory(current_app.config['ASSETS_ROOT'], 'index.html')
+@digest_auth_required
+async def serve_index():
+    return await send_from_directory(current_app.config['ASSETS_ROOT'], 'index.html')
 
 
 @blueprint.route('/tic-web/<path:path>')
-def serve_static(path):
-    return send_from_directory(current_app.config['ASSETS_ROOT'], path)
+@digest_auth_required
+async def serve_static(path):
+    return await send_from_directory(current_app.config['ASSETS_ROOT'], path)
 
 
 @blueprint.route('/tic-web/epg.xml')
@@ -34,8 +37,7 @@ def serve_epg_static():
 
 
 @blueprint.route('/tic-api/ping')
-def ping():
-    config = current_app.config['APP_CONFIG']
+async def ping():
     return jsonify(
         {
             "success": True,
@@ -45,6 +47,7 @@ def ping():
 
 
 @blueprint.route('/tic-api/get-background-tasks', methods=['GET'])
+@digest_auth_required
 async def api_get_background_tasks():
     task_broker = await TaskQueueBroker.get_instance()
     await task_broker.get_pending_tasks()
@@ -61,6 +64,7 @@ async def api_get_background_tasks():
 
 
 @blueprint.route('/tic-api/toggle-pause-background-tasks', methods=['GET'])
+@digest_auth_required
 async def api_toggle_background_tasks_status():
     task_broker = await TaskQueueBroker.get_instance()
     await task_broker.toggle_status()
@@ -72,6 +76,7 @@ async def api_toggle_background_tasks_status():
 
 
 @blueprint.route('/tic-api/tvh-running', methods=['GET'])
+@digest_auth_required
 async def api_check_if_tvh_running_status():
     running = await is_tvh_process_running_locally()
     return jsonify(
@@ -85,16 +90,44 @@ async def api_check_if_tvh_running_status():
 
 
 @blueprint.route('/tic-api/save-settings', methods=['POST'])
+@digest_auth_required
 async def api_save_config():
     json_data = await request.get_json()
     config = current_app.config['APP_CONFIG']
+
+    # Update auth for AIO container
+    if await is_tvh_process_running_locally():
+        admin_username = 'admin'
+        # Force admin login
+        json_data['settings']['enable_admin_user'] = True
+        # Update TVH password also
+        if json_data.get('settings', {}).get('admin_password'):
+            if not json_data.get('settings', {}).get('tvheadend'):
+                json_data['settings']['tvheadend'] = {}
+            json_data['settings']['tvheadend']['username'] = admin_username
+            json_data['settings']['tvheadend']['password'] = json_data['settings']['admin_password']
+        # Force the creation of a client user
+        json_data['settings']['create_client_user'] = True
+        client_username = json_data.get('settings', {}).get('client_username')
+        if not client_username or client_username == '':
+            json_data['settings']['client_username'] = 'user'
+        client_password = json_data.get('settings', {}).get('client_password')
+        if not client_password or client_password == '':
+            json_data['settings']['client_password'] = 'user'
+
+    # Save the config
     config.update_settings(json_data)
     config.save_settings()
+
+    # Store settings for TVH service
     if json_data.get('settings', {}).get('tvheadend'):
+        # TODO: Remove this after debugging
+        await configure_tvh(config)
         try:
-            await configure_tvh(config)
+            # await configure_tvh(config)
+            pass
         except Exception as e:
-            current_app.logger.warning(f"Error while configuring TVH: %s", e)
+            current_app.logger.exception(f"Error while configuring TVH: %s", e)
             return jsonify(
                 {
                     "success": False
@@ -108,6 +141,7 @@ async def api_save_config():
 
 
 @blueprint.route('/tic-api/get-settings')
+@digest_auth_required
 async def api_get_config_tvheadend():
     config = current_app.config['APP_CONFIG']
     settings = config.read_settings()
@@ -125,6 +159,7 @@ async def api_get_config_tvheadend():
 
 
 @blueprint.route('/tic-api/export-config')
+@digest_auth_required
 async def api_export_config():
     config = current_app.config['APP_CONFIG']
     settings = config.read_settings()

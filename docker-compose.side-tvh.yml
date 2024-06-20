@@ -59,7 +59,7 @@ services:
 
     # NETWORK:
     networks:
-      - tvh-iptv-config-net
+      - private-net
     ports:
       - "9981:9981/tcp" # Webui
       - "9982:9982/tcp" # HTSP

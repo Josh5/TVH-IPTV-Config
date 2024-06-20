@@ -63,11 +63,13 @@ def register_blueprints(app):
 
 
 def create_app():
+    # Fetch app config
+    app_config = config.Config()
     # Create app
     app = Quart(__name__, instance_relative_config=True)
     app.config["SECRET_KEY"] = config.secret_key
     app.config["SCHEDULER_API_ENABLED"] = config.scheduler_api_enabled
-    app.config["APP_CONFIG"] = config.Config()
+    app.config["APP_CONFIG"] = app_config
     app.config["ASSETS_ROOT"] = config.assets_root
 
     # Init the DB connection

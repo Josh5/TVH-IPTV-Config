@@ -97,56 +97,61 @@
         </q-card-section>
       </q-card>
 
-      <q-form @submit="save">
+      <q-card flat>
+        <q-card-section :class="$q.platform.is.mobile ? 'q-px-none' : ''">
+          <q-form @submit="save">
 
-        <h5 class="q-mb-none">Additional EPG Metadata</h5>
+            <h5 class="q-mt-none q-mb-none">Additional EPG Metadata</h5>
 
-        <div class="q-gutter-sm q-mt-sm">
-          <q-item tag="label" dense class="q-pl-none q-mr-none">
-            <q-item-section avatar>
-              <q-checkbox v-model="enableTmdbMetadata" val="createClientUser" />
-            </q-item-section>
-            <q-item-section>
-              <q-item-label>Fetch missing data from TMDB</q-item-label>
-            </q-item-section>
-          </q-item>
-        </div>
+            <div class="q-gutter-sm q-mt-sm">
+              <q-item tag="label" dense class="q-pl-none q-mr-none">
+                <q-item-section avatar>
+                  <q-checkbox v-model="enableTmdbMetadata" val="createClientUser" />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label>Fetch missing data from TMDB</q-item-label>
+                </q-item-section>
+              </q-item>
+            </div>
 
-        <div
-          v-if="enableTmdbMetadata"
-          class="q-gutter-sm q-mt-sm">
-          <q-skeleton
-            v-if="tmdbApiKey === null"
-            type="QInput" />
-          <q-input
-            v-else
-            v-model="tmdbApiKey"
-            label="Your TMDB account API key"
-            hint="Can be found at 'https://www.themoviedb.org/settings/api'."
-          />
-        </div>
+            <div
+              v-if="enableTmdbMetadata"
+              class="q-gutter-sm q-mt-sm">
+              <q-skeleton
+                v-if="tmdbApiKey === null"
+                type="QInput" />
+              <q-input
+                v-else
+                v-model="tmdbApiKey"
+                label="Your TMDB account API key"
+                hint="Can be found at 'https://www.themoviedb.org/settings/api'."
+              />
+            </div>
 
-        <q-separator />
+            <q-separator />
 
-        <div class="q-gutter-sm q-mt-sm">
-          <q-item tag="label" dense class="q-pl-none q-mr-none">
-            <q-item-section avatar>
-              <q-checkbox v-model="enableGoogleImageSearchMetadata" val="createClientUser" />
-            </q-item-section>
-            <q-item-section>
-              <q-item-label>Attempt to fetch missing programme images from Google Image Search</q-item-label>
-              <q-item-label caption>This will only fetch the first google image search result for the programme title.
-                It will only be done if TMDB did not find anything.
-              </q-item-label>
-            </q-item-section>
-          </q-item>
-        </div>
+            <div class="q-gutter-sm q-mt-sm">
+              <q-item tag="label" dense class="q-pl-none q-mr-none">
+                <q-item-section avatar>
+                  <q-checkbox v-model="enableGoogleImageSearchMetadata" val="createClientUser" />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label>Attempt to fetch missing programme images from Google Image Search</q-item-label>
+                  <q-item-label caption>This will only fetch the first google image search result for the programme
+                    title.
+                    It will only be done if TMDB did not find anything.
+                  </q-item-label>
+                </q-item-section>
+              </q-item>
+            </div>
 
-        <div>
-          <q-btn label="Save" type="submit" color="primary" class="q-mt-lg" />
-        </div>
+            <div>
+              <q-btn label="Save" type="submit" color="primary" class="q-mt-lg" />
+            </div>
 
-      </q-form>
+          </q-form>
+        </q-card-section>
+      </q-card>
 
     </div>
 
@@ -231,7 +236,6 @@ export default defineComponent({
         this.$q.loading.hide();
         this.$q.notify({
           color: "positive",
-          position: "top",
           icon: "cloud_done",
           message: "EPG update queued",
           timeout: 200
@@ -258,7 +262,6 @@ export default defineComponent({
         this.fetchSettings();
         this.$q.notify({
           color: "positive",
-          position: "top",
           icon: "cloud_done",
           message: "EPG deleted",
           timeout: 200
@@ -294,7 +297,6 @@ export default defineComponent({
         this.fetchSettings();
         this.$q.notify({
           color: "positive",
-          position: "top",
           icon: "cloud_done",
           message: "Saved",
           timeout: 200

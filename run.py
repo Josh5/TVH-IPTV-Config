@@ -18,7 +18,7 @@ task_logger = app.logger.getChild('tasks')
 TaskQueueBroker.initialize(task_logger)
 
 
-@scheduler.scheduled_job('interval', id='background_tasks', seconds=5)
+@scheduler.scheduled_job('interval', id='background_tasks', seconds=10)
 async def background_tasks():
     async with app.app_context():
         task_broker = await TaskQueueBroker.get_instance()
@@ -99,5 +99,5 @@ if __name__ == "__main__":
 
     # Start Quart server
     app.logger.info("Starting Quart server...")
-    app.run(loop=loop, host="0.0.0.0", port=9985)
+    app.run(loop=loop, host=config.flask_run_host, port=config.flask_run_port)
     app.logger.info("Quart server completed.")

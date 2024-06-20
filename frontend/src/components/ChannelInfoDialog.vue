@@ -514,7 +514,6 @@ export default {
         // Save success, show feedback
         this.$q.notify({
           color: "positive",
-          position: "top",
           icon: "cloud_done",
           message: "Saved",
           timeout: 200
@@ -543,7 +542,6 @@ export default {
         // Save success, show feedback
         this.$q.notify({
           color: "positive",
-          position: "top",
           icon: "cloud_done",
           message: "Channel successfully deleted",
           timeout: 200

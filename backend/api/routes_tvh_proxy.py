@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
+import re
+
 from backend.api import blueprint
 from quart import jsonify, current_app, render_template_string, Response
 
@@ -27,26 +29,32 @@ device_xml_template = """<?xml version="1.0" encoding="UTF-8"?>
 async def _get_tvh_settings():
     config = current_app.config['APP_CONFIG']
     settings = config.read_settings()
+    # Configure TVH-IPTV-Config base URL (proto/host/port)
+    tic_base_url = settings['settings']['app_url']
+    protocol_match = re.match(r'^(https?)://', settings['settings']['app_url'])
+    tic_base_url_protocol = protocol_match.group(1) if protocol_match else 'http'
+    # Create URLs for TVH
     # Note: This host needs to be the externally accessible host that third-party apps can then access TVH with
     tvh_host = settings['settings']['tvheadend']['host']
     tvh_port = settings['settings']['tvheadend']['port']
-    # Configure TVH-IPTV-Config base URL (proto/host/port)
-    tic_base_url = settings['settings']['app_url']
+    tvh_path = settings['settings']['tvheadend']['path']
+    tvh_base_url = f"{tvh_host}:{tvh_port}{tvh_path}"
+    if await is_tvh_process_running_locally():
+        tvh_path = '/tic-tvh'
+        app_url = re.sub(r'^https?://', '', settings['settings']['app_url'])
+        tvh_base_url = f"{app_url}{tvh_path}"
     # Configure some connection URLs
-    client_username = settings['settings']['tvheadend']['client_username']
-    client_password = settings['settings']['tvheadend']['client_password']
-    tvh_api_url = f"http://{tvh_host}:{tvh_port}/api"
-    tvh_http_url = f"http://{tvh_host}:{tvh_port}"
-    if client_username:
-        tvh_http_url = f"http://{client_username}:{client_password}@{tvh_host}:{tvh_port}"
+    client_username = settings['settings']['client_username']
+    client_password = settings['settings']['client_password']
+    tvh_api_url = f"{tic_base_url_protocol}://{tvh_base_url}/api"
+    tvh_http_url = f"{tic_base_url_protocol}://{tvh_base_url}"
+    if settings['settings']['create_client_user'] and client_username:
+        tvh_http_url = f"{tic_base_url_protocol}://{client_username}:{client_password}@{tvh_base_url}"
+    # Set stream configuration
     stream_profile = 'pass'
     stream_priority = 300
     return {
         "tic_base_url":    tic_base_url,
-        "tvh_host":        tvh_host,
-        "tvh_port":        tvh_port,
-        "tvh_username":    client_username,
-        "tvh_password":    client_password,
         "tvh_api_url":     tvh_api_url,
         "tvh_http_url":    tvh_http_url,
         "stream_profile":  stream_profile,

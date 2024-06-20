@@ -90,6 +90,10 @@ module.exports = configure(function (ctx) {
       proxy: {
         '/tic-api': 'http://localhost:9985',
         '/tic-web/epg.xml': 'http://localhost:9985',
+        '/tic-tvh': {
+          target: 'ws://localhost:9985',
+          ws: true
+        },
       },
       open: false // opens browser window automatically
     },

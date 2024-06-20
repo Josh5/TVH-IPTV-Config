@@ -121,10 +121,13 @@ class Config:
                 "tvheadend":                {
                     "host":     os.environ.get("APP_HOST_IP", "127.0.0.1"),
                     "port":     "9981",
+                    "path":     "/",
                     "username": "",
                     "password": "",
                 },
                 "app_url":                  None,
+                "enable_admin_user":        False,
+                "admin_password":           "admin",
                 "enable_stream_buffer":     True,
                 "default_ffmpeg_pipe_args": "-hide_banner -loglevel error "
                                             "-probesize 10M -analyzeduration 0 -fpsprobesize 0 "
@@ -176,17 +179,22 @@ class Config:
             # Note: Host can be localhost here because the app will publish to TVH from the backend
             tvh_host = '127.0.0.1'
             tvh_port = '9981'
+            tvh_path = '/tic-tvh'
             tvh_username = 'admin'
             tvh_password = await get_local_tvh_proc_admin_password()
             return {
+                'tvh_local':    True,
                 'tvh_host':     tvh_host,
                 'tvh_port':     tvh_port,
+                'tvh_path':     tvh_path,
                 'tvh_username': tvh_username,
                 'tvh_password': tvh_password,
             }
         return {
+            'tvh_local':    False,
             'tvh_host':     settings['settings']['tvheadend']['host'],
             'tvh_port':     settings['settings']['tvheadend']['port'],
+            'tvh_path':     settings['settings']['tvheadend']['path'],
             'tvh_username': settings['settings']['tvheadend']['username'],
             'tvh_password': settings['settings']['tvheadend']['password'],
         }
@@ -197,6 +205,9 @@ frontend_dir = os.path.join(os.path.dirname(os.path.abspath(os.path.dirname(__fi
 enable_debugging = False
 if os.environ.get('ENABLE_DEBUGGING', 'false').lower() == 'true':
     enable_debugging = True
+
+flask_run_host = os.environ.get('FLASK_RUN_HOST', '0.0.0.0')
+flask_run_port = int(os.environ.get('FLASK_RUN_PORT', '9985'))
 
 app_basedir = os.path.abspath(os.path.dirname(__file__))
 config_path = os.path.join(get_home_dir(), '.tvh_iptv_config')

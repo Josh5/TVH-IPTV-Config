@@ -12,6 +12,58 @@
               class="q-gutter-md"
             >
 
+              <div>
+                <h5 class="q-mb-none">Authentication</h5>
+
+                <div v-if="aioMode === false"
+                     class="q-gutter-sm">
+                  <q-item tag="label" dense class="q-pl-none q-mr-none">
+                    <q-item-section avatar>
+                      <q-checkbox v-model="enableAdminUser" val="enableAdminUser" />
+                    </q-item-section>
+                    <q-item-section>
+                      <q-item-label>Enable authentication on TIC web interface</q-item-label>
+                    </q-item-section>
+                  </q-item>
+                </div>
+
+                <div
+                  v-if="aioMode === true || enableAdminUser === true"
+                  class="q-gutter-sm">
+                  <q-skeleton
+                    v-if="adminUsername === null"
+                    type="QInput" />
+                  <q-input
+                    v-else
+                    v-model="adminUsername"
+                    readonly
+                    label="Admin Username"
+                    :hint="(aioMode === true) ? `Note: This admin user is for both TIC and TVH (username cannot be modified).` : `Note: Username cannot be modified.`"
+                  />
+                </div>
+                <div
+                  v-if="aioMode === true || enableAdminUser === true"
+                  class="q-gutter-sm">
+                  <q-skeleton
+                    v-if="adminPassword === null"
+                    type="QInput" />
+                  <q-input
+                    v-else
+                    v-model="adminPassword"
+                    label="Admin Password"
+                    :hint="(aioMode === true) ? `Note: The admin password configured here will be also applied to TVH.` : ``"
+                    :type="hideAdminPassword ? 'password' : 'text'">
+                    <template v-slot:append>
+                      <q-icon
+                        :name="hideAdminPassword ? 'visibility_off' : 'visibility'"
+                        class="cursor-pointer"
+                        @click="hideAdminPassword = !hideAdminPassword"
+                      />
+                    </template>
+                  </q-input>
+                </div>
+              </div>
+
               <h5 class="q-mb-none">Connections</h5>
 
               <div class="q-gutter-sm q-mt-sm">
@@ -22,7 +74,7 @@
                   v-else
                   v-model="appUrl"
                   label="TVH IPTV Config Host"
-                  hint="This is needed for other applications to connect to TIC as a proxy. This will be used in the generated XMLTV EPG and HDHomeRun proxy. Ensure this is set to something that external services can use to reach TIC."
+                  hint="External access host & port. This is needed for other applications to connect to TIC. This will be used in the generated XMLTV EPG and HDHomeRun proxy. Ensure this is set to something that external services can use to reach TIC."
                 />
               </div>
 
@@ -41,41 +93,51 @@
 </template>
 
 <script>
-import { defineComponent, ref } from "vue";
-import axios from "axios";
+import {defineComponent, ref} from 'vue';
+import axios from 'axios';
 
 export default defineComponent({
-  name: "GeneralPage",
+  name: 'GeneralPage',
 
   setup() {
     return {};
   },
   data() {
     return {
+      // UI Elements
+      aioMode: ref(null),
+      hideAdminPassword: ref(true),
+      prevAdminPassword: ref(null),
+
       // Application Settings
       appUrl: ref(null),
+      enableAdminUser: ref(null),
+      adminUsername: ref('admin'),
+      adminPassword: ref(null),
 
       // Defaults
       defSet: ref({
-        appUrl: window.location.origin
-      })
+        appUrl: window.location.origin,
+        enableAdminUser: false,
+        adminPassword: '',
+      }),
     };
   },
   methods: {
     convertToCamelCase(str) {
-      return str.replace(/([-_][a-z])/g, (group) => group.toUpperCase().replace("-", "").replace("_", ""));
+      return str.replace(/([-_][a-z])/g, (group) => group.toUpperCase().replace('-', '').replace('_', ''));
     },
     fetchSettings: function() {
       // Fetch current settings
       axios({
-        method: "get",
-        url: "/tic-api/get-settings"
+        method: 'get',
+        url: '/tic-api/get-settings',
       }).then((response) => {
         // All other application settings are here
         const appSettings = response.data.data;
         // Iterate over the settings and set values
         Object.entries(appSettings).forEach(([key, value]) => {
-          if (typeof value !== "object") {
+          if (typeof value !== 'object') {
             const camelCaseKey = this.convertToCamelCase(key);
             this[camelCaseKey] = value;
           }
@@ -86,54 +148,75 @@ export default defineComponent({
             this[key] = this.defSet[key];
           }
         });
+        // Write the previous admin password as the one fetched
+        this.prevAdminPassword = this.adminPassword;
       }).catch(() => {
         this.$q.notify({
-          color: "negative",
-          position: "top",
-          message: "Failed to fetch settings",
-          icon: "report_problem",
-          actions: [{ icon: "close", color: "white" }]
+          color: 'negative',
+          position: 'top',
+          message: 'Failed to fetch settings',
+          icon: 'report_problem',
+          actions: [{icon: 'close', color: 'white'}],
+        });
+      });
+      axios({
+        method: 'get',
+        url: '/tic-api/tvh-running',
+      }).then((response) => {
+        this.aioMode = response.data.data.running;
+      }).catch(() => {
+        this.$q.notify({
+          color: 'negative',
+          position: 'top',
+          message: 'Failed to fetch container mode',
+          icon: 'report_problem',
+          actions: [{icon: 'close', color: 'white'}],
         });
       });
     },
     save: function() {
       // Save settings
       let postData = {
-        settings: {}
+        settings: {},
       };
       // Dynamically populate settings from component data, falling back to defaults
       Object.keys(this.defSet).forEach((key) => {
         const snakeCaseKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
         postData.settings[snakeCaseKey] = this[key] ?? this.defSet[key];
       });
-
+      this.$q.loading.show();
       axios({
-        method: "POST",
-        url: "/tic-api/save-settings",
-        data: postData
+        method: 'POST',
+        url: '/tic-api/save-settings',
+        data: postData,
       }).then((response) => {
+        this.$q.loading.hide();
         // Save success, show feedback
-        this.fetchSettings();
         this.$q.notify({
-          color: "positive",
-          position: "top",
-          icon: "cloud_done",
-          message: "Saved",
-          timeout: 200
+          color: 'positive',
+          icon: 'cloud_done',
+          message: 'Saved',
+          timeout: 200,
         });
+        if (this.prevAdminPassword !== this.adminPassword) {
+          // Reload page to properly trigger the auth refresh
+          location.reload();
+        }
+        this.fetchSettings();
       }).catch(() => {
+        this.$q.loading.hide();
         this.$q.notify({
-          color: "negative",
-          position: "top",
-          message: "Failed to save settings",
-          icon: "report_problem",
-          actions: [{ icon: "close", color: "white" }]
+          color: 'negative',
+          position: 'top',
+          message: 'Failed to save settings',
+          icon: 'report_problem',
+          actions: [{icon: 'close', color: 'white'}],
         });
       });
-    }
+    },
   },
   created() {
     this.fetchSettings();
-  }
+  },
 });
 </script>

@@ -62,16 +62,32 @@ else
         alembic upgrade head
     fi
 
+    # If the 'nginx' binary exists in the path, start it
+    if command -v nginx >/dev/null 2>&1; then
+        mkdir -p /tmp/nginx/logs
+        # Replace the listen port in the Nginx configuration to whatever is set in FLASK_RUN_PORT
+        if [ -n "${FLASK_RUN_PORT}" ]; then
+            sed "s/listen.*;/listen ${FLASK_RUN_PORT};/" /defaults/nginx/nginx.conf.template > /tmp/nginx/nginx.conf
+        fi
+        # Start Nginx
+        print_log info "Starting Nginx service"
+        nginx -c /tmp/nginx/nginx.conf -p /tmp/nginx &
+        proxy_pid=$!
+        print_log info "Started Nginx service with PID $proxy_pid"
+        # Update the Flask run port so that Nginx will proxy to whatever FLASK_RUN_PORT was set to
+        export FLASK_RUN_PORT=9984
+    fi
+
     # If the 'tvheadend' binary exists in the path, start it
     if command -v tvheadend >/dev/null 2>&1; then
         # Install default TVH config
-        if [ ! -d /config/.tvheadend/accesscontrol ]; then
-            print_log info "Installing default tvheadend accesscontrol"
+        if [ ! -f /config/.tvheadend/accesscontrol/83e4a7e5712d79a97b570b54e8e0e781 ]; then
+            print_log info "Installing admin tvheadend accesscontrol"
             mkdir -p /config/.tvheadend/accesscontrol
             cp -rf /defaults/tvheadend/admin_accesscontrol /config/.tvheadend/accesscontrol/83e4a7e5712d79a97b570b54e8e0e781
         fi
-        if [ ! -d /config/.tvheadend/passwd ]; then
-            print_log info "Installing default tvheadend passwd"
+        if [ ! -f /config/.tvheadend/passwd/c0a8261ea68035cd447a29a57d12ff7c ]; then
+            print_log info "Installing admin tvheadend passwd"
             mkdir -p /config/.tvheadend/passwd
             cp -rf /defaults/tvheadend/admin_auth /config/.tvheadend/passwd/c0a8261ea68035cd447a29a57d12ff7c
         fi
@@ -81,14 +97,14 @@ else
             cp -rf /defaults/tvheadend/config /config/.tvheadend/config
         fi
         print_log info "Starting tvheadend service"
-        tvheadend --config /config/.tvheadend &
+        tvheadend --config /config/.tvheadend --http_root /tic-tvh &
         tvh_pid=$!
         print_log info "Started tvheadend service with PID $tvh_pid"
     fi
 
     # Run TIC server
     print_log info "Starting TIC server"
-    python3 /app/run.py
+    python3 "${FLASK_APP:?}"
 
     # Terminate TVH process if TIC service ends
     if [ -n "$tvh_pid" ]; then

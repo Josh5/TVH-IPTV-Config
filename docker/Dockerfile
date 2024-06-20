@@ -1,12 +1,12 @@
 ARG BASE_IMAGE
 FROM ${BASE_IMAGE} as base_image
 
-#  _____ ____   ___  _   _ _____ _____ _   _ ____    ____ _____  _    ____ _____ 
+#  _____ ____   ___  _   _ _____ _____ _   _ ____    ____ _____  _    ____ _____
 # |  ___|  _ \ / _ \| \ | |_   _| ____| \ | |  _ \  / ___|_   _|/ \  / ___| ____|
-# | |_  | |_) | | | |  \| | | | |  _| |  \| | | | | \___ \ | | / _ \| |  _|  _|  
-# |  _| |  _ <| |_| | |\  | | | | |___| |\  | |_| |  ___) || |/ ___ \ |_| | |___ 
+# | |_  | |_) | | | |  \| | | | |  _| |  \| | | | | \___ \ | | / _ \| |  _|  _|
+# |  _| |  _ <| |_| | |\  | | | | |___| |\  | |_| |  ___) || |/ ___ \ |_| | |___
 # |_|   |_| \_\\___/|_| \_| |_| |_____|_| \_|____/  |____/ |_/_/   \_\____|_____|
-#                                                                                
+#
 FROM node:22-alpine as frontend_build_stage
 
 COPY ./frontend/package.json /build/
@@ -27,7 +27,7 @@ RUN \
     && \
     echo
 
-#  __  __    _    ___ _   _ 
+#  __  __    _    ___ _   _
 # |  \/  |  / \  |_ _| \ | |
 # | |\/| | / _ \  | ||  \| |
 # | |  | |/ ___ \ | || |\  |
@@ -55,6 +55,10 @@ RUN \
             ca-certificates \
             curl \
             tzdata \
+    && \
+    echo "**** install tic application runtime packages ****" \
+        && apk add --no-cache \
+            ffmpeg \
     && \
     if command -v tvheadend &> /dev/null; then \
         echo "**** install tvh application runtime packages ****" \
@@ -93,6 +97,10 @@ RUN \
                 x265 \
                 xmltv \
                 zlib \
+        && \
+        echo "**** install nginx reverse proxy ****" \
+            && apk add --no-cache \
+                nginx \
         && \
         if [ "$(uname -m)" = 'x86_64' ]; then \
             echo "**** install intel media driver packages for x86_64 ****" \

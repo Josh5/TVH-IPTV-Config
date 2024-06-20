@@ -68,53 +68,63 @@ async def read_config_one_playlist(config, playlist_id):
 
 
 async def add_new_playlist(config, data):
-    playlist = Playlist(
-        enabled=data.get('enabled'),
-        name=data.get('name'),
-        url=data.get('url'),
-        connections=data.get('connections'),
-        use_hls_proxy=data.get('use_hls_proxy'),
-    )
-    # This is a new entry. Add it to the session before commit
-    db.session.add(playlist)
-    db.session.commit()
+    settings = config.read_settings()
+    app_url = settings['settings']['app_url']
+    async with Session() as session:
+        async with session.begin():
+            playlist = Playlist(
+                enabled=data.get('enabled'),
+                name=data.get('name'),
+                url=data.get('url'),
+                connections=data.get('connections'),
+                use_hls_proxy=data.get('use_hls_proxy', False),
+                use_custom_hls_proxy=data.get('use_custom_hls_proxy', False),
+                hls_proxy_path=data.get('hls_proxy_path', f'{app_url}/tic-hls-proxy.m3u8?url='),
+            )
+            # This is a new entry. Add it to the session before commit
+            session.add(playlist)
     # Publish changes to TVH
     await publish_playlist_networks(config)
 
 
 async def update_playlist(config, playlist_id, data):
-    playlist = db.session.query(Playlist).where(Playlist.id == playlist_id).one()
-    playlist.enabled = data.get('enabled', playlist.enabled)
-    playlist.name = data.get('name', playlist.name)
-    playlist.url = data.get('url', playlist.url)
-    playlist.connections = data.get('connections', playlist.connections)
-    playlist.use_hls_proxy = data.get('use_hls_proxy', playlist.use_hls_proxy)
-    playlist.use_custom_hls_proxy = data.get('use_custom_hls_proxy', playlist.use_custom_hls_proxy)
-    playlist.hls_proxy_path = data.get('hls_proxy_path', playlist.hls_proxy_path)
-    db.session.commit()
+    async with Session() as session:
+        async with session.begin():
+            result = await session.execute(select(Playlist).where(Playlist.id == playlist_id))
+            playlist = result.scalar_one()
+            playlist.enabled = data.get('enabled', playlist.enabled)
+            playlist.name = data.get('name', playlist.name)
+            playlist.url = data.get('url', playlist.url)
+            playlist.connections = data.get('connections', playlist.connections)
+            playlist.use_hls_proxy = data.get('use_hls_proxy', playlist.use_hls_proxy)
+            playlist.use_custom_hls_proxy = data.get('use_custom_hls_proxy', playlist.use_custom_hls_proxy)
+            playlist.hls_proxy_path = data.get('hls_proxy_path', playlist.hls_proxy_path)
     # Publish changes to TVH
     await publish_playlist_networks(config)
 
 
 async def delete_playlist(config, playlist_id):
-    playlist = db.session.query(Playlist).where(Playlist.id == playlist_id).one()
-    net_uuid = playlist.tvh_uuid
-    # Remove from TVH
-    try:
-        await delete_playlist_network_in_tvh(config, net_uuid)
-    except Exception as e:
-        logger.warning("Failed to remove playlist from TVH by UUID")
-    # Remove cached copy of playlist
-    cache_files = [
-        os.path.join(config.config_path, 'cache', 'playlists', f"{playlist_id}.m3u"),
-        os.path.join(config.config_path, 'cache', 'playlists', f"{playlist_id}.yml"),
-    ]
-    for f in cache_files:
-        if os.path.isfile(f):
-            os.remove(f)
-    # Remove from DB
-    db.session.delete(playlist)
-    db.session.commit()
+    async with Session() as session:
+        async with session.begin():
+            result = await session.execute(select(Playlist).where(Playlist.id == playlist_id))
+            playlist = result.scalar_one()
+            net_uuid = playlist.tvh_uuid
+            # Remove from TVH
+            if net_uuid:
+                try:
+                    await delete_playlist_network_in_tvh(config, net_uuid)
+                except Exception as e:
+                    logger.warning("Failed to remove playlist from TVH by UUID")
+            # Remove cached copy of playlist
+            cache_files = [
+                os.path.join(config.config_path, 'cache', 'playlists', f"{playlist_id}.m3u"),
+                os.path.join(config.config_path, 'cache', 'playlists', f"{playlist_id}.yml"),
+            ]
+            for f in cache_files:
+                if os.path.isfile(f):
+                    os.remove(f)
+            # Remove from DB
+            await session.delete(playlist)
 
 
 async def download_playlist_file(url, output):
@@ -210,7 +220,7 @@ async def import_playlist_data_for_all_playlists(config):
         await import_playlist_data(config, playlist.id)
 
 
-def read_stream_details_from_all_playlists():
+async def read_stream_details_from_all_playlists():
     playlist_streams = {
         'streams': []
     }
@@ -331,7 +341,7 @@ async def publish_playlist_networks(config):
     #  TODO: Remove any networks that are not managed. DONT DO THIS UNTIL THINGS ARE ALL WORKING!
 
 
-def probe_playlist_stream(playlist_stream_id):
+async def probe_playlist_stream(playlist_stream_id):
     playlist_stream = db.session.query(PlaylistStreams).where(PlaylistStreams.id == playlist_stream_id).one()
-    probe_data = ffprobe_file(playlist_stream.url)
+    probe_data = await ffprobe_file(playlist_stream.url)
     return probe_data
