@@ -21,13 +21,21 @@ def index():
 @blueprint.route('/tic-web/')
 @digest_auth_required
 async def serve_index():
-    return await send_from_directory(current_app.config['ASSETS_ROOT'], 'index.html')
+    response = await send_from_directory(current_app.config['ASSETS_ROOT'], 'index.html')
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 
 @blueprint.route('/tic-web/<path:path>')
 @digest_auth_required
 async def serve_static(path):
-    return await send_from_directory(current_app.config['ASSETS_ROOT'], path)
+    response = await send_from_directory(current_app.config['ASSETS_ROOT'], path)
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 
 @blueprint.route('/tic-web/epg.xml')
@@ -98,6 +106,8 @@ async def api_save_config():
     # Update auth for AIO container
     if await is_tvh_process_running_locally():
         admin_username = 'admin'
+        if json_data.get('settings', {}).get('first_run'):
+            json_data['settings']['admin_password'] = admin_username
         # Force admin login
         json_data['settings']['enable_admin_user'] = True
         # Update TVH password also
@@ -115,16 +125,17 @@ async def api_save_config():
         if not client_password or client_password == '':
             json_data['settings']['client_password'] = 'user'
 
+    # Mark first run as complete
+    json_data['settings']['first_run'] = False
+
     # Save the config
     config.update_settings(json_data)
     config.save_settings()
 
     # Store settings for TVH service
     if json_data.get('settings', {}).get('tvheadend'):
-        # TODO: Remove this after debugging
-        await configure_tvh(config)
         try:
-            # await configure_tvh(config)
+            await configure_tvh(config)
             pass
         except Exception as e:
             current_app.logger.exception(f"Error while configuring TVH: %s", e)

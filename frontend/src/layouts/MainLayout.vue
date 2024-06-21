@@ -7,7 +7,7 @@
         </q-toolbar-title>
 
         <q-tabs v-if="aioMode" no-caps align="left">
-          <q-btn flat label="Show Tvheadend Admin" @click="loadTvheadendAdmin = true; showTvheadendAdmin = true" />
+          <q-btn flat label="Show Tvheadend Backend" @click="loadTvheadendAdmin = true; showTvheadendAdmin = true" />
         </q-tabs>
 
         <q-dialog
@@ -17,7 +17,7 @@
           full-screen full-width persistent>
           <q-card class="full-screen-card">
             <q-bar class="bg-primary text-white">
-              <div class="text-h6">Tvheadend Admin</div>
+              <div class="text-h6">Tvheadend Backend</div>
               <q-space />
               <q-btn flat round dense icon="close" @click="showTvheadendAdmin = false" />
             </q-bar>
@@ -50,9 +50,7 @@
       side="left" behavior="desktop"
     >
       <q-list>
-        <q-item-label
-          header
-        >
+        <q-item-label header>
           <!--          Essential Links-->
         </q-item-label>
 
@@ -66,9 +64,7 @@
       <q-separator class="q-my-lg" />
 
       <q-list>
-        <q-item-label
-          style="padding-left:10px"
-          header>
+        <q-item-label style="padding-left:10px" header>
           <q-btn
             flat round dense
             :color="pendingTasksStatus === 'paused' ? '' : ''"
@@ -149,6 +145,7 @@
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
+
 .warning-card {
   background-color: #fdddcd;
   border: 1px solid #ffdfc4;
@@ -161,6 +158,7 @@
 import {defineComponent, onMounted, ref} from 'vue';
 import EssentialLink from 'components/EssentialLink.vue';
 import pollForBackgroundTasks from 'src/mixins/backgroundTasksMixin';
+import aioStartupTasks from 'src/mixins/aioFunctionsMixin';
 import axios from 'axios';
 import {copyToClipboard, useQuasar} from 'quasar';
 
@@ -209,8 +207,8 @@ export default defineComponent({
     const leftDrawerOpen = ref(false);
     const {pendingTasks, pendingTasksStatus} = pollForBackgroundTasks();
     const tasksArePaused = ref(false);
+    const {firstRun, aioMode} = aioStartupTasks();
 
-    const aioMode = ref(false);
     const loadTvheadendAdmin = ref(true);
     const showTvheadendAdmin = ref(false);
     const epgUrl = ref(`${window.location.origin}/tic-web/epg.xml`);
@@ -260,13 +258,6 @@ export default defineComponent({
         url: '/tic-api/get-settings',
       }).then((response) => {
         epgUrl.value = `${response.data.data.app_url}/tic-web/epg.xml`;
-      }).catch(() => {
-      });
-      axios({
-        method: 'get',
-        url: '/tic-api/tvh-running',
-      }).then((response) => {
-        aioMode.value = response.data.data.running;
       }).catch(() => {
       });
     });

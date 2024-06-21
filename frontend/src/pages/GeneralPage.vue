@@ -95,6 +95,7 @@
 <script>
 import {defineComponent, ref} from 'vue';
 import axios from 'axios';
+import aioStartupTasks from 'src/mixins/aioFunctionsMixin';
 
 export default defineComponent({
   name: 'GeneralPage',
@@ -159,20 +160,8 @@ export default defineComponent({
           actions: [{icon: 'close', color: 'white'}],
         });
       });
-      axios({
-        method: 'get',
-        url: '/tic-api/tvh-running',
-      }).then((response) => {
-        this.aioMode = response.data.data.running;
-      }).catch(() => {
-        this.$q.notify({
-          color: 'negative',
-          position: 'top',
-          message: 'Failed to fetch container mode',
-          icon: 'report_problem',
-          actions: [{icon: 'close', color: 'white'}],
-        });
-      });
+      const {firstRun, aioMode} = aioStartupTasks();
+      this.aioMode = aioMode;
     },
     save: function() {
       // Save settings

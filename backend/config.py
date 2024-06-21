@@ -2,6 +2,7 @@ import asyncio
 import base64
 import json
 import os
+import subprocess
 
 import aiofiles
 import yaml
@@ -26,6 +27,23 @@ async def is_tvh_process_running_locally():
         stdout, stderr = await process.communicate()
 
         if process.returncode == 0:
+            return True
+        else:
+            return False
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return False
+
+
+def is_tvh_process_running_locally_sync():
+    process_name = 'tvheadend'
+    try:
+        result = subprocess.run(
+            ['pgrep', '-x', process_name],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        if result.returncode == 0:
             return True
         else:
             return False
@@ -116,8 +134,10 @@ class Config:
         self.config_file = os.path.join(self.config_path, 'settings.yml')
         # Set default settings
         self.settings = None
+        self.tvh_local = is_tvh_process_running_locally_sync()
         self.default_settings = {
             "settings": {
+                "first_run":                True,
                 "tvheadend":                {
                     "host":     os.environ.get("APP_HOST_IP", "127.0.0.1"),
                     "port":     "9981",
@@ -126,7 +146,7 @@ class Config:
                     "password": "",
                 },
                 "app_url":                  None,
-                "enable_admin_user":        False,
+                "enable_admin_user":        True if self.tvh_local else False,
                 "admin_password":           "admin",
                 "enable_stream_buffer":     True,
                 "default_ffmpeg_pipe_args": "-hide_banner -loglevel error "
