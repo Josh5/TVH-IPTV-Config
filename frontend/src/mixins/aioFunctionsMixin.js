@@ -2,7 +2,9 @@ import {ref, onBeforeUnmount} from 'vue';
 import {Notify, useQuasar} from 'quasar';
 import axios from 'axios';
 
-export default function aioStartupTasks() {
+let instance;
+
+function createAioStartupTasks() {
   const $q = useQuasar();
   const firstRun = ref(null);
   const aioMode = ref(false);
@@ -44,7 +46,7 @@ export default function aioStartupTasks() {
       method: 'POST',
       url: '/tic-api/save-settings',
       data: postData,
-    }).then((response) => {
+    }).then(() => {
       // Reload page to properly trigger the auth refresh
       location.reload();
     });
@@ -86,4 +88,11 @@ export default function aioStartupTasks() {
     firstRun,
     aioMode,
   };
+}
+
+export default function getAioStartupTasks() {
+  if (!instance) {
+    instance = createAioStartupTasks();
+  }
+  return instance;
 }
