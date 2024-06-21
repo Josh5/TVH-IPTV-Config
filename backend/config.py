@@ -153,9 +153,9 @@ class Config:
                                             "-probesize 10M -analyzeduration 0 -fpsprobesize 0 "
                                             "-i [URL] -c copy -metadata service_name=[SERVICE_NAME] "
                                             "-f mpegts pipe:1",
-                "create_client_user":       False,
-                "client_username":          "user",
-                "client_password":          "user",
+                "create_client_user":       True,
+                "client_username":          "client",
+                "client_password":          "client",
                 "epgs":                     {
                     "enable_tmdb_metadata":                False,
                     "tmdb_api_key":                        "",

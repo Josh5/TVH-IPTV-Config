@@ -145,10 +145,10 @@ async def api_save_config():
         json_data['settings']['create_client_user'] = True
         client_username = json_data.get('settings', {}).get('client_username')
         if not client_username or client_username == '':
-            json_data['settings']['client_username'] = 'user'
+            json_data['settings']['client_username'] = 'client'
         client_password = json_data.get('settings', {}).get('client_password')
         if not client_password or client_password == '':
-            json_data['settings']['client_password'] = 'user'
+            json_data['settings']['client_password'] = 'client'
 
     # Mark first run as complete
     json_data['settings']['first_run'] = False
