@@ -385,6 +385,12 @@ async def build_custom_epg(config):
         # Add a <icon> element to the <channel> element
         icon = ET.SubElement(channel, 'icon')
         icon.set('src', channel_info['logo_url'])
+        # Add a <live> element to the <channel> element
+        live = ET.SubElement(channel, 'live')
+        live.text = 'true'
+        # Add a <active> element to the <channel> element
+        active = ET.SubElement(channel, 'active')
+        active.text = 'true'
     # Loop through all <programme> elements returned
     logger.info("   - Generating XML channel programme data.")
     for channel_programmes_data in all_channel_programmes_data:
