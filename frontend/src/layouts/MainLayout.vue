@@ -23,7 +23,7 @@
             </q-bar>
 
             <q-card-section class="full-screen-iframe">
-              <iframe id="f1" ref="frame1" :src="'/tic-tvh/'"></iframe>
+              <iframe id="f1" ref="frame1" :src="(firstRun) ? '' : '/tic-tvh/'"></iframe>
             </q-card-section>
           </q-card>
         </q-dialog>
@@ -205,8 +205,8 @@ export default defineComponent({
   setup() {
     const $q = useQuasar();
     const leftDrawerOpen = ref(false);
-    const {pendingTasks, pendingTasksStatus} = pollForBackgroundTasks();
     const tasksArePaused = ref(false);
+    const {pendingTasks, pendingTasksStatus} = pollForBackgroundTasks();
     const {firstRun, aioMode} = aioStartupTasks();
 
     const loadTvheadendAdmin = ref(true);
@@ -263,6 +263,7 @@ export default defineComponent({
     });
 
     return {
+      firstRun,
       aioMode,
       loadTvheadendAdmin,
       showTvheadendAdmin,

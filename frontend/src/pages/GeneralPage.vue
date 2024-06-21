@@ -189,7 +189,7 @@ export default defineComponent({
         });
         if (this.prevAdminPassword !== this.adminPassword) {
           // Reload page to properly trigger the auth refresh
-          location.reload();
+          this.$router.push({name: 'login'});
         }
         this.fetchSettings();
       }).catch(() => {

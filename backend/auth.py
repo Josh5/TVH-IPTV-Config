@@ -34,33 +34,37 @@ def validate_digest_auth(auth_info, admin_user):
     return response == auth_info.get("response")
 
 
+async def check_auth():
+    config = current_app.config['APP_CONFIG']
+    settings = config.read_settings()
+    if not settings.get('settings', {}).get('enable_admin_user', True):
+        return True
+    # Check if Authorization header is present
+    auth = request.headers.get("Authorization")
+    if not auth:
+        return False
+    # Ensure auth is "Digest" type
+    if not auth.startswith("Digest "):
+        return False
+    # Validate provided auth
+    auth_info = {}
+    for item in auth[len("Digest "):].split(","):
+        key, value = item.split("=", 1)
+        auth_info[key.strip()] = value.strip().replace('"', '')
+    admin_user = {
+        'username': 'admin',
+        'password': settings['settings'].get('admin_password', 'admin'),
+    }
+    if not validate_digest_auth(auth_info, admin_user):
+        return False
+    return True
+
+
 def digest_auth_required(func):
     @wraps(func)
     async def decorated_function(*args, **kwargs):
-        config = current_app.config['APP_CONFIG']
-        settings = config.read_settings()
-        if not settings.get('settings', {}).get('enable_admin_user', True):
+        if await check_auth():
             return await func(*args, **kwargs)
-
-        auth = request.headers.get("Authorization")
-        if not auth:
-            return unauthorized_response()
-
-        if not auth.startswith("Digest "):
-            return unauthorized_response()
-
-        auth_info = {}
-        for item in auth[len("Digest "):].split(","):
-            key, value = item.split("=", 1)
-            auth_info[key.strip()] = value.strip().replace('"', '')
-
-        admin_user = {
-            'username': 'admin',
-            'password': settings['settings'].get('admin_password', 'admin'),
-        }
-        if not validate_digest_auth(auth_info, admin_user):
-            return unauthorized_response()
-
-        return await func(*args, **kwargs)
+        return unauthorized_response()
 
     return decorated_function

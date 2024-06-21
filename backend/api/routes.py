@@ -8,7 +8,7 @@ from quart import request, jsonify, redirect, send_from_directory, current_app
 from backend.api import blueprint
 
 from backend.api.tasks import TaskQueueBroker
-from backend.auth import digest_auth_required
+from backend.auth import digest_auth_required, check_auth
 from backend.config import is_tvh_process_running_locally, get_local_tvh_proc_admin_password
 from backend.tvheadend.tvh_requests import configure_tvh
 
@@ -50,6 +50,31 @@ async def ping():
         {
             "success": True,
             "data":    "pong"
+        }
+    ), 200
+
+
+@blueprint.route('/tic-api/check-auth')
+async def api_check_auth():
+    if await check_auth():
+        return jsonify(
+            {
+                "success": True,
+            }
+        ), 200
+    return jsonify(
+        {
+            "success": False,
+        }
+    ), 401
+
+
+@blueprint.route('/tic-api/require-auth')
+@digest_auth_required
+async def api_require_auth():
+    return jsonify(
+        {
+            "success": True,
         }
     ), 200
 
