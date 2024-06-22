@@ -17,6 +17,7 @@ api_accessentry_config_create = "access/entry/create"
 api_password_grid = "passwd/entry/grid"
 api_password_config_create = "passwd/entry/create"
 api_epggrab_config_save = "epggrab/config/save"
+api_timeshift_config_save = "/timeshift/config/save"
 api_list_scanfile = "dvb/scanfile/list"
 api_create_network = "mpegts/network/create"
 api_view_networks = "mpegts/network/grid"
@@ -216,13 +217,31 @@ htsp_stream_profile_template = {
 }
 
 default_recorder_profile_template = {
-    "pre-extra-time":               1,
+    "pre-extra-time":               2,
     "post-extra-time":              5,
     "pathname":                     "$t/$t-$c-%F_%R$n.$x",
+    "comment":                      "",
+    "storage":                      "/recordings",
+    "format-tvmovies-subdir":       "tvmovies",
+    "format-tvshows-subdir":        "tvshows",
     "clean-title":                  True,
     "whitespace-in-title":          True,
     "windows-compatible-filenames": False,
     "skip-commercials":             False
+}
+
+default_timeshift_config_template = {
+    "enabled":          True,
+    "max_period":       60,
+    "path":             "/timeshift",
+    "max_size":         10000,
+    "ram_size":         0,
+    "ram_only":         False,
+    "ondemand":         False,
+    "unlimited_period": False,
+    "unlimited_size":   False,
+    "ram_fit":          False,
+    "teletext":         False
 }
 
 
@@ -474,6 +493,11 @@ class Tvheadend:
                 node['uuid'] = profile['key']
                 await self.idnode_save(node)
 
+    async def configure_timeshift(self):
+        url = f"{self.api_url}/{api_timeshift_config_save}"
+        node = default_timeshift_config_template.copy()
+        await self.__post(url, payload={"node": json.dumps(node)})
+
     async def list_premade_scanfiles(self, adapter_type):
         url = f"{self.api_url}/{api_list_scanfile}"
         post_data = {"type": adapter_type}
@@ -681,8 +705,10 @@ async def configure_tvh(config):
         await tvh.configure_htsp_stream_profile()
         # Configure the default recorder profile
         await tvh.configure_default_recorder_profile()
+        # Configure the timeshift settings
+        await tvh.configure_timeshift()
         # Update admin user (should be done last)
         if tvh.local_conn:
             admin_password = settings.get('settings', {}).get('tvheadend', {}).get('password', 'admin')
             await tvh.update_admin_user_password(admin_password)
-            await asyncio.sleep(.5)  # Added a sleep here because the password change takes a few seconds to show in the file
+            await asyncio.sleep(.5)  # Added a sleep here because the password change takes a few seconds to process
