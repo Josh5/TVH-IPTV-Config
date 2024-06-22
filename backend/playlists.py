@@ -17,8 +17,10 @@ from backend.tvheadend.tvh_requests import get_tvh, network_template
 logger = logging.getLogger('werkzeug.playlists')
 
 
-async def read_config_all_playlists(output_for_export=False):
+async def read_config_all_playlists(config, output_for_export=False):
     return_list = []
+    settings = config.read_settings()
+    app_url = settings['settings']['app_url']
     async with Session() as session:
         async with session.begin():
             query = await session.execute(select(Playlist))
@@ -26,20 +28,24 @@ async def read_config_all_playlists(output_for_export=False):
             for result in results:
                 if output_for_export:
                     return_list.append({
-                        'enabled':       result.enabled,
-                        'connections':   result.connections,
-                        'name':          result.name,
-                        'url':           result.url,
-                        'use_hls_proxy': result.use_hls_proxy,
+                        'enabled':              result.enabled,
+                        'connections':          result.connections,
+                        'name':                 result.name,
+                        'url':                  result.url,
+                        'use_hls_proxy':        result.use_hls_proxy,
+                        'use_custom_hls_proxy': result.use_custom_hls_proxy,
+                        'hls_proxy_path':       result.hls_proxy_path if result.hls_proxy_path else f'{app_url}/tic-hls-proxy.m3u8?url=',
                     })
                     continue
                 return_list.append({
-                    'id':            result.id,
-                    'enabled':       result.enabled,
-                    'connections':   result.connections,
-                    'name':          result.name,
-                    'url':           result.url,
-                    'use_hls_proxy': result.use_hls_proxy,
+                    'id':                   result.id,
+                    'enabled':              result.enabled,
+                    'connections':          result.connections,
+                    'name':                 result.name,
+                    'url':                  result.url,
+                    'use_hls_proxy':        result.use_hls_proxy,
+                    'use_custom_hls_proxy': result.use_custom_hls_proxy,
+                    'hls_proxy_path':       result.hls_proxy_path if result.hls_proxy_path else f'{app_url}/tic-hls-proxy.m3u8?url=',
                 })
     return return_list
 

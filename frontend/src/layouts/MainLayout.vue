@@ -10,15 +10,17 @@
           <q-btn flat label="Show Tvheadend Backend" @click="loadTvheadendAdmin = true; showTvheadendAdmin = true" />
         </q-tabs>
 
+        <!--TODO: Find a way to prevent this from being destroyed from the DOM when showTvheadendAdmin is False-->
         <q-dialog
           v-if="aioMode"
-          v-model="loadTvheadendAdmin"
+          v-model="showTvheadendAdmin"
           :class="{'hidden': !showTvheadendAdmin}"
           full-screen full-width persistent>
           <q-card class="full-screen-card">
             <q-bar class="bg-primary text-white">
               <div class="text-h6">Tvheadend Backend</div>
               <q-space />
+              <q-btn flat round dense icon="open_in_new" href="/tic-tvh/" target="_blank" />
               <q-btn flat round dense icon="close" @click="showTvheadendAdmin = false" />
             </q-bar>
 

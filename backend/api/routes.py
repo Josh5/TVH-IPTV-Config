@@ -198,10 +198,9 @@ async def api_get_config_tvheadend():
 @digest_auth_required
 async def api_export_config():
     config = current_app.config['APP_CONFIG']
-    settings = config.read_settings()
     # Fetch all playlists
     from backend.playlists import read_config_all_playlists
-    all_playlist_configs = await read_config_all_playlists(output_for_export=True)
+    all_playlist_configs = await read_config_all_playlists(config, output_for_export=True)
     # Fetch all epgs
     from backend.epgs import read_config_all_epgs
     all_epg_configs = await read_config_all_epgs(output_for_export=True)
@@ -209,7 +208,6 @@ async def api_export_config():
     from backend.channels import read_config_all_channels
     channels_config = await read_config_all_channels(output_for_export=True)
     return_data = {
-        'settings':  settings.get('settings', {}),
         'playlists': all_playlist_configs,
         'epgs':      all_epg_configs,
         'channels':  channels_config,

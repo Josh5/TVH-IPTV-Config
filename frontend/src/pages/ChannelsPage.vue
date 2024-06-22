@@ -252,17 +252,17 @@ textarea.q-field__native {
 </style>
 
 <script>
-import { defineComponent, ref } from "vue";
-import axios from "axios";
-import draggable from "vuedraggable";
-import ChannelInfoDialog from "components/ChannelInfoDialog.vue";
-import ChannelStreamSelectorDialog from "components/ChannelStreamSelectorDialog.vue";
-import { copyToClipboard } from "quasar";
+import {defineComponent, ref} from 'vue';
+import axios from 'axios';
+import draggable from 'vuedraggable';
+import ChannelInfoDialog from 'components/ChannelInfoDialog.vue';
+import ChannelStreamSelectorDialog from 'components/ChannelStreamSelectorDialog.vue';
+import {copyToClipboard} from 'quasar';
 
 export default defineComponent({
-  name: "ChannelsPage",
+  name: 'ChannelsPage',
   components: {
-    draggable
+    draggable,
   },
 
   setup() {
@@ -271,30 +271,30 @@ export default defineComponent({
   data() {
     return {
       chanelExportDialog: ref(false),
-      chanelExportDialogJson: ref(""),
+      chanelExportDialogJson: ref(''),
       options: {
-        dropzoneSelector: ".q-list",
-        draggableSelector: ".q-item"
+        dropzoneSelector: '.q-list',
+        draggableSelector: '.q-item',
       },
       listOfChannels: ref(null),
 
       formVisible: false,
-      editIndex: "",
-      editedValue: ""
+      editIndex: '',
+      editedValue: '',
     };
   },
   computed: {
     dragOptions() {
       return {
         animation: 100,
-        group: "pluginFlow",
+        group: 'pluginFlow',
         disabled: false,
-        ghostClass: "ghost",
-        direction: "vertical",
+        ghostClass: 'ghost',
+        direction: 'vertical',
         delay: 200,
-        delayOnTouchOnly: true
+        delayOnTouchOnly: true,
       };
-    }
+    },
   },
   methods: {
     generateNewChannel: function(range, usedValues) {
@@ -370,11 +370,11 @@ export default defineComponent({
           item.number = (lastNumber + 1);
           newList.push(item);
         } else {
-          console.error("--- Missed item ---");
+          console.error('--- Missed item ---');
           console.error(lastNumber);
           console.error(item.number);
           console.error((item.number === lastNumber));
-          console.error("-------------------");
+          console.error('-------------------');
         }
         lastNumber = item.number;
       }
@@ -396,17 +396,17 @@ export default defineComponent({
     fetchChannels: function() {
       // Fetch current settings
       axios({
-        method: "GET",
-        url: "/tic-api/channels/get"
+        method: 'GET',
+        url: '/tic-api/channels/get',
       }).then((response) => {
         this.listOfChannels = response.data.data.sort((a, b) => a.number - b.number);
       }).catch(() => {
         this.$q.notify({
-          color: "negative",
-          position: "top",
-          message: "Failed to fetch settings",
-          icon: "report_problem",
-          actions: [{ icon: "close", color: "white" }]
+          color: 'negative',
+          position: 'top',
+          message: 'Failed to fetch settings',
+          icon: 'report_problem',
+          actions: [{icon: 'close', color: 'white'}],
         });
       });
     },
@@ -421,8 +421,8 @@ export default defineComponent({
         component: ChannelInfoDialog,
         componentProps: {
           channelId: channelId,
-          newChannelNumber: newChannelNumber
-        }
+          newChannelNumber: newChannelNumber,
+        },
       }).onOk((payload) => {
         this.fetchChannels();
       }).onDismiss(() => {
@@ -432,15 +432,15 @@ export default defineComponent({
       this.$q.dialog({
         component: ChannelStreamSelectorDialog,
         componentProps: {
-          hideStreams: []
-        }
+          hideStreams: [],
+        },
       }).onOk((payload) => {
-        if (typeof payload.selectedStreams !== "undefined" && payload.selectedStreams !== null) {
+        if (typeof payload.selectedStreams !== 'undefined' && payload.selectedStreams !== null) {
           // Add selected stream to list
           this.$q.loading.show();
           // Send changes to backend
           let data = {
-            channels: []
+            channels: [],
           };
           console.log(payload.selectedStreams);
           for (const i in payload.selectedStreams) {
@@ -448,13 +448,13 @@ export default defineComponent({
               playlist_id: payload.selectedStreams[i].playlist_id,
               playlist_name: payload.selectedStreams[i].playlist_name,
               stream_id: payload.selectedStreams[i].id,
-              stream_name: payload.selectedStreams[i].stream_name
+              stream_name: payload.selectedStreams[i].stream_name,
             });
           }
           axios({
-            method: "POST",
-            url: "/tic-api/channels/settings/multiple/add",
-            data: data
+            method: 'POST',
+            url: '/tic-api/channels/settings/multiple/add',
+            data: data,
           }).then((response) => {
             // Reload from backend
             this.fetchChannels();
@@ -462,11 +462,11 @@ export default defineComponent({
           }).catch(() => {
             // Notify failure
             this.$q.notify({
-              color: "negative",
-              position: "top",
-              message: "An error was encountered while adding new channels.",
-              icon: "report_problem",
-              actions: [{ icon: "close", color: "white" }]
+              color: 'negative',
+              position: 'top',
+              message: 'An error was encountered while adding new channels.',
+              icon: 'report_problem',
+              actions: [{icon: 'close', color: 'white'}],
             });
             this.$q.loading.hide();
           });
@@ -476,76 +476,75 @@ export default defineComponent({
     },
     exportChannels: function() {
       this.$q.loading.show({
-        message: "Exporting config. Please wait..."
+        message: 'Exporting config. Please wait...',
       });
       axios({
-        method: "GET",
-        url: "/tic-api/export-config"
+        method: 'GET',
+        url: '/tic-api/export-config',
       }).then((response) => {
         // Display dialog with exported json
-        this.chanelExportDialogJson = JSON.stringify(response.data, null, 2);
+        this.chanelExportDialogJson = JSON.stringify(response.data.data, null, 2);
         this.chanelExportDialog = true;
         this.$q.loading.hide();
       }).catch(() => {
         this.$q.loading.hide();
         this.$q.notify({
-          color: "negative",
-          position: "top",
-          message: "Failed to fetch the current application config.",
-          icon: "report_problem",
-          actions: [{ icon: "close", color: "white" }]
+          color: 'negative',
+          position: 'top',
+          message: 'Failed to fetch the current application config.',
+          icon: 'report_problem',
+          actions: [{icon: 'close', color: 'white'}],
         });
       });
     },
     copyExportJson: function() {
-      copyToClipboard(this.chanelExportDialogJson)
-        .then(() => {
-          // success!
-          this.$q.notify({
-            color: "secondary",
-            position: "top",
-            message: "Copied",
-            timeout: 200
-          });
-        })
-        .catch(() => {
-          // fail
+      copyToClipboard(this.chanelExportDialogJson).then(() => {
+        // success!
+        this.$q.notify({
+          color: 'green',
+          textColor: 'white',
+          icon: 'done',
+          message: 'Channel config copied to clipboard',
         });
+      }).catch(() => {
+        // fail
+      });
     },
     importConfigJson: function() {
       // TODO: Validate JSON formatting
       // TODO: Import JSON to backend
-      console.log("TODO");
+      console.log('TODO');
+      // post this.chanelExportDialogJson
     },
     saveChannel: function() {
       // Send changes to backend
       let data = {
-        channels: {}
+        channels: {},
       };
       for (let i = 0; i < this.listOfChannels.length; i++) {
         const item = this.listOfChannels[i];
         data.channels[item.id] = item;
       }
       axios({
-        method: "POST",
-        url: "/tic-api/channels/settings/multiple/save",
-        data: data
+        method: 'POST',
+        url: '/tic-api/channels/settings/multiple/save',
+        data: data,
       }).then((response) => {
         // Reload from backend
         this.fetchChannels();
       }).catch(() => {
         // Notify failure
         this.$q.notify({
-          color: "negative",
-          position: "top",
-          message: "An error was encountered while saving the channel order.",
-          icon: "report_problem",
-          actions: [{ icon: "close", color: "white" }]
+          color: 'negative',
+          position: 'top',
+          message: 'An error was encountered while saving the channel order.',
+          icon: 'report_problem',
+          actions: [{icon: 'close', color: 'white'}],
         });
       });
     },
     setChannelOrder: function(event) {
-      console.log("setChannelOrder");
+      console.log('setChannelOrder');
       const movedItem = event.moved.element;
       // Shift the channel number of item that was moved
       this.shiftChannelNumber(this.listOfChannels, movedItem.id);
@@ -568,21 +567,21 @@ export default defineComponent({
       // Ensure value is above 1000 and less than 10000
       if (isNaN(this.editedValue) || this.editedValue < 1000 || this.editedValue > 9999) {
         // Value already exists
-        console.error("Value is less than 1000");
+        console.error('Value is less than 1000');
         // Notify failure
         this.$q.notify({
-          color: "negative",
-          position: "top",
-          message: "You must enter a number between 1000 and 9999.",
-          icon: "report_problem",
-          actions: [{ icon: "close", color: "white" }]
+          color: 'negative',
+          position: 'top',
+          message: 'You must enter a number between 1000 and 9999.',
+          icon: 'report_problem',
+          actions: [{icon: 'close', color: 'white'}],
         });
         return;
       }
 
       if (this.editedValue === this.listOfChannels[this.editIndex].number) {
         // Value already exists
-        console.warn("Value already exists");
+        console.warn('Value already exists');
         this.formVisible = false;
         return;
       }
@@ -594,10 +593,10 @@ export default defineComponent({
       this.fixNumberIncrement(this.listOfChannels);
       // Save new channel layout
       this.saveChannel();
-    }
+    },
   },
   created() {
     this.fetchChannels();
-  }
+  },
 });
 </script>
