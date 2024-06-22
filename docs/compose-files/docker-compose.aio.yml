@@ -35,9 +35,9 @@ services:
       # Executes a pip install on container startup (might be required to generate the venv)
       - RUN_PIP_INSTALL=false
       # Enables debug logging
-      - ENABLE_DEBUGGING=true
+      - ENABLE_DEBUGGING=false
       # Sets Flask Debug mode on. Will restart the process if changes to files are made
-      - FLASK_DEBUG=true
+      - FLASK_DEBUG=false
 
     # VOLUMES:
     volumes:

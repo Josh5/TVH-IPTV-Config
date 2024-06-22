@@ -32,10 +32,6 @@ Populate this file with the contents of one of these Docker Compose templates:
 - [AIO Stack with TIC & TVH in a single container (Recommended)](./compose-files/docker-compose.aio.yml).
 - [Side-cart Stack with TIC & TVH in separate containers (Requires that you do some initial setup for TVH)](./compose-files/docker-compose.side-tvh.yml).
 
-### AMD/Intel:
-- [AMD and Intel GPUs](./compose-files/docker-compose.amd+intel.yml).
-- [Privileged AMD and Intel GPUs Docker Compose Template](./compose-files/docker-compose.amd+intel.privileged.yml) (grants full access to host devices).
-
 ## EXECUTE:
 
 Navigate to your compose location and execute it.
