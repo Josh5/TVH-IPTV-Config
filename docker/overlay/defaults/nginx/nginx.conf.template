@@ -1,5 +1,5 @@
 worker_processes 1;
-error_log /dev/stderr;
+error_log stderr;
 daemon off;
 pid nginx.pid;
 

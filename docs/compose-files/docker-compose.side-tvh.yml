@@ -1,0 +1,76 @@
+---
+version: "2.4"
+
+networks:
+  private-net:
+
+services:
+  # -- TVH IPTV CONFIG --
+  tic:
+    image: josh5/tvh-iptv-config:latest
+
+    # NETWORK:
+    networks:
+      - private-net
+    ports:
+      # App Port (9985)
+      - 9985:9985
+      # Proxy Port (9987)
+      - 9987:9987
+
+    # ENVIRONMENT:
+    environment:
+      # Process user ID
+      - PUID=1000
+      # Process group ID
+      - PGID=1000
+      # Timezone
+      - TZ=Pacific/Auckland
+      # Skips the DB migrate command execution on container startup
+      - SKIP_MIGRATIONS=false
+      # Executes a pip install on container startup (might be required to generate the venv)
+      - RUN_PIP_INSTALL=false
+      # Enables debug logging
+      - ENABLE_DEBUGGING=true
+      # Sets Flask Debug mode on. Will restart the process if changes to files are made
+      - FLASK_DEBUG=true
+
+    # VOLUMES:
+    volumes:
+      # Configuration files
+      - /opt/container-services/tvh-iptv/tic-config:/config
+
+    depends_on:
+      - tvheadend
+
+  # -- TVHEADEND --
+  tvheadend:
+    image: lscr.io/linuxserver/tvheadend:latest
+
+    # NETWORK:
+    networks:
+      - private-net
+    ports:
+      - "9981:9981/tcp" # Webui
+      - "9982:9982/tcp" # HTSP
+
+    # ENVIRONMENT:
+    environment:
+      # Process user ID
+      - PUID=1000
+      # Process group ID
+      - PGID=1000
+      # Timezone
+      - TZ=Pacific/Auckland
+      # Additional arguments to be passed to Tvheadend (Optional)
+      # - RUN_OPTS= #optional
+
+    # VOLUMES:
+    volumes:
+      - /opt/container-services/tvh-iptv/tvh-config:/config
+      - /opt/container-services/tvh-iptv/tvh-recordings:/recordings
+      - /opt/container-services/tvh-iptv/tvh-timeshift:/timeshift
+
+    # DEVICES: - Uncomment if required
+    # devices:
+    #   - /dev/dri #optional

@@ -5,11 +5,14 @@
 # File Created: Monday, 13th May 2024 4:20:35 pm
 # Author: Josh.5 (jsunnex@gmail.com)
 # -----
-# Last Modified: Tuesday, 18th June 2024 1:49:37 am
+# Last Modified: Saturday, 22nd June 2024 1:39:40 pm
 # Modified By: Josh5 (jsunnex@gmail.com)
 ###
 
 set -e
+
+# Ensure HOME is always set to /config
+export HOME="/config"
 
 # All printed log lines from this script should be formatted with this function
 print_log() {
@@ -33,14 +36,27 @@ _term() {
 }
 trap _term SIGTERM SIGINT
 
+# If running as root, perform setup and re-run this script as the specified user
+if [ "$(id -u)" = "0" ]; then
+    # Create required directories
+    mkdir -p /config/.tvh_iptv_config
+    chown "${PUID:-1000}:${PGID:-1000}" /config/.tvh_iptv_config
+    mkdir -p /tmp/nginx
+    chown "${PUID:-1000}:${PGID:-1000}" /tmp/nginx
+    if command -v tvheadend >/dev/null 2>&1; then
+        mkdir -p /config/.tvheadend
+        chown "${PUID:-1000}:${PGID:-1000}" /config/.tvheadend
+    fi
+    exec gosu "${PUID:-1000}" env HOME="/config" "$0" "$@"
+fi
+
 # Ensure the customer is set
-print_log info "APP_HOST_IP: ${APP_HOST_IP:-APP_HOST_IP variable has not been set}"
-print_log info "APP_PORT: ${APP_PORT:-APP_PORT variable has not been set}"
 print_log info "ENABLE_DEBUGGING: ${ENABLE_DEBUGGING:-ENABLE_DEBUGGING variable has not been set}"
+print_log info "SKIP_MIGRATIONS: ${SKIP_MIGRATIONS:-SKIP_MIGRATIONS variable has not been set}"
+print_log info "RUN_PIP_INSTALL: ${RUN_PIP_INSTALL:-RUN_PIP_INSTALL variable has not been set}"
 
 # Configure required directories
-mkdir -p \
-    /config/.tvh_iptv_config
+mkdir -p /config/.tvh_iptv_config
 
 # Exec provided command
 if [ "X$*" != "X" ]; then

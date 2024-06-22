@@ -71,7 +71,7 @@ This will create a directory within this project root called `./dev_env` which c
 From the project root run:
 ```
 mkdir -p ./dev_env/config
-docker compose -f docker-compose.side-tvh.yml up --build
+docker compose -f ./docker/docker-compose.dev-aio.yml up --build
 ```
 
 This will create a directory within this project root called `./dev_env` which contains all configuration and cache data.

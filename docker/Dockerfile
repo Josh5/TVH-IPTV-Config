@@ -44,16 +44,15 @@ LABEL build="Version:- ${VERSION} Build-date:- ${BUILD_DATE} Base:- ${BASE_IMAGE
 
 USER root
 
-# environment settings
-ENV HOME="/config"
-
 # Runtime packages
+COPY --from=tianon/gosu:alpine /gosu /usr/local/bin/
 RUN \
     echo "**** install container runtime packages ****" \
         && apk add --no-cache \
             bash \
             ca-certificates \
             curl \
+            tini \
             tzdata \
     && \
     echo "**** install tic application runtime packages ****" \
@@ -139,6 +138,7 @@ COPY run.py /app/run.py
 COPY db-migrate.sh /app/db-migrate.sh
 
 # Set environment variables
+ENV HOME="/config"
 ENV FLASK_APP="/app/run.py"
 ENV FLASK_RUN_PORT="9985"
 ENV FLASK_RUN_HOST="0.0.0.0"
@@ -153,4 +153,4 @@ EXPOSE 9985/tcp
 
 # Install entrypoint script
 COPY ./docker/entrypoint.sh /entrypoint.sh
-ENTRYPOINT [ "/entrypoint.sh" ]
+ENTRYPOINT [ "/sbin/tini", "--", "/entrypoint.sh" ]

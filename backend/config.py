@@ -139,7 +139,7 @@ class Config:
             "settings": {
                 "first_run":                True,
                 "tvheadend":                {
-                    "host":     os.environ.get("APP_HOST_IP", "127.0.0.1"),
+                    "host":     "",
                     "port":     "9981",
                     "path":     "/",
                     "username": "",

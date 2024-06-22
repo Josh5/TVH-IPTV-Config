@@ -9,31 +9,30 @@ services:
   tic:
     image: josh5/tvh-iptv-config:latest
     build:
-      context: .
+      context: ..
       dockerfile: docker/Dockerfile
       args:
         VERSION: "UNKNOWN"
         BUILD_DATE: "NOW"
         BASE_IMAGE: "python:3.12-alpine"
-    user: "${PUID:-1000}:${PGID:-1000}"
 
     # NETWORK:
     networks:
       - private-net
     ports:
-      # WebUI Port (9985)
+      # App Port (9985)
       - 9985:9985
       # Proxy Port (9987)
       - 9987:9987
 
     # ENVIRONMENT:
     environment:
+      # Process user ID
+      - PUID=1000
+      # Process group ID
+      - PGID=1000
       # Timezone
       - TZ=Pacific/Auckland
-      # The host IP address used to contact this application.
-      - APP_HOST_IP=192.168.1.102
-      # Application Port (needs to match the exposed port listed above)
-      - APP_PORT=9985
       # Skips the DB migrate command execution on container startup
       - SKIP_MIGRATIONS=false
       # Executes a pip install on container startup (might be required to generate the venv)
@@ -46,9 +45,9 @@ services:
     # VOLUMES:
     volumes:
       # Configuration files
-      - ./dev_env/config:/config
+      - ../dev_env/config:/config
       # Application source passthrough
-      - ./:/app
+      - ../:/app
 
     depends_on:
       - tvheadend
@@ -77,9 +76,9 @@ services:
 
     # VOLUMES:
     volumes:
-      - ./dev_env/tvheadend:/config
-      - ./dev_env/tvh-recordings:/recordings
-      - ./dev_env/tvh-timeshift:/timeshift
+      - ../dev_env/tvheadend:/config
+      - ../dev_env/tvh-recordings:/recordings
+      - ../dev_env/tvh-timeshift:/timeshift
 
     ## # DEVICES:
     ## devices:
