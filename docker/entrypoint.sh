@@ -5,7 +5,7 @@
 # File Created: Monday, 13th May 2024 4:20:35 pm
 # Author: Josh.5 (jsunnex@gmail.com)
 # -----
-# Last Modified: Saturday, 22nd June 2024 1:39:40 pm
+# Last Modified: Saturday, 22nd June 2024 9:28:25 pm
 # Modified By: Josh5 (jsunnex@gmail.com)
 ###
 
@@ -46,6 +46,10 @@ if [ "$(id -u)" = "0" ]; then
     if command -v tvheadend >/dev/null 2>&1; then
         mkdir -p /config/.tvheadend
         chown "${PUID:-1000}:${PGID:-1000}" /config/.tvheadend
+        mkdir -p /recordings
+        chown -R "${PUID:-1000}:${PGID:-1000}" /recordings
+        mkdir -p /timeshift
+        chown -R "${PUID:-1000}:${PGID:-1000}" /timeshift
     fi
     exec gosu "${PUID:-1000}" env HOME="/config" "$0" "$@"
 fi
