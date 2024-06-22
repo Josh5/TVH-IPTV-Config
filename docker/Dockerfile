@@ -1,5 +1,5 @@
 ARG BASE_IMAGE
-FROM ${BASE_IMAGE} as base_image
+FROM ${BASE_IMAGE} AS base_image
 
 #  _____ ____   ___  _   _ _____ _____ _   _ ____    ____ _____  _    ____ _____
 # |  ___|  _ \ / _ \| \ | |_   _| ____| \ | |  _ \  / ___|_   _|/ \  / ___| ____|
@@ -7,7 +7,7 @@ FROM ${BASE_IMAGE} as base_image
 # |  _| |  _ <| |_| | |\  | | | | |___| |\  | |_| |  ___) || |/ ___ \ |_| | |___
 # |_|   |_| \_\\___/|_| \_| |_| |_____|_| \_|____/  |____/ |_/_/   \_\____|_____|
 #
-FROM node:22-alpine as frontend_build_stage
+FROM node:22-alpine AS frontend_build_stage
 
 COPY ./frontend/package.json /build/
 COPY ./frontend/package-lock.json /build/
