@@ -117,7 +117,7 @@ else
             cp -rf /defaults/tvheadend/config /config/.tvheadend/config
         fi
         print_log info "Starting tvheadend service"
-        tvheadend --config /config/.tvheadend --http_root /tic-tvh &
+        tvheadend --config /config/.tvheadend --http_root /tic-tvh --nosatipcli &
         tvh_pid=$!
         print_log info "Started tvheadend service with PID $tvh_pid"
     fi
