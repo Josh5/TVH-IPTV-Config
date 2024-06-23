@@ -5,7 +5,7 @@
 # File Created: Monday, 13th May 2024 4:20:35 pm
 # Author: Josh.5 (jsunnex@gmail.com)
 # -----
-# Last Modified: Saturday, 22nd June 2024 9:28:25 pm
+# Last Modified: Monday, 24th June 2024 12:56:01 am
 # Modified By: Josh5 (jsunnex@gmail.com)
 ###
 
@@ -117,7 +117,7 @@ else
             cp -rf /defaults/tvheadend/config /config/.tvheadend/config
         fi
         print_log info "Starting tvheadend service"
-        tvheadend --config /config/.tvheadend --http_root /tic-tvh --nosatipcli &
+        tvheadend --config /config/.tvheadend --http_root /tic-tvh --nobackup --nosatipcli &
         tvh_pid=$!
         print_log info "Started tvheadend service with PID $tvh_pid"
     fi
