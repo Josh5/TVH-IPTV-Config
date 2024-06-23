@@ -293,7 +293,12 @@ def update_channel(config, channel_id, data):
                     # noinspection HttpUrlsUsage
                     playlist_stream['url'] = f'{app_url}/tic-hls-proxy.m3u8?url={playlist_stream['url']}'
                 else:
-                    playlist_stream['url'] = f'{playlist_info.hls_proxy_path}{playlist_stream['url']}'
+                    hls_proxy_path = playlist_info.hls_proxy_path
+                    playlist_url = playlist_stream['url']
+                    encoded_playlist_url = base64.b64encode(playlist_url.encode('utf-8')).decode('utf-8')
+                    hls_proxy_path = hls_proxy_path.replace("[URL]", playlist_url)
+                    hls_proxy_path = hls_proxy_path.replace("[B64_URL]", encoded_playlist_url)
+                    playlist_stream['url'] = hls_proxy_path
             channel_source = ChannelSource(
                 playlist_id=playlist_info.id,
                 playlist_stream_name=source_info['stream_name'],
@@ -318,7 +323,12 @@ def update_channel(config, channel_id, data):
                             # noinspection HttpUrlsUsage
                             playlist_stream['url'] = f'{app_url}/tic-hls-proxy.m3u8?url={playlist_stream['url']}'
                         else:
-                            playlist_stream['url'] = f'{playlist_info.hls_proxy_path}{playlist_stream['url']}'
+                            hls_proxy_path = playlist_info.hls_proxy_path
+                            playlist_url = playlist_stream['url']
+                            encoded_playlist_url = base64.b64encode(playlist_url.encode('utf-8')).decode('utf-8')
+                            hls_proxy_path = hls_proxy_path.replace("[URL]", playlist_url)
+                            hls_proxy_path = hls_proxy_path.replace("[B64_URL]", encoded_playlist_url)
+                            playlist_stream['url'] = hls_proxy_path
                     # Update playlist stream url
                     logger.info("    - Updating channel %s source from '%s' to '%s'", channel.name,
                                 channel_source.playlist_stream_url, playlist_stream['url'])

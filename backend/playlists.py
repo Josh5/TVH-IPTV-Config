@@ -34,7 +34,7 @@ async def read_config_all_playlists(config, output_for_export=False):
                         'url':                  result.url,
                         'use_hls_proxy':        result.use_hls_proxy,
                         'use_custom_hls_proxy': result.use_custom_hls_proxy,
-                        'hls_proxy_path':       result.hls_proxy_path if result.hls_proxy_path else f'{app_url}/tic-hls-proxy.m3u8?url=',
+                        'hls_proxy_path':       result.hls_proxy_path if result.hls_proxy_path else f'{app_url}/tic-hls-proxy.m3u8?url=[URL]',
                     })
                     continue
                 return_list.append({
@@ -45,7 +45,7 @@ async def read_config_all_playlists(config, output_for_export=False):
                     'url':                  result.url,
                     'use_hls_proxy':        result.use_hls_proxy,
                     'use_custom_hls_proxy': result.use_custom_hls_proxy,
-                    'hls_proxy_path':       result.hls_proxy_path if result.hls_proxy_path else f'{app_url}/tic-hls-proxy.m3u8?url=',
+                    'hls_proxy_path':       result.hls_proxy_path if result.hls_proxy_path else f'{app_url}/tic-hls-proxy.m3u8?url=[URL]',
                 })
     return return_list
 
@@ -68,7 +68,7 @@ async def read_config_one_playlist(config, playlist_id):
                     'connections':          result.connections,
                     'use_hls_proxy':        result.use_hls_proxy,
                     'use_custom_hls_proxy': result.use_custom_hls_proxy,
-                    'hls_proxy_path':       result.hls_proxy_path if result.hls_proxy_path else f'{app_url}/tic-hls-proxy.m3u8?url=',
+                    'hls_proxy_path':       result.hls_proxy_path if result.hls_proxy_path else f'{app_url}/tic-hls-proxy.m3u8?url=[URL]',
                 }
     return return_item
 
@@ -85,7 +85,7 @@ async def add_new_playlist(config, data):
                 connections=data.get('connections'),
                 use_hls_proxy=data.get('use_hls_proxy', False),
                 use_custom_hls_proxy=data.get('use_custom_hls_proxy', False),
-                hls_proxy_path=data.get('hls_proxy_path', f'{app_url}/tic-hls-proxy.m3u8?url='),
+                hls_proxy_path=data.get('hls_proxy_path', f'{app_url}/tic-hls-proxy.m3u8?url=[URL]'),
             )
             # This is a new entry. Add it to the session before commit
             session.add(playlist)

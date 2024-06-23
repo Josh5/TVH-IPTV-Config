@@ -162,6 +162,7 @@
                 <q-input
                   v-model="hlsProxyPath"
                   label="HLS Proxy Path"
+                  hint="Note: Insert [URL] or [B64_URL] in the URL as a placeholder for the playlist URL. If '[B64 URL]' is used, then the URL will be base64 encoded before inserting"
                 />
               </div>
 
@@ -223,7 +224,7 @@ export default {
       this.connections = 1;
       this.useHlsProxy = false;
       this.useCustomHlsProxy = false;
-      this.hlsProxyPath = window.location.origin + '/tic-hls-proxy.m3u8?url=';
+      this.hlsProxyPath = window.location.origin + '/tic-hls-proxy.m3u8?url=[URL]';
     },
 
     // following method is REQUIRED
