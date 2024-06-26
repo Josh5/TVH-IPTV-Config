@@ -625,7 +625,8 @@ async def queue_background_channel_update_tasks(config):
     }, priority=14)
     # Fetch additional EPG data from the internet
     from backend.epgs import update_channel_epg_with_online_data
-    if settings['settings'].get('epgs', {}).get('enable_tmdb_metadata'):
+    epg_settings = settings['settings'].get('epgs', {})
+    if epg_settings.get('enable_tmdb_metadata') or epg_settings.get('enable_google_image_search_metadata'):
         await task_broker.add_task({
             'name':     'Update EPG Data with online metadata',
             'function': update_channel_epg_with_online_data,

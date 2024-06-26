@@ -487,8 +487,8 @@ async def search_google_images(title, cache, lock, semaphore):
                     soup = BeautifulSoup(await response.text(), 'html.parser')
                     images = soup.find_all('img')
                     if images:
-                        image_url = images[1][
-                            'src']  # The first image might be the Google logo, so we take the second one
+                        # The first image might be the Google logo, so we take the second one
+                        image_url = images[1]['src']
                         async with lock:
                             cache['google_images'][title] = image_url  # Cache the first image URL
                         logger.debug("       - Fetching data for program '%s' from Google Images. [FETCHED]", title)
@@ -521,10 +521,10 @@ async def update_programme_with_online_data(settings, programme, categories, cac
 
     # Fetch icon_url from Google Images if still missing
     if not programme.icon_url:
-        google_image_url = await search_google_images(title, cache, lock, semaphore)
-        logger.warning(google_image_url)
-        if google_image_url:
-            programme.icon_url = google_image_url
+        if settings['settings'].get('epgs', {}).get('enable_google_image_search_metadata'):
+            image_url = await search_google_images(title, cache, lock, semaphore)
+            if image_url:
+                programme.icon_url = image_url
 
     return programme
 
@@ -552,6 +552,8 @@ async def update_channel_epg_with_online_data(config):
     settings = config.read_settings()
     update_with_online_data = False
     if settings['settings'].get('epgs', {}).get('enable_tmdb_metadata'):
+        update_with_online_data = True
+    if settings['settings'].get('epgs', {}).get('enable_google_image_search_metadata'):
         update_with_online_data = True
     if not update_with_online_data:
         return
