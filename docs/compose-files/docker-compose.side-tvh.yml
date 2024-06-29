@@ -38,7 +38,7 @@ services:
     # VOLUMES:
     volumes:
       # Configuration files
-      - /opt/container-services/tvh-iptv/tic-config:/config
+      - /data/containers/tvh-iptv/tic-config:/config
 
     depends_on:
       - tvheadend
@@ -67,9 +67,9 @@ services:
 
     # VOLUMES:
     volumes:
-      - /opt/container-services/tvh-iptv/tvh-config:/config
-      - /opt/container-services/tvh-iptv/tvh-recordings:/recordings
-      - /opt/container-services/tvh-iptv/tvh-timeshift:/timeshift
+      - /data/containers/tvh-iptv/tvh-config:/config
+      - /data/containers/tvh-iptv/tvh-recordings:/recordings
+      - /data/containers/tvh-iptv/tvh-timeshift:/timeshift
 
     # DEVICES: - Uncomment if required
     # devices:

@@ -42,4 +42,4 @@ services:
     # VOLUMES:
     volumes:
       # Configuration files
-      - /opt/container-services/tvh-iptv/tic-config:/config
+      - /data/containers/tvh-iptv/tic-config:/config

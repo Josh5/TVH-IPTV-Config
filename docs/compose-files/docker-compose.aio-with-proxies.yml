@@ -1,0 +1,101 @@
+---
+version: "2.4"
+
+# https://gist.github.com/Josh5/b8ad8cc8c2c945f3c270fe0d1c1a3172#file-docker-wg-net-sh
+# docker-wg-net.sh --network-name vpn-uk-net
+networks:
+  # Created a private 'internal' network for communication between containers (no external access)
+  private-net:
+    driver: bridge
+    internal: true
+  # Create a bridge for the main service
+  tic-net:
+    driver: bridge
+  # Use the HLS proxy to manage the traffic that requires the VPN
+  # Use my script here to manage the VPN Docker networks:
+  #     - https://gist.github.com/Josh5/b8ad8cc8c2c945f3c270fe0d1c1a3172#file-docker-wg-net-sh
+  docker-wg0:
+    driver: bridge
+    # Configure as external. This requires that you have first set up the VPN docker network named 'docker-wg0'
+    external: true
+
+
+services:
+  # -- TVH IPTV CONFIG --
+  tic:
+    image: josh5/tvh-iptv:latest
+
+    # NETWORK:
+    networks:
+      - private-net
+      - tic-net
+    ports:
+      # App Port (9985)
+      - 9985:9985
+      # TVH Webui
+      - 9981:9981
+      # TVH HTSP
+      - 9982:9982
+
+    # ENVIRONMENT:
+    environment:
+      # Process user ID
+      - PUID=1000
+      # Process group ID
+      - PGID=1000
+      # Timezone
+      - TZ=Pacific/Auckland
+      # Skips the DB migrate command execution on container startup
+      - SKIP_MIGRATIONS=false
+      # Executes a pip install on container startup (might be required to generate the venv)
+      - RUN_PIP_INSTALL=false
+      # Enables debug logging
+      - ENABLE_DEBUGGING=false
+      # Sets Flask Debug mode on. Will restart the process if changes to files are made
+      - FLASK_DEBUG=false
+
+    # VOLUMES:
+    volumes:
+      # Configuration files
+      - /data/containers/tvh-iptv/tic-config:/config
+
+  # -- HLS Proxy --
+  #
+  # Run 'HLS-Proxy' - A feature rich HTTP Live Streaming Proxy
+  #   REF: https://github.com/warren-bank/HLS-Proxy
+  #
+  # To use this with TVH-IPTV-Config, configure the playlist with a custom HLS proxy using this URL:
+  #   > http://hls-proxy:9987/[B64_URL].m3u8
+  #
+  hls-proxy:
+    image: node:latest
+    entrypoint: "sh"
+    command: |
+      -c '
+      set -e
+
+      cd $$(mktemp -d)
+      npm install "@warren-bank/hls-proxy"
+
+      npx hlsd --version
+
+      # https://github.com/warren-bank/HLS-Proxy?tab=readme-ov-file#options
+      npx hlsd \
+        -v 1 \
+        --host $${HLS_PROXY_HOST_IP}:9987 \
+        --port 9987 \
+        --prefetch \
+        --max-segments 100 \
+        --useragent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36 Edg/96.0.1054.62"
+      '
+
+    # NETWORK:
+    networks:
+      - private-net
+      - docker-wg0
+
+    # ENVIRONMENT:
+    environment:
+      # Container:
+      HLS_PROXY_LOG_LEVEL: ${LOG_LEVEL:-0}
+      HLS_PROXY_HOST_IP: hls-proxy # Must be the same name as the service
