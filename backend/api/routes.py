@@ -56,10 +56,12 @@ async def ping():
 
 @blueprint.route('/tic-api/check-auth')
 async def api_check_auth():
+    config = current_app.config['APP_CONFIG']
     if await check_auth():
         return jsonify(
             {
-                "success": True,
+                "success":     True,
+                "runtime_key": config.runtime_key
             }
         ), 200
     return jsonify(

@@ -38,6 +38,11 @@ export default function pollForBackgroundTasks() {
 
   async function fetchData() {
     const response = await fetch('/tic-api/get-background-tasks');
+    // Check if authentication is required
+    if ([401, 502, 504].includes(response.status)) {
+      // Stop polling
+      return;
+    }
     if (response.ok) {
       let payload = await response.json();
       let tasks = [];

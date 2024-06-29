@@ -127,6 +127,7 @@ def recursive_dict_update(defaults, updates):
 
 
 class Config:
+    runtime_key = ''
 
     def __init__(self, **kwargs):
         # Set default directories

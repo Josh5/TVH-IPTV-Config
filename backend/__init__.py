@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
 import logging
+import time
 from logging.config import dictConfig
 from importlib import import_module
 
@@ -65,6 +66,7 @@ def register_blueprints(app):
 def create_app():
     # Fetch app config
     app_config = config.Config()
+    app_config.runtime_key = int(time.time())
     # Create app
     app = Quart(__name__, instance_relative_config=True)
     app.config["SECRET_KEY"] = config.secret_key
