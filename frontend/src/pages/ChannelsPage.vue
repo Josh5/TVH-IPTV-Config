@@ -36,6 +36,14 @@
                     color="primary"
                     label="Edit Categories" />
                 </q-btn-group>
+                <q-btn-group class="q-ml-sm">
+                  <q-btn
+                    @click="triggerRefreshChannelSources()"
+                    :disabled="!anyChannelsSelectedInBulkEdit"
+                    class=""
+                    color="primary"
+                    label="Refresh Channel Sources" />
+                </q-btn-group>
               </q-page-sticky>
             </div>
             <div class="col-auto">
@@ -710,6 +718,18 @@ export default defineComponent({
       // Reset inputs
       this.bulkEditCategories = [];
       this.applyCategoriesAction = 'Add';
+      // Save new channel layout
+      this.saveChannel();
+    },
+    triggerRefreshChannelSources: function() {
+      // Add all channel sources to their respective refresh_sources list
+      for (let i = 0; i < this.listOfChannels.length; i++) {
+        const item = this.listOfChannels[i];
+        // Check if the channel is selected
+        if (item.selected) {
+          item.refresh_sources = item.sources;
+        }
+      }
       // Save new channel layout
       this.saveChannel();
     },
