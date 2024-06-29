@@ -20,7 +20,7 @@
             <q-bar class="bg-primary text-white">
               <div class="text-h6">Tvheadend Backend</div>
               <q-space />
-              <q-btn flat round dense icon="open_in_new" href="/tic-tvh/" target="_blank" />
+              <q-btn flat round dense icon="open_in_new" href="/tic-tvh/" target="_blank" @click="showTvheadendAdmin = false" />
               <q-btn flat round dense icon="close" @click="showTvheadendAdmin = false" />
             </q-bar>
 
