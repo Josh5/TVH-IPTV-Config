@@ -464,8 +464,11 @@ class Tvheadend:
         for grabber in response.get('entries', []):
             if grabber['title'] == "Internal: XMLTV: XMLTV URL grabber":
                 node = {
-                    "enabled": True, "priority": 1, "dn_chnum": 1, "uuid": grabber['uuid'],
-                    "args":    f"{tic_base_url}/tic-web/epg.xml"
+                    "uuid":     grabber['uuid'],
+                    "args":     f"{tic_base_url}/tic-web/epg.xml",
+                    "enabled":  True,
+                    "priority": 1,
+                    "dn_chnum": 0,
                 }
                 await self.idnode_save(node)
 
