@@ -381,7 +381,7 @@ async def add_bulk_channels(config, data):
         if epg_match is not None:
             new_channel_data['guide'] = {
                 'channel_id': epg_match.channel_id,
-                'epg_id':     1,
+                'epg_id':     epg_match.epg_id,
                 'epg_name':   epg_match.name,
             }
         # Apply the stream to the channel
