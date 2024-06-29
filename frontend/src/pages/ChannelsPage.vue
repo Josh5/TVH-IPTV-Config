@@ -7,7 +7,7 @@
         <q-card-section :class="$q.platform.is.mobile ? 'q-px-none' : ''">
           <div class="row q-gutter-xs q-mt-xs justify-between">
             <div class="col-auto">
-              <q-btn-group>
+              <q-btn-group v-if="bulkEditMode !== true">
                 <q-btn
                   @click="openChannelSettings(null)"
                   class=""
@@ -15,16 +15,36 @@
                   icon-right="add"
                   label="Add Channel" />
               </q-btn-group>
-              <q-btn-group class="q-ml-sm">
+              <q-btn-group v-if="bulkEditMode !== true" class="q-ml-sm">
                 <q-btn
                   @click="openChannelsImport()"
                   class=""
                   color="primary"
-                  icon-right="playlist_add_check"
+                  icon-right="dvr"
                   label="Import Channels from playlist" />
               </q-btn-group>
+
+              <q-page-sticky
+                v-if="bulkEditMode === true"
+                position="top-left"
+                :offset="[120, 48]"
+                style="z-index: 3">
+                <q-btn-group>
+                  <q-btn
+                    @click="showBulkEditCategoriesDialog()"
+                    :disabled="!anyChannelsSelectedInBulkEdit"
+                    color="primary"
+                    label="Edit Categories" />
+                </q-btn-group>
+              </q-page-sticky>
             </div>
             <div class="col-auto">
+              <q-btn
+                @click="bulkEditMode = !bulkEditMode"
+                class=""
+                color="primary"
+                :icon-right="bulkEditMode ? `format_line_spacing` : `fact_check`"
+                :label="bulkEditMode ? `Exit Bulk Edit` : `Bulk Edit`" />
               <!--<q-btn
                  @click="exportChannels()"
                  class=""
@@ -106,7 +126,8 @@
         <q-card-section :class="$q.platform.is.mobile ? 'q-px-none' : ''">
           <div class="q-gutter-sm">
 
-            <q-dialog v-model="formVisible">
+            <!--CHANNEL NUMBER EDIT DIALOG-->
+            <q-dialog v-model="channelNumberEditDialogVisible">
               <q-card>
                 <q-card-section>
                   <q-input
@@ -119,8 +140,59 @@
                 </q-card-section>
 
                 <q-card-actions align="right">
-                  <q-btn label="Cancel" @click="formVisible = false" />
+                  <q-btn label="Cancel" @click="channelNumberEditDialogVisible = false" />
                   <q-btn label="Save" color="primary" @click="submitChannelNumberChange" />
+                </q-card-actions>
+              </q-card>
+            </q-dialog>
+
+            <!--BULK EDIT DIALOG-->
+
+            <q-dialog v-model="bulkEditCategoriesDialogVisible">
+              <q-card style="width: 700px; max-width: 80vw;">
+                <q-card-section class="bg-grey-8 text-white">
+                  <div class="text-h6">Bulk Edit Categories</div>
+                </q-card-section>
+
+                <!-- Apply Categories Select Menu -->
+                <q-card-section class="q-my-sm q-mx-xl">
+                  <q-select
+                    v-model="applyCategoriesAction"
+                    :options="applyCategoriesOptions"
+                    label="Apply Categories Action"
+                    outlined
+                    hint="See below for details on actions"
+                  >
+                  </q-select>
+                </q-card-section>
+
+                <!-- Categories Input -->
+                <q-card-section class="q-my-sm q-mx-xl">
+                  <div class="q-gutter-sm">
+                    <q-select
+                      use-input
+                      use-chips
+                      multiple
+                      hide-dropdown-icon
+                      input-debounce="0"
+                      new-value-mode="add-unique"
+                      v-model="bulkEditCategories"
+                      :label="`Categories to ` + applyCategoriesAction"
+                    />
+                  </div>
+                </q-card-section>
+
+                <!-- Explanation Text -->
+                <q-card-section class="q-my-sm q-mx-xl text-grey-8">
+                  <p><b>Add:</b> Add the categories to the existing list of categories.</p>
+                  <p><b>Remove:</b> Remove the entered categories from the channels.</p>
+                  <p><b>Replace:</b> Replace the categories with the entered categories.</p>
+                  <p>Enter no categories to clear all categories from the channels.</p>
+                </q-card-section>
+
+                <q-card-actions align="right">
+                  <q-btn label="Cancel" @click="bulkEditCategoriesDialogVisible = false" />
+                  <q-btn label="Save" color="primary" @click="submitBulkCategoriesChange" />
                 </q-card-actions>
               </q-card>
             </q-dialog>
@@ -148,8 +220,14 @@
 
                     <!--START DRAGGABLE HANDLE-->
                     <q-item-section avatar class="q-px-sm q-mx-sm handle">
-                      <q-avatar rounded>
-                        <q-icon name="drag_handle" class="" style="max-width: 30px;">
+                      <q-checkbox
+                        v-if="bulkEditMode === true"
+                        v-model="element.selected"
+                        @click="toggleSelection(element)" />
+                      <q-avatar
+                        v-else
+                        rounded>
+                        <q-icon name="format_line_spacing" class="" style="max-width: 30px;">
                           <q-tooltip class="bg-white text-primary">Drag to move and re-order</q-tooltip>
                         </q-icon>
                       </q-avatar>
@@ -159,8 +237,10 @@
                     <q-separator inset vertical class="gt-xs" />
 
                     <!--START CHANNEL NUMBER-->
-                    <q-item-section class="q-px-sm q-mx-sm" style="max-width:80px;"
-                                    @click="showChannelNumberMod(index)">
+                    <q-item-section
+                      class="q-px-sm q-mx-sm"
+                      style="max-width:80px;"
+                      @click="bulkEditMode? element.selected = !element.selected : showChannelNumberMod(index)">
                       <q-item-label lines="1" class="text-left">
                         <span class="q-ml-sm">Channel</span>
                       </q-item-label>
@@ -173,7 +253,9 @@
                     <q-separator inset vertical class="gt-xs" />
 
                     <!--START NAME / DESCRIPTION-->
-                    <q-item-section top class="q-mx-md" @click="openChannelSettings(element.id)">
+                    <q-item-section
+                      top class="q-mx-md"
+                      @click="bulkEditMode? element.selected = !element.selected : openChannelSettings(element)">
                       <q-item-label lines="1" class="text-left">
                         <q-avatar rounded size="35px">
                           <q-img :src="element.logo_url" class="" style="max-width: 30px;" />
@@ -182,7 +264,7 @@
                         <span class="text-weight-medium q-ml-sm">{{ element.name }}</span>
                       </q-item-label>
                       <q-item-label caption lines="1" class="text-left q-ml-sm">
-                        Tags: {{ element.tags }}
+                        Categories: {{ element.tags }}
                         | Sources: {{ Object.keys(element.sources).map(key => element.sources[key].playlist_name) }}
                       </q-item-label>
                       <q-tooltip
@@ -197,7 +279,9 @@
                     <q-separator inset vertical class="gt-xs" />
 
                     <!--START EPG DETAILS-->
-                    <q-item-section class="q-px-sm q-mx-sm" @click="openChannelSettings(element.id)">
+                    <q-item-section
+                      class="q-px-sm q-mx-sm"
+                      @click="bulkEditMode? element.selected = !element.selected : openChannelSettings(element)">
                       <q-item-label lines="1" class="text-left">
                         <span class="q-ml-sm">Guide</span>
                       </q-item-label>
@@ -218,7 +302,11 @@
                     <q-item-section side class="q-mr-md">
                       <div class="text-grey-8 q-gutter-xs">
                         <!--                        <q-btn class="gt-xs" size="12px" flat dense round icon="delete"/>-->
-                        <q-btn size="12px" flat dense round icon="tune" @click="openChannelSettings(element.id)">
+                        <q-btn
+                          size="12px"
+                          flat dense round
+                          icon="tune"
+                          @click="bulkEditMode? `` : openChannelSettings(element)">
                           <q-tooltip class="bg-white text-primary">Edit</q-tooltip>
                         </q-btn>
                       </div>
@@ -270,15 +358,22 @@ export default defineComponent({
   },
   data() {
     return {
-      chanelExportDialog: ref(false),
-      chanelExportDialogJson: ref(''),
+      bulkEditMode: false,
+      chanelExportDialog: false,
+      chanelExportDialogJson: '',
       options: {
         dropzoneSelector: '.q-list',
         draggableSelector: '.q-item',
       },
-      listOfChannels: ref(null),
+      listOfChannels: [],
+      selectedChannels: [],
 
-      formVisible: false,
+      channelNumberEditDialogVisible: false,
+      bulkEditCategoriesDialogVisible: false,
+      //newCategory: ref(''),
+      bulkEditCategories: [],
+      applyCategoriesAction: 'Add', // Selected action
+      applyCategoriesOptions: ['Add', 'Remove', 'Replace'], // Options for select menu
       editIndex: '',
       editedValue: '',
     };
@@ -294,6 +389,10 @@ export default defineComponent({
         delay: 200,
         delayOnTouchOnly: true,
       };
+    },
+    anyChannelsSelectedInBulkEdit() {
+      // Check if any channels are selected
+      return this.listOfChannels.some(channel => channel.selected);
     },
   },
   methods: {
@@ -399,7 +498,12 @@ export default defineComponent({
         method: 'GET',
         url: '/tic-api/channels/get',
       }).then((response) => {
-        this.listOfChannels = response.data.data.sort((a, b) => a.number - b.number);
+        // Map and sort channels, preserving selected status
+        this.listOfChannels = response.data.data.sort((a, b) => a.number - b.number).map(channel => {
+          // Check if channel ID exists in selectedChannels
+          const isSelected = this.selectedChannels.includes(channel.id);
+          return {...channel, selected: isSelected};
+        });
       }).catch(() => {
         this.$q.notify({
           color: 'negative',
@@ -410,11 +514,13 @@ export default defineComponent({
         });
       });
     },
-    openChannelSettings: function(channelId) {
+    openChannelSettings: function(channel) {
+      let channelId = null;
       let newChannelNumber = null;
-      if (!channelId) {
-        channelId = null;
+      if (!channel) {
         newChannelNumber = this.nextAvailableChannelNumber(this.listOfChannels);
+      } else {
+        channelId = channel.id;
       }
       // Display the dialog
       this.$q.dialog({
@@ -553,14 +659,59 @@ export default defineComponent({
       // Save new channel layout
       this.saveChannel();
     },
-    showChannelNumberMod(index) {
+    showChannelNumberMod: function(index) {
       console.log(index);
-      this.formVisible = true;
+      this.channelNumberEditDialogVisible = true;
       this.editIndex = index;
       this.editedValue = this.listOfChannels[index].number;
       this.$nextTick(() => {
         this.$refs.input.select();
       });
+    },
+    showBulkEditCategoriesDialog: function() {
+      this.bulkEditCategoriesDialogVisible = true;
+    },
+    toggleSelection(channel) {
+      if (channel.selected) {
+        this.selectedChannels.push(channel.id);
+      } else {
+        this.selectedChannels = this.selectedChannels.filter(id => id !== channel.id);
+      }
+    },
+    submitBulkCategoriesChange() {
+      // Implement your logic to apply category changes
+      console.log('Apply categories action:', this.applyCategoriesAction);
+      console.log('Selected categories:', this.bulkEditCategories);
+      for (let i = 0; i < this.listOfChannels.length; i++) {
+        const item = this.listOfChannels[i];
+        // Check if the channel is selected
+        if (item.selected) {
+          switch (this.applyCategoriesAction) {
+            case 'Add':
+              // Join bulkEditCategories with existing item.tags
+              item.tags = [...new Set([...item.tags, ...this.bulkEditCategories])];
+              break;
+            case 'Remove':
+              // Remove bulkEditCategories from existing item.tags
+              item.tags = item.tags.filter(tag => !this.bulkEditCategories.includes(tag));
+              break;
+            case 'Replace':
+              // Replace item.tags with bulkEditCategories
+              item.tags = [...this.bulkEditCategories];
+              break;
+            default:
+              // Handle default or unexpected case
+              break;
+          }
+        }
+      }
+      // Hide dialog
+      this.bulkEditCategoriesDialogVisible = false;
+      // Reset inputs
+      this.bulkEditCategories = [];
+      this.applyCategoriesAction = 'Add';
+      // Save new channel layout
+      this.saveChannel();
     },
     submitChannelNumberChange() {
       // Ensure value is a number
@@ -582,11 +733,11 @@ export default defineComponent({
       if (this.editedValue === this.listOfChannels[this.editIndex].number) {
         // Value already exists
         console.warn('Value already exists');
-        this.formVisible = false;
+        this.channelNumberEditDialogVisible = false;
         return;
       }
       this.listOfChannels[this.editIndex].number = this.editedValue;
-      this.formVisible = false;
+      this.channelNumberEditDialogVisible = false;
       // Shift any conflicting numbers
       //this.shiftNumbers(this.listOfChannels, this.listOfChannels[this.editIndex].id)
       // Fix the channel numbering
