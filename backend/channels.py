@@ -6,6 +6,7 @@ import os
 import re
 from mimetypes import guess_type
 
+import aiohttp
 import requests
 from sqlalchemy.orm import joinedload
 from sqlalchemy import and_, func, select
@@ -17,6 +18,8 @@ from backend.playlists import fetch_playlist_streams
 from backend.tvheadend.tvh_requests import get_tvh
 
 logger = logging.getLogger('werkzeug.channels')
+
+image_placeholder_base64 = 'iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAIAAAD/gAIDAAACiUlEQVR4nO2cy46sMAxEzdX8/y/3XUSKUM+I7sLlF6qzYgE4HJwQEsLxer1MfMe/6gJMQrIAJAtAsgAkC0CyACQLQLIAJAtAsgAkC0CyACQLQLIAJAtAsgAkC0CyACQL4Md5/HEclFH84ziud+gwV+C61H2F905yFvTxDNDOQXjz4p6vddTt0M7Db0OoRN/7cmZi6Nm+iphWblbrlnnm90CsMBe+EmpNTsVk3pM/faXd9oRYzH7WLui2lmlqFeBjF8QD/2LKn/Fxd4jfgy/vPcblV+zrTmiluCDIF1/WqgW/269kInyRZZ3bi+f5Ysr63bI+zFf4EE25LyI0WRcP7FpfxOTiyPrYtXmGr7yR0gfUx9Rh5em+CLKg14sqX5SaWDBhMTe/vLLuvbWW+PInV9lU2MT8qpw3HOereJJ1li+XLMowW6YvZ7PVYvp+Sn61kGVDfHWRZRN8NZJl7X31kmW9fbWTZY19dZRlXX01lWUtffWVZf18tZZlzXy5ZEV/iLGjrA1/LOf7WffMWjTJrxmyrIevMbKsgS+vrJxm6xxubdwI6h9QmpRZi8L8IshKTi675YsyTjkvsxYl+TVVllX44sjKr4k77tq4js76JJeWWW19ET9eHlwNN2n1kbxooPBzyLXxVgDuN/HkzGrli756IGQxQvIqlLfQe5tehpA2q0N+RRDVwBf62nRfNHCmxFfo+o7YrkOyr+j1HRktceFKVvKq7AcsM70+M9FX6jO+avU9K25Nhyj/vw4UX2W9R0v/Y4jfV6WsMzn/ovH+D6aJrDQ8z5knDNFAPH9GugmSBSBZAJIFIFkAkgUgWQCSBSBZAJIFIFkAkgUgWQCSBSBZAJIFIFkA/wGlHK2X7Li2TQAAAABJRU5ErkJggg=='
 
 
 async def read_config_all_channels(filter_playlist_ids=None, output_for_export=False):
@@ -132,23 +135,35 @@ def get_channel_image_path(config, channel_id):
     return os.path.join(config.config_path, 'cache', 'logos', f"channel_logo_{channel_id}")
 
 
-def download_image_to_base64(image_source):
+async def download_image_to_base64(image_source):
     # Image source is a URL
-    mime_type = guess_type(image_source)[0]
-    response = requests.get(image_source)
-    response.raise_for_status()  # Will raise an HTTPError if the HTTP request returned an unsuccessful status code
-    image_base64_string = base64.b64encode(response.content).decode()
+    try:
+        async with aiohttp.ClientSession() as session:
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36 Edg/96.0.1054.62'
+            }
+            async with session.get(image_source, headers=headers) as response:
+                response.raise_for_status()
+                image_data = await response.read()
+                mime_type = response.headers.get('Content-Type',
+                                                 'image/jpeg')  # Fallback to JPEG if no content-type header
+
+                image_base64_string = base64.b64encode(image_data).decode()
+    except Exception as e:
+        logger.error("An error occurred while downloading image: %s", e)
+        mime_type = 'image/png'
+        image_base64_string = image_placeholder_base64
+
     return image_base64_string, mime_type
 
 
-def parse_image_as_base64(image_source):
-    placeholder_base64 = 'iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAIAAAD/gAIDAAACiUlEQVR4nO2cy46sMAxEzdX8/y/3XUSKUM+I7sLlF6qzYgE4HJwQEsLxer1MfMe/6gJMQrIAJAtAsgAkC0CyACQLQLIAJAtAsgAkC0CyACQLQLIAJAtAsgAkC0CyACQL4Md5/HEclFH84ziud+gwV+C61H2F905yFvTxDNDOQXjz4p6vddTt0M7Db0OoRN/7cmZi6Nm+iphWblbrlnnm90CsMBe+EmpNTsVk3pM/faXd9oRYzH7WLui2lmlqFeBjF8QD/2LKn/Fxd4jfgy/vPcblV+zrTmiluCDIF1/WqgW/269kInyRZZ3bi+f5Ysr63bI+zFf4EE25LyI0WRcP7FpfxOTiyPrYtXmGr7yR0gfUx9Rh5em+CLKg14sqX5SaWDBhMTe/vLLuvbWW+PInV9lU2MT8qpw3HOereJJ1li+XLMowW6YvZ7PVYvp+Sn61kGVDfHWRZRN8NZJl7X31kmW9fbWTZY19dZRlXX01lWUtffWVZf18tZZlzXy5ZEV/iLGjrA1/LOf7WffMWjTJrxmyrIevMbKsgS+vrJxm6xxubdwI6h9QmpRZi8L8IshKTi675YsyTjkvsxYl+TVVllX44sjKr4k77tq4js76JJeWWW19ET9eHlwNN2n1kbxooPBzyLXxVgDuN/HkzGrli756IGQxQvIqlLfQe5tehpA2q0N+RRDVwBf62nRfNHCmxFfo+o7YrkOyr+j1HRktceFKVvKq7AcsM70+M9FX6jO+avU9K25Nhyj/vw4UX2W9R0v/Y4jfV6WsMzn/ovH+D6aJrDQ8z5knDNFAPH9GugmSBSBZAJIFIFkAkgUgWQCSBSBZAJIFIFkAkgUgWQCSBSBZAJIFIFkA/wGlHK2X7Li2TQAAAABJRU5ErkJggg=='
+async def parse_image_as_base64(image_source):
     try:
         if image_source.startswith('data:image/'):
             mime_type = image_source.split(';')[0].split(':')[1]
             image_base64_string = image_source.split('base64,')[1]
         elif image_source.startswith('http://') or image_source.startswith('https://'):
-            image_base64_string, mime_type = download_image_to_base64(image_source)
+            image_base64_string, mime_type = await download_image_to_base64(image_source)
         else:
             # Handle other cases or raise an error
             raise ValueError("Unsupported image source format")
@@ -156,14 +171,14 @@ def parse_image_as_base64(image_source):
         logger.error("An error occurred while updating channel image: %s", e)
         # Return the placeholder image
         mime_type = 'image/png'
-        image_base64_string = placeholder_base64
+        image_base64_string = image_placeholder_base64
 
     # Prepend the MIME type and base64 header and return
     base64_string_with_header = f"data:{mime_type};base64,{image_base64_string}"
     return base64_string_with_header
 
 
-def read_base46_image_string(base64_string):
+async def read_base46_image_string(base64_string):
     # Extract the MIME type and decode the base64 string
     try:
         mime_type = base64_string.split(';')[0].split(':')[1]
@@ -175,13 +190,13 @@ def read_base46_image_string(base64_string):
     return image_data, mime_type
 
 
-def read_channel_logo(channel_id):
+async def read_channel_logo(channel_id):
     channel = db.session.query(Channel).where(Channel.id == channel_id).one()
     base64_string = channel.logo_base64
     if not base64_string:
         # Revert to using the logo url
-        base64_string, mime_type = download_image_to_base64(channel.logo_url)
-    image_base64_string, mime_type = read_base46_image_string(base64_string)
+        base64_string, mime_type = await download_image_to_base64(channel.logo_url)
+    image_base64_string, mime_type = await read_base46_image_string(base64_string)
     return image_base64_string, mime_type
 
 
@@ -227,7 +242,7 @@ async def add_new_channel(config, data, commit=True):
 
     # Host an image cache
     # if data.get('logo_url'):
-    channel.logo_base64 = parse_image_as_base64(data.get('logo_url'))
+    channel.logo_base64 = await parse_image_as_base64(data.get('logo_url'))
 
     # Publish changes to TVH
     channel_uuid = await publish_channel_to_tvh(config, channel)
@@ -481,7 +496,7 @@ async def publish_bulk_channels_to_tvh(config):
         # Save network UUID against playlist in settings
         result.tvh_uuid = channel_uuid
         # Generate a local image cache
-        result.logo_base64 = parse_image_as_base64(result.logo_url)
+        result.logo_base64 = await parse_image_as_base64(result.logo_url)
         # Save channel details
         db.session.commit()
         # Append to list of current network UUIDs

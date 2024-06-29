@@ -334,7 +334,7 @@ async def build_custom_epg(config):
         if result.enabled:
             channel_id = generate_epg_channel_id(result.number, result.name)
             # Read cached image
-            image_data, mime_type = read_base46_image_string(result.logo_base64)
+            image_data, mime_type = await read_base46_image_string(result.logo_base64)
             cache_buster = time.time()
             ext = guess_extension(mime_type)
             logo_url = f"{settings['settings']['app_url']}/tic-api/channels/{result.id}/logo/{cache_buster}{ext}"

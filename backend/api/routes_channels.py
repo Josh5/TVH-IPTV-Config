@@ -106,7 +106,7 @@ async def api_delete_config_channels(channel_id):
 
 @blueprint.route('/tic-api/channels/<channel_id>/logo/<file_placeholder>', methods=['GET'])
 async def api_get_channel_logo(channel_id, file_placeholder):
-    image_base64_string, mime_type = read_channel_logo(channel_id)
+    image_base64_string, mime_type = await read_channel_logo(channel_id)
     # Convert to a BytesIO object for sending file
     image_io = io.BytesIO(image_base64_string)
     image_io.seek(0)
