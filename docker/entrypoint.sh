@@ -54,6 +54,11 @@ if [ "$(id -u)" = "0" ]; then
     exec gosu "${PUID:-1000}" env HOME="/config" "$0" "$@"
 fi
 
+# Print the current version (if the file exists)
+if [[ -f /version.txt ]]; then
+    cat /version.txt
+fi
+
 # Ensure the customer is set
 print_log info "ENABLE_DEBUGGING: ${ENABLE_DEBUGGING:-ENABLE_DEBUGGING variable has not been set}"
 print_log info "SKIP_MIGRATIONS: ${SKIP_MIGRATIONS:-SKIP_MIGRATIONS variable has not been set}"

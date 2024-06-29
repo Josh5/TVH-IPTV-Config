@@ -82,6 +82,9 @@ jobs:
             DOCKER_PUSH="false"
           fi
 
+          echo "Build: [$(date +"%F %T")] [${GITHUB_REF_NAME}] [${GITHUB_SHA}]" > ./docker/overlay/version.txt
+          cat ./docker/overlay/version.txt
+
           echo "docker_image=${DOCKER_IMAGE}" >> $GITHUB_OUTPUT
           echo "docker_tags=$(echo ${DOCKER_TAGS} | sed 's/,$//')" >> $GITHUB_OUTPUT
           echo "docker_platforms=linux/amd64" >> $GITHUB_OUTPUT
