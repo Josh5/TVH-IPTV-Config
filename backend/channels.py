@@ -201,6 +201,7 @@ async def read_channel_logo(channel_id):
 
 
 async def add_new_channel(config, data, commit=True):
+    settings = config.read_settings()
     channel = Channel(
         enabled=data.get('enabled'),
         name=data.get('name'),
@@ -230,6 +231,19 @@ async def add_new_channel(config, data, commit=True):
         playlist_info = db.session.query(Playlist).filter(Playlist.id == source_info['playlist_id']).one()
         playlist_streams = fetch_playlist_streams(playlist_info.id)
         playlist_stream = playlist_streams.get(source_info['stream_name'])
+        # Modify stream if using HLS proxy
+        if playlist_info.use_hls_proxy:
+            if not playlist_info.use_custom_hls_proxy:
+                app_url = settings['settings']['app_url']
+                # noinspection HttpUrlsUsage
+                playlist_stream['url'] = f'{app_url}/tic-hls-proxy.m3u8?url={playlist_stream['url']}'
+            else:
+                hls_proxy_path = playlist_info.hls_proxy_path
+                playlist_url = playlist_stream['url']
+                encoded_playlist_url = base64.b64encode(playlist_url.encode('utf-8')).decode('utf-8')
+                hls_proxy_path = hls_proxy_path.replace("[URL]", playlist_url)
+                hls_proxy_path = hls_proxy_path.replace("[B64_URL]", encoded_playlist_url)
+                playlist_stream['url'] = hls_proxy_path
         channel_source = ChannelSource(
             playlist_id=playlist_info.id,
             playlist_stream_name=source_info['stream_name'],
