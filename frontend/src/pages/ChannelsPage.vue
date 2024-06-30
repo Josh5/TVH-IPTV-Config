@@ -314,7 +314,7 @@
                           size="12px"
                           flat dense round
                           icon="tune"
-                          @click="bulkEditMode? `` : openChannelSettings(element)">
+                          @click="openChannelSettings(element)">
                           <q-tooltip class="bg-white text-primary">Edit</q-tooltip>
                         </q-btn>
                       </div>
