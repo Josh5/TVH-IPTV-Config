@@ -81,7 +81,7 @@ services:
 
       # https://github.com/warren-bank/HLS-Proxy?tab=readme-ov-file#options
       npx hlsd \
-        -v 1 \
+        -v ${HLS_PROXY_LOG_LEVEL} \
         --host $${HLS_PROXY_HOST_IP}:9987 \
         --port 9987 \
         --prefetch \
@@ -97,5 +97,5 @@ services:
     # ENVIRONMENT:
     environment:
       # Container:
-      HLS_PROXY_LOG_LEVEL: ${LOG_LEVEL:-0}
+      HLS_PROXY_LOG_LEVEL: ${LOG_LEVEL:-1}
       HLS_PROXY_HOST_IP: hls-proxy # Must be the same name as the service
