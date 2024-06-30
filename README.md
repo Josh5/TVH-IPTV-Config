@@ -52,19 +52,11 @@ I will probably not be acknowledging any issue reports or testing. But feel free
 
 ## Install and Run
 
-### Run from source:
+- [Run from source](./docs/run-from-source.md)
+- [Run with Docker Compose](./docs/run-with-docker-compose.md)
 
-1) Run the setup script. This will create a local environment, installing a Python virtual environment and all dependencies listed in the requirements.txt file, along with the building the frontend. You should re-run this script whenever you pull updates from GitHub.
-    ```
-    ./devops/setup_local_dev_env.sh
-    ```
-2) Run the project.
-    ```
-    ./devops/run_local_dev_env.sh
-    ```
 
-This will create a directory within this project root called `./dev_env` which contains all configuration and cache data.
-
+## Development
 
 ### Run from source with docker compose:
 
@@ -76,10 +68,14 @@ docker compose -f ./docker/docker-compose.dev-aio.yml up --build
 
 This will create a directory within this project root called `./dev_env` which contains all configuration and cache data.
 
+### Run from source with a Python venv
 
-## Development
+To setup a development environment, first setup a [Run from source](./docs/run-from-source.md) setup.
 
-To setup a development environment, first setup either a [Run from source](#Run-from-source) or [Run from source with docker compose](#Run-from-source-with-docker-compose) setup from the instructions in the previous section.
+Then run the project with debugging tools enabled by using the script
+```
+./devops/run_local_dev_env.sh
+```
 
 ### Updating packages
 Activate the venv and, from inside the Python venv, run the command:

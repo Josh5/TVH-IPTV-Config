@@ -5,8 +5,8 @@
 # File Created: Tuesday, 11th April 2023 3:31:39 pm
 # Author: Josh.5 (jsunnex@gmail.com)
 # -----
-# Last Modified: Saturday, 20th January 2024 4:23:11 pm
-# Modified By: Josh.5 (jsunnex@gmail.com)
+# Last Modified: Sunday, 30th June 2024 12:45:49 pm
+# Modified By: Josh5 (jsunnex@gmail.com)
 ###
 
 script_path=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -25,14 +25,15 @@ source venv-local/bin/activate
 export PYTHONUNBUFFERED=1;
 export FLASK_APP=run.py;
 export FLASK_DEBUG=true;
+export ENABLE_DEBUGGING=true;
 export HOME_DIR="${PWD}/dev_env/config/"
 
 mkdir -p "${HOME_DIR}"
 
 # Setup database
-flask db upgrade
+alembic upgrade head
 
 # Run main process
-python3 ./run.py
+python3 "${FLASK_APP:?}"
 
 popd || exit 1

@@ -99,5 +99,6 @@ if __name__ == "__main__":
 
     # Start Quart server
     app.logger.info("Starting Quart server...")
-    app.run(loop=loop, host=config.flask_run_host, port=config.flask_run_port)
+    app.run(loop=loop, host=config.flask_run_host, port=config.flask_run_port,
+            debug=config.enable_debugging, use_reloader=config.enable_debugging)
     app.logger.info("Quart server completed.")
