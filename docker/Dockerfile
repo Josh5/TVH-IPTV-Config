@@ -15,6 +15,17 @@ COPY ./frontend/package-lock.json /build/
 WORKDIR /build
 
 RUN \
+    echo "** Install node build dependencies **" \
+        && apk add --no-cache \
+            build-base \
+            libffi-dev \
+            musl-dev \
+            openssl-dev \
+            py3-pip \
+            py3-setuptools \
+            py3-wheel \
+            python3-dev \
+    && \
     echo "** Install node dependencies **" \
         && npm ci \
     && \
@@ -26,6 +37,46 @@ RUN \
         && npm run build:publish \
     && \
     echo
+
+
+#  ____    _    ____ _  _______ _   _ ____    ____ _____  _    ____ _____ 
+# | __ )  / \  / ___| |/ / ____| \ | |  _ \  / ___|_   _|/ \  / ___| ____|
+# |  _ \ / _ \| |   | ' /|  _| |  \| | | | | \___ \ | | / _ \| |  _|  _|  
+# | |_) / ___ \ |___| . \| |___| |\  | |_| |  ___) || |/ ___ \ |_| | |___ 
+# |____/_/   \_\____|_|\_\_____|_| \_|____/  |____/ |_/_/   \_\____|_____|
+#                                                                         
+FROM base_image AS backend_build_stage
+
+USER root
+WORKDIR /var
+
+RUN \
+    echo "** Install python build dependencies **" \
+        && apk add --no-cache \
+            build-base \
+            libffi-dev \
+            musl-dev \
+            openssl-dev \
+            py3-pip \
+            py3-setuptools \
+            py3-wheel \
+            python3-dev \
+    && \
+    echo
+
+# Install python dependencies
+ARG PYTHONDONTWRITEBYTECODE="1"
+ARG PYTHONUNBUFFERED="1"
+COPY requirements.txt /requirements.txt
+RUN \
+    echo "**** Install python dependencies ****" \
+        && python3 -m venv --symlinks /var/venv-docker \
+        && . /var/venv-docker/bin/activate \
+        && python3 -m pip install --no-cache-dir --upgrade pip \
+        && python3 -m pip install --no-cache-dir -r /requirements.txt \
+    && \
+    echo
+
 
 #  __  __    _    ___ _   _
 # |  \/  |  / \  |_ _| \ | |
@@ -73,11 +124,9 @@ RUN \
                 ffmpeg4-libswresample \
                 ffmpeg4-libswscale \
                 gnu-libiconv \
-                intel-media-driver \
                 libdvbcsa \
                 libhdhomerun-libs \
                 libva \
-                libva-intel-driver \
                 libvpx \
                 libxml2 \
                 libxslt \
@@ -105,6 +154,7 @@ RUN \
             echo "**** install intel media driver packages for x86_64 ****" \
                 && apk add --no-cache \
                     intel-media-driver \
+                    libva-intel-driver \
             && \
             echo \
         ; fi \
@@ -114,23 +164,10 @@ RUN \
     && \
     echo
 
-# Install python dependencies
-ARG PYTHONDONTWRITEBYTECODE="1"
-ARG PYTHONUNBUFFERED="1"
-COPY requirements.txt /app/requirements.txt
-RUN \
-    echo "**** Install python dependencies ****" \
-        && mkdir -p /app \
-        && python3 -m venv --symlinks /var/venv-docker \
-        && . /var/venv-docker/bin/activate \
-        && python3 -m pip install --no-cache-dir --upgrade pip \
-        && python3 -m pip install --no-cache-dir -r /app/requirements.txt \
-    && \
-    echo
-
 # Install project
-COPY docker/overlay /
+COPY --from=backend_build_stage /var/venv-docker /var/venv-docker
 COPY --from=frontend_build_stage /build/dist/spa /app/frontend/dist/spa
+COPY docker/overlay /
 COPY backend /app/backend
 COPY migrations /app/migrations
 COPY alembic.ini /app/alembic.ini
