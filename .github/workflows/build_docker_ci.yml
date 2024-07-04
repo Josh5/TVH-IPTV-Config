@@ -87,7 +87,6 @@ jobs:
 
           echo "docker_image=${DOCKER_IMAGE}" >> $GITHUB_OUTPUT
           echo "docker_tags=$(echo ${DOCKER_TAGS} | sed 's/,$//')" >> $GITHUB_OUTPUT
-          echo "docker_platforms=linux/amd64" >> $GITHUB_OUTPUT
           echo "docker_push=${DOCKER_PUSH}" >> $GITHUB_OUTPUT
           echo "docker_build_date=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_OUTPUT
 
@@ -131,7 +130,7 @@ jobs:
             VERSION=${{ github.sha }}
             BUILD_DATE=${{ steps.prepare.outputs.docker_build_date }}
             BASE_IMAGE=${{ matrix.base-image }}
-          platforms: ${{ steps.prepare.outputs.docker_platforms }}
+          platforms: linux/amd64,linux/arm64,linux/arm/v7,linux/arm/v6
           pull: true
           push: ${{ steps.prepare.outputs.docker_push }}
           tags: |
