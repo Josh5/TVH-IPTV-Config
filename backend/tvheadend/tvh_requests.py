@@ -141,7 +141,7 @@ network_template = {
     "pnetworkname": 'PROVIDER_NETWORK_NAME',
     "max_streams":  1,
     "priority":     1,
-    "max_timeout":  10,
+    "max_timeout":  30,
     "skipinitscan": True,
     "bouquet":      False, "max_bandwidth": 0, "nid": 0, "ignore_chnum": True, "satip_source": 0,
     "charset":      "", "use_libav": False, "scan_create": False, "spriority": 1, "icon_url": "",
