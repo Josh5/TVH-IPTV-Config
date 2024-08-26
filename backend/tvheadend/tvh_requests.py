@@ -43,7 +43,7 @@ api_epggrab_list = "epggrab/module/list"
 tvh_config = {
     "server_name":    "TVH-IPTV",
     "uilevel":        2,
-    "digest":         2,
+    "digest":         0,
     "parser_backlog": True,  # See link above default_stream_profile_template config below
 }
 tvh_imagecache_config = {"enabled": False, "ignore_sslcert": True, "expire": 7, "ok_period": 168, "fail_period": 24}

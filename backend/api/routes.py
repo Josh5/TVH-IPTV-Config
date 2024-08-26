@@ -8,7 +8,7 @@ from quart import request, jsonify, redirect, send_from_directory, current_app
 from backend.api import blueprint
 
 from backend.api.tasks import TaskQueueBroker
-from backend.auth import digest_auth_required, check_auth
+from backend.auth import admin_auth_required, check_auth
 from backend.config import is_tvh_process_running_locally, get_local_tvh_proc_admin_password
 from backend.tvheadend.tvh_requests import configure_tvh
 
@@ -19,7 +19,7 @@ def index():
 
 
 @blueprint.route('/tic-web/')
-@digest_auth_required
+@admin_auth_required
 async def serve_index():
     response = await send_from_directory(current_app.config['ASSETS_ROOT'], 'index.html')
     response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0'
@@ -29,7 +29,7 @@ async def serve_index():
 
 
 @blueprint.route('/tic-web/<path:path>')
-@digest_auth_required
+@admin_auth_required
 async def serve_static(path):
     response = await send_from_directory(current_app.config['ASSETS_ROOT'], path)
     response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0'
@@ -72,7 +72,7 @@ async def api_check_auth():
 
 
 @blueprint.route('/tic-api/require-auth')
-@digest_auth_required
+@admin_auth_required
 async def api_require_auth():
     return jsonify(
         {
@@ -82,7 +82,7 @@ async def api_require_auth():
 
 
 @blueprint.route('/tic-api/get-background-tasks', methods=['GET'])
-@digest_auth_required
+@admin_auth_required
 async def api_get_background_tasks():
     task_broker = await TaskQueueBroker.get_instance()
     await task_broker.get_pending_tasks()
@@ -99,7 +99,7 @@ async def api_get_background_tasks():
 
 
 @blueprint.route('/tic-api/toggle-pause-background-tasks', methods=['GET'])
-@digest_auth_required
+@admin_auth_required
 async def api_toggle_background_tasks_status():
     task_broker = await TaskQueueBroker.get_instance()
     await task_broker.toggle_status()
@@ -111,7 +111,7 @@ async def api_toggle_background_tasks_status():
 
 
 @blueprint.route('/tic-api/tvh-running', methods=['GET'])
-@digest_auth_required
+@admin_auth_required
 async def api_check_if_tvh_running_status():
     running = await is_tvh_process_running_locally()
     return jsonify(
@@ -125,7 +125,7 @@ async def api_check_if_tvh_running_status():
 
 
 @blueprint.route('/tic-api/save-settings', methods=['POST'])
-@digest_auth_required
+@admin_auth_required
 async def api_save_config():
     json_data = await request.get_json()
     config = current_app.config['APP_CONFIG']
@@ -179,7 +179,7 @@ async def api_save_config():
 
 
 @blueprint.route('/tic-api/get-settings')
-@digest_auth_required
+@admin_auth_required
 async def api_get_config_tvheadend():
     config = current_app.config['APP_CONFIG']
     settings = config.read_settings()
@@ -197,7 +197,7 @@ async def api_get_config_tvheadend():
 
 
 @blueprint.route('/tic-api/export-config')
-@digest_auth_required
+@admin_auth_required
 async def api_export_config():
     config = current_app.config['APP_CONFIG']
     # Fetch all playlists
