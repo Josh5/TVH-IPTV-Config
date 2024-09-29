@@ -195,4 +195,4 @@ EXPOSE 9985/tcp
 
 # Install entrypoint script
 COPY ./docker/entrypoint.sh /entrypoint.sh
-ENTRYPOINT [ "/sbin/tini", "--", "/entrypoint.sh" ]
+ENTRYPOINT [ "/usr/bin/tini", "--", "/entrypoint.sh" ]
