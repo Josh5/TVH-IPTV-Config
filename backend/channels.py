@@ -236,7 +236,7 @@ async def add_new_channel(config, data, commit=True):
             if not playlist_info.use_custom_hls_proxy:
                 app_url = settings['settings']['app_url']
                 # noinspection HttpUrlsUsage
-                playlist_stream['url'] = f'{app_url}/tic-hls-proxy.m3u8?url={playlist_stream['url']}'
+                playlist_stream['url'] = f'{app_url}/tic-hls-proxy.m3u8?url={playlist_stream["url"]}'
             else:
                 hls_proxy_path = playlist_info.hls_proxy_path
                 playlist_url = playlist_stream['url']
@@ -320,7 +320,7 @@ def update_channel(config, channel_id, data):
                 if not playlist_info.use_custom_hls_proxy:
                     app_url = settings['settings']['app_url']
                     # noinspection HttpUrlsUsage
-                    playlist_stream['url'] = f'{app_url}/tic-hls-proxy.m3u8?url={playlist_stream['url']}'
+                    playlist_stream['url'] = f'{app_url}/tic-hls-proxy.m3u8?url={playlist_stream["url"]}'
                 else:
                     hls_proxy_path = playlist_info.hls_proxy_path
                     playlist_url = playlist_stream['url']
@@ -350,7 +350,7 @@ def update_channel(config, channel_id, data):
                         if not playlist_info.use_custom_hls_proxy:
                             app_url = settings['settings']['app_url']
                             # noinspection HttpUrlsUsage
-                            playlist_stream['url'] = f'{app_url}/tic-hls-proxy.m3u8?url={playlist_stream['url']}'
+                            playlist_stream['url'] = f'{app_url}/tic-hls-proxy.m3u8?url={playlist_stream["url"]}'
                         else:
                             hls_proxy_path = playlist_info.hls_proxy_path
                             playlist_url = playlist_stream['url']
