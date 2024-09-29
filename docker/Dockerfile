@@ -114,6 +114,7 @@ RUN \
     echo "**** install tic application runtime packages ****" \
         && apt-get install -y --no-install-recommends \
             ffmpeg \
+            procps \
     && \
     if command -v tvheadend &> /dev/null; then \
         echo "**** install tvh application runtime packages ****" \
