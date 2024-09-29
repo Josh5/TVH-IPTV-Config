@@ -14,7 +14,7 @@ services:
       args:
         VERSION: "UNKNOWN"
         BUILD_DATE: "NOW"
-        BASE_IMAGE: "python:3.12-alpine"
+        BASE_IMAGE: "python:3.12-bookworm"
 
     # NETWORK:
     networks:

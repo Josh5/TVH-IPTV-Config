@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        base-image: ["python:3.12-alpine", "ghcr.io/tvheadend/tvheadend:edge"]
+        base-image: ["python:3.12-bookworm", "ghcr.io/tvheadend/tvheadend:edge-debian"]
 
     steps:
       # Fetch shallow git repository

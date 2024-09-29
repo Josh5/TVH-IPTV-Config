@@ -14,7 +14,7 @@ services:
       args:
         VERSION: "UNKNOWN"
         BUILD_DATE: "NOW"
-        BASE_IMAGE: "ghcr.io/tvheadend/tvheadend:edge"
+        BASE_IMAGE: "ghcr.io/tvheadend/tvheadend:edge-debian"
 
     # NETWORK:
     networks:

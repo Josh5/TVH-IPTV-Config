@@ -7,7 +7,7 @@ FROM ${BASE_IMAGE} AS base_image
 # |  _| |  _ <| |_| | |\  | | | | |___| |\  | |_| |  ___) || |/ ___ \ |_| | |___
 # |_|   |_| \_\\___/|_| \_| |_| |_____|_| \_|____/  |____/ |_/_/   \_\____|_____|
 #
-FROM node:22-alpine AS frontend_build_stage
+FROM node:22-bookworm AS frontend_build_stage
 
 COPY ./frontend/package.json /build/
 COPY ./frontend/package-lock.json /build/
@@ -16,15 +16,16 @@ WORKDIR /build
 
 RUN \
     echo "** Install node build dependencies **" \
-        && apk add --no-cache \
-            build-base \
+        && apt-get update \
+        && apt-get install -y --no-install-recommends \
+            build-essential \
             libffi-dev \
-            musl-dev \
-            openssl-dev \
-            py3-pip \
-            py3-setuptools \
-            py3-wheel \
+            libssl-dev \
             python3-dev \
+            python3-pip \
+            python3-setuptools \
+            python3-venv \
+            python3-wheel \
     && \
     echo "** Install node dependencies **" \
         && npm ci \
@@ -52,15 +53,16 @@ WORKDIR /var
 
 RUN \
     echo "** Install python build dependencies **" \
-        && apk add --no-cache \
-            build-base \
+        && apt-get update \
+        && apt-get install -y --no-install-recommends \
+            build-essential \
             libffi-dev \
-            musl-dev \
-            openssl-dev \
-            py3-pip \
-            py3-setuptools \
-            py3-wheel \
+            libssl-dev \
             python3-dev \
+            python3-pip \
+            python3-setuptools \
+            python3-venv \
+            python3-wheel \
     && \
     echo
 
@@ -96,10 +98,13 @@ LABEL build="Version:- ${VERSION} Build-date:- ${BUILD_DATE} Base:- ${BASE_IMAGE
 USER root
 
 # Runtime packages
-COPY --from=tianon/gosu:alpine /gosu /usr/local/bin/
+COPY --from=tianon/gosu:bookworm /gosu /usr/local/bin/
 RUN \
+    echo "**** update apt repositories ****" \
+        && apt-get update \
+    && \
     echo "**** install container runtime packages ****" \
-        && apk add --no-cache \
+        && apt-get install -y --no-install-recommends \
             bash \
             ca-certificates \
             curl \
@@ -107,60 +112,60 @@ RUN \
             tzdata \
     && \
     echo "**** install tic application runtime packages ****" \
-        && apk add --no-cache \
+        && apt-get install -y --no-install-recommends \
             ffmpeg \
     && \
     if command -v tvheadend &> /dev/null; then \
         echo "**** install tvh application runtime packages ****" \
-            && apk add --no-cache \
-                bsd-compat-headers \
-                ffmpeg \
-                ffmpeg4-libavcodec \
-                ffmpeg4-libavdevice \
-                ffmpeg4-libavfilter \
-                ffmpeg4-libavformat \
-                ffmpeg4-libavutil \
-                ffmpeg4-libpostproc \
-                ffmpeg4-libswresample \
-                ffmpeg4-libswscale \
-                gnu-libiconv \
-                libdvbcsa \
-                libhdhomerun-libs \
-                libva \
-                libvpx \
-                libxml2 \
-                libxslt \
-                linux-headers \
-                mesa-va-gallium \
-                opus \
-                pcre2 \
-                perl \
-                perl-datetime-format-strptime \
-                perl-json \
-                perl-json-xs \
-                py3-requests \
+            && apt-get install -y --no-install-recommends \
+                libavahi-client3 \
+                libavcodec59 \
+                libavdevice59 \
+                libavfilter8 \
+                libavfilter8 \
+                libavutil57 \
+                libdbus-1-3 \
+                libdvbcsa1 \
+                libhdhomerun4 \
+                libopus0 \
+                libpcre2-8-0 \
+                libpostproc56 \
+                libssl3 \
+                libswscale6 \
+                liburiparser1 \
+                libva2 \
+                libvpx7 \
+                libx264-164 \
+                libx265-199 \
+                mesa-va-drivers \
+                mesa-vdpau-drivers \
+                pngquant \
                 python3 \
-                uriparser \
                 x264 \
                 x265 \
                 xmltv \
-                zlib \
+                zlib1g \
+                zlib1g-dev \
         && \
         echo "**** install nginx reverse proxy ****" \
-            && apk add --no-cache \
+            && apt-get install -y --no-install-recommends \
                 nginx \
         && \
         if [ "$(uname -m)" = 'x86_64' ]; then \
             echo "**** install intel media driver packages for x86_64 ****" \
-                && apk add --no-cache \
-                    intel-media-driver \
-                    libva-intel-driver \
+                && apt-get install -y --no-install-recommends \
+                    intel-media-va-driver \
+                    i965-va-driver \
             && \
             echo \
         ; fi \
         && \
         echo \
     ; fi \
+    && \
+    echo "**** cleanup apt cache ****" \
+        && apt-get clean \
+        && rm -rf /var/lib/apt/lists/* \
     && \
     echo
 
