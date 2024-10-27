@@ -268,10 +268,12 @@ async def store_epg_programmes(config, epg_id, channel_id_list):
                     )
                 )
         logger.info("Saving new programmes list for EPG #%s from path - '%s'", epg_id, xmltv_file)
-        # Save all new
-        db.session.bulk_save_objects(items)
-        # Commit all updates to channel programmes
-        db.session.commit()
+        # Save all new items in batches of 100
+        batch_size = 50
+        for i in range(0, len(items), batch_size):
+            db.session.bulk_save_objects(items[i:i + batch_size], update_changed_only=False)
+            # Commit updates to channel programmes
+            db.session.commit()
         logger.info("Successfully imported %s programmes from path - '%s'", len(items), xmltv_file)
 
     await run_sync(parse_and_save_programmes)()
@@ -573,10 +575,12 @@ async def update_channel_epg_with_online_data(config):
             db_programmes = db_programmes_query.all()
             logger.info("   - Updating programme list for %s - %s.", channel_id, result.name)
             programmes = await update_programmes_concurrently(settings, db_programmes, cache, lock)
-            # Save all new
-            db.session.bulk_save_objects(programmes)
-            # Commit all updates to channel programmes
-            db.session.commit()
+            # Save all new items in batches of 50
+            batch_size = 50
+            for i in range(0, len(programmes), batch_size):
+                db.session.bulk_save_objects(programmes[i:i + batch_size])
+                # Commit updates to channel programmes
+                db.session.commit()
     execution_time = time.time() - start_time
     logger.info("Updating online EPG data for configured channels took '%s' seconds", int(execution_time))
 
