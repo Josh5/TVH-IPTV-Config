@@ -136,10 +136,10 @@ def get_channel_image_path(config, channel_id):
     return os.path.join(config.config_path, 'cache', 'logos', f"channel_logo_{channel_id}")
 
 
-async def download_image_to_base64(image_source):
+async def download_image_to_base64(image_source, timeout=10):
     # Image source is a URL
     try:
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout)) as session:
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36 Edg/96.0.1054.62'
             }
@@ -164,7 +164,7 @@ async def parse_image_as_base64(image_source):
             mime_type = image_source.split(';')[0].split(':')[1]
             image_base64_string = image_source.split('base64,')[1]
         elif image_source.startswith('http://') or image_source.startswith('https://'):
-            image_base64_string, mime_type = await download_image_to_base64(image_source)
+            image_base64_string, mime_type = await download_image_to_base64(image_source, timeout=3)
         else:
             # Handle other cases or raise an error
             raise ValueError("Unsupported image source format")
@@ -254,10 +254,6 @@ async def add_new_channel(config, data, commit=True):
     if new_sources:
         channel.sources.clear()
         channel.sources = new_sources
-
-    # Host an image cache
-    # if data.get('logo_url'):
-    channel.logo_base64 = await parse_image_as_base64(data.get('logo_url'))
 
     # Publish changes to TVH
     tvh = await get_tvh(config)
