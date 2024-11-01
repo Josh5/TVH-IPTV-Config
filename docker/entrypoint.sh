@@ -127,6 +127,16 @@ else
         print_log info "Started tvheadend service with PID $tvh_pid"
     fi
 
+    # Check if the database file exists
+    if [[ -f "/config/.tvh_iptv_config/db.sqlite3" ]]; then
+        echo "Starting VACUUM on /config/.tvh_iptv_config/db.sqlite3..."
+        # Run VACUUM command on the database
+        sqlite3 "/config/.tvh_iptv_config/db.sqlite3" "VACUUM;"
+        echo "VACUUM completed for /config/.tvh_iptv_config/db.sqlite3."
+    else
+        echo "Database file not found at /config/.tvh_iptv_config/db.sqlite3. Skipping VACUUM."
+    fi
+
     # Run TIC server
     print_log info "Starting TIC server"
     python3 "${FLASK_APP:?}"
