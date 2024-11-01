@@ -6,6 +6,7 @@ import os
 import re
 from mimetypes import guess_type
 
+import aiofiles
 import aiohttp
 import requests
 from sqlalchemy.orm import joinedload
@@ -259,7 +260,8 @@ async def add_new_channel(config, data, commit=True):
     channel.logo_base64 = await parse_image_as_base64(data.get('logo_url'))
 
     # Publish changes to TVH
-    channel_uuid = await publish_channel_to_tvh(config, channel)
+    tvh = await get_tvh(config)
+    channel_uuid = await publish_channel_to_tvh(tvh, channel)
     # Save network UUID against playlist in settings
     channel.tvh_uuid = channel_uuid
 
@@ -448,9 +450,19 @@ def delete_channel(config, channel_id):
     db.session.commit()
 
 
-async def publish_channel_to_tvh(config, channel):
+async def build_m3u_lines_for_channel(tic_base_url, channel_uuid, channel):
+    playlist = []
+    line = f'#EXTINF:-1 tvg-name="{channel.name}" tvg-logo="{channel.logo_url}" tvg-id="{channel_uuid}" tvg-chno="{channel.number}"'
+    if channel.tags:
+        line += f' group-title="{channel.tags[0]}"'
+    line += f',{channel.name}'
+    playlist.append(line)
+    playlist.append(f'{tic_base_url}/tic-tvh/stream/channel/{channel_uuid}?profile=pass')
+    return playlist
+
+
+async def publish_channel_to_tvh(tvh, channel):
     logger.info("Publishing channel to TVH - %s.", channel.name)
-    tvh = await get_tvh(config)
     # Check if channel exists with a matching UUID and create it if not
     channel_uuid = channel.tvh_uuid
     existing_channels = await tvh.list_all_channels()
@@ -495,7 +507,9 @@ async def publish_channel_to_tvh(config, channel):
     return channel_uuid
 
 
-async def publish_bulk_channels_to_tvh(config):
+async def publish_bulk_channels_to_tvh_and_m3u(config):
+    settings = config.read_settings()
+    tic_base_url = settings['settings']['app_url']
     tvh = await get_tvh(config)
     # Loop over configured channels
     managed_uuids = []
@@ -504,9 +518,11 @@ async def publish_bulk_channels_to_tvh(config):
         .order_by(Channel.id, Channel.number.asc()) \
         .all()
     # Fetch existing channels
-    logger.info("Publishing all channels to TVH")
+    logger.info("Publishing all channels to TVH and M3U")
+    playlist = [f'#EXTM3U url-tvg="{tic_base_url}/tic-web/epg.xml"']
     for result in results:
-        channel_uuid = await publish_channel_to_tvh(config, result)
+        channel_uuid = await publish_channel_to_tvh(tvh, result)
+        playlist += await build_m3u_lines_for_channel(tic_base_url, channel_uuid, result)
         # Save network UUID against playlist in settings
         result.tvh_uuid = channel_uuid
         # Generate a local image cache
@@ -515,6 +531,12 @@ async def publish_bulk_channels_to_tvh(config):
         db.session.commit()
         # Append to list of current network UUIDs
         managed_uuids.append(channel_uuid)
+
+    # Write playlist file
+    custom_playlist_file = os.path.join(config.config_path, "playlist.m3u8")
+    async with aiofiles.open(custom_playlist_file, 'w', encoding='utf-8') as f:
+        for item in playlist:
+            await f.write(f'{item}\n')
 
     #  Remove any channels that are not managed.
     logger.info("Running cleanup task on current TVH channels")
@@ -631,7 +653,7 @@ async def queue_background_channel_update_tasks(config):
     # Configure TVH with the list of channels
     await task_broker.add_task({
         'name':     'Configuring TVH channels',
-        'function': publish_bulk_channels_to_tvh,
+        'function': publish_bulk_channels_to_tvh_and_m3u,
         'args':     [config],
     }, priority=11)
     # Configure TVH with muxes

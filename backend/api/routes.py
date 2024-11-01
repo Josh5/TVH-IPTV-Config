@@ -44,6 +44,13 @@ def serve_epg_static():
     return send_from_directory(os.path.join(config.config_path), 'epg.xml')
 
 
+@blueprint.route('/tic-web/playlist.m3u8')
+def serve_playlist_static():
+    config = current_app.config['APP_CONFIG']
+    response = send_from_directory(os.path.join(config.config_path), 'playlist.m3u8')
+    return response
+
+
 @blueprint.route('/tic-api/ping')
 async def ping():
     return jsonify(
