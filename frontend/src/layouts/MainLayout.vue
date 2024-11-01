@@ -1,47 +1,122 @@
 <template>
   <q-layout view="hHh LpR lFf">
     <q-header elevated class="bg-primary text-white" height-hint="98">
-      <q-toolbar class="q-px-xl">
-        <q-toolbar-title>
+      <q-toolbar class="bg-primary text-white q-my-md shadow-2">
+        <q-toolbar-title class="q-mx-lg">
+          <q-avatar size="2rem" font-size="82px">
+            <img src="~assets/icon.png">
+          </q-avatar>
           TVH IPTV Config
         </q-toolbar-title>
+        <q-separator dark vertical inset />
 
         <q-tabs v-if="aioMode" no-caps align="left">
-          <q-btn flat label="Show Tvheadend Backend" @click="loadTvheadendAdmin = true; showTvheadendAdmin = true" />
+          <!--TODO: Find a way to prevent this from being destroyed from the DOM when showTvheadendAdmin is False-->
+          <q-btn icon-right="fa-solid fa-window-restore" label="Show Tvheadend Backend"
+                 @click="loadTvheadendAdmin = true; showTvheadendAdmin = true" />
+          <q-dialog
+            v-if="aioMode"
+            v-model="showTvheadendAdmin"
+            :class="{'hidden': !showTvheadendAdmin}"
+            full-screen full-width persistent>
+            <q-card class="full-screen-card">
+              <q-bar class="bg-primary text-white">
+                <div class="text-h6">Tvheadend Backend</div>
+                <q-space />
+                <q-btn
+                  flat round dense
+                  icon="open_in_new"
+                  href="/tic-tvh/" target="_blank"
+                  @click="showTvheadendAdmin = false">
+                  <q-tooltip class="bg-white text-primary">
+                    Open in new window
+                  </q-tooltip>
+                </q-btn>
+                <q-btn
+                  flat round dense
+                  icon="close"
+                  @click="showTvheadendAdmin = false">
+                  <q-tooltip class="bg-white text-primary">
+                    Close
+                  </q-tooltip>
+                </q-btn>
+              </q-bar>
+
+              <q-card-section class="full-screen-iframe">
+                <iframe id="f1" ref="frame1" :src="(firstRun) ? '' : '/tic-tvh/'"></iframe>
+              </q-card-section>
+            </q-card>
+          </q-dialog>
+          <q-separator dark vertical inset />
+
+          <q-btn-dropdown stretch flat
+                          label="Show Connection Details">
+            <q-list>
+              <q-item-label header>EPG</q-item-label>
+              <q-item clickable @click="copyUrlToClipboard(epgUrl)"
+                      tabindex="0">
+                <q-item-section avatar>
+                  <q-avatar
+                    icon="calendar_month"
+                    color="secondary"
+                    text-color="white" />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label>XMLTV Guide</q-item-label>
+                  <q-item-label caption>{{ epgUrl }}</q-item-label>
+                </q-item-section>
+                <q-item-section side>
+                  <q-icon name="content_copy" />
+                </q-item-section>
+              </q-item>
+
+              <q-separator inset spaced />
+
+              <q-item-label header>Proxied M3U Playlists</q-item-label>
+              <q-item v-for="playlist in enabledPlaylists" :key="`x.${playlist}`"
+                      clickable
+                      @click="copyUrlToClipboard(`${appUrl}/tic-api/tvh_playlist/${playlist.id}/channels.m3u`)"
+                      tabindex="0">
+                <q-item-section avatar>
+                  <q-avatar
+                    v-if="true"
+                    icon="playlist_play"
+                    color="secondary"
+                    text-color="white" />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label>{{ playlist.name }}</q-item-label>
+                  <q-item-label caption>{{ appUrl }}/tic-api/tvh_playlist/{{ playlist.id }}/channels.m3u</q-item-label>
+                </q-item-section>
+                <q-item-section side>
+                  <q-icon name="content_copy" />
+                </q-item-section>
+              </q-item>
+
+              <q-separator inset spaced />
+
+              <q-item-label header>Proxied HDHomeRun Tuner Emulators</q-item-label>
+              <q-item v-for="playlist in enabledPlaylists" :key="`x.${playlist}`"
+                      clickable @click="copyUrlToClipboard(`${appUrl}/tic-api/hdhr_device/${playlist.id}`)"
+                      tabindex="0">
+                <q-item-section avatar>
+                  <q-avatar size="2rem" font-size="82px">
+                    <img src="~assets/hd-icon.png">
+                  </q-avatar>
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label>{{ playlist.name }}</q-item-label>
+                  <q-item-label caption>{{ appUrl }}/tic-api/hdhr_device/{{ playlist.id }}</q-item-label>
+                </q-item-section>
+                <q-item-section side>
+                  <q-icon name="content_copy" />
+                </q-item-section>
+              </q-item>
+
+            </q-list>
+          </q-btn-dropdown>
+          <q-separator dark vertical inset />
         </q-tabs>
-
-        <!--TODO: Find a way to prevent this from being destroyed from the DOM when showTvheadendAdmin is False-->
-        <q-dialog
-          v-if="aioMode"
-          v-model="showTvheadendAdmin"
-          :class="{'hidden': !showTvheadendAdmin}"
-          full-screen full-width persistent>
-          <q-card class="full-screen-card">
-            <q-bar class="bg-primary text-white">
-              <div class="text-h6">Tvheadend Backend</div>
-              <q-space />
-              <q-btn flat round dense icon="open_in_new" href="/tic-tvh/" target="_blank" @click="showTvheadendAdmin = false" />
-              <q-btn flat round dense icon="close" @click="showTvheadendAdmin = false" />
-            </q-bar>
-
-            <q-card-section class="full-screen-iframe">
-              <iframe id="f1" ref="frame1" :src="(firstRun) ? '' : '/tic-tvh/'"></iframe>
-            </q-card-section>
-          </q-card>
-        </q-dialog>
-
-        <div
-          @click="copyUrlToClipboard"
-          class="cursor-pointer">
-          <span
-            class="q-ml-sm text-weight-bold text-orange-7">
-            EPG URL:
-          </span>
-          <span
-            class="text-orange-3">
-            {{ epgUrl }}
-          </span>
-        </div>
       </q-toolbar>
     </q-header>
 
@@ -213,16 +288,19 @@ export default defineComponent({
 
     const loadTvheadendAdmin = ref(true);
     const showTvheadendAdmin = ref(false);
+    const appUrl = ref(window.location.origin);
     const epgUrl = ref(`${window.location.origin}/tic-web/epg.xml`);
 
-    const copyUrlToClipboard = () => {
-      copyToClipboard(epgUrl.value).then(() => {
+    const enabledPlaylists = ref([]);
+
+    const copyUrlToClipboard = (textToCopy) => {
+      copyToClipboard(textToCopy).then(() => {
         // Notify user of success
         $q.notify({
           color: 'green',
           textColor: 'white',
           icon: 'done',
-          message: 'EPG URL copied to clipboard',
+          message: 'URL copied to clipboard',
         });
       }).catch((err) => {
         // Handle the error (e.g., clipboard API not supported)
@@ -259,7 +337,16 @@ export default defineComponent({
         method: 'get',
         url: '/tic-api/get-settings',
       }).then((response) => {
+        appUrl.value = response.data.data.app_url;
         epgUrl.value = `${response.data.data.app_url}/tic-web/epg.xml`;
+      }).catch(() => {
+      });
+      // Fetch playlists list
+      axios({
+        method: 'get',
+        url: '/tic-api/playlists/get',
+      }).then((response) => {
+        enabledPlaylists.value = response.data.data;
       }).catch(() => {
       });
     });
@@ -269,6 +356,8 @@ export default defineComponent({
       aioMode,
       loadTvheadendAdmin,
       showTvheadendAdmin,
+      enabledPlaylists,
+      appUrl,
       epgUrl,
       essentialLinks: linksList,
       leftDrawerOpen,

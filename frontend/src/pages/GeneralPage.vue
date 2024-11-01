@@ -74,7 +74,7 @@
                   v-else
                   v-model="appUrl"
                   label="TVH IPTV Config Host"
-                  hint="External access host & port. This is needed for other applications to connect to TIC. This will be used in the generated XMLTV EPG and HDHomeRun proxy. Ensure this is set to something that external services can use to reach TIC."
+                  hint="External access host & port. This is needed for other applications to connect to TIC. This will be used in the generated XMLTV EPG, Custom Playlist and HDHomeRun Tuner Emulators. Ensure this is set to something that external services can use to reach TIC."
                 />
               </div>
 

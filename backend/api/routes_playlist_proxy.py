@@ -2,6 +2,8 @@
 # -*- coding:utf-8 -*-
 import re
 
+from flask import request
+
 from backend.api import blueprint
 from quart import jsonify, current_app, render_template_string, Response
 
@@ -26,7 +28,7 @@ device_xml_template = """<?xml version="1.0" encoding="UTF-8"?>
 </root>"""
 
 
-async def _get_tvh_settings():
+async def _get_tvh_settings(include_auth=True, stream_profile='pass'):
     config = current_app.config['APP_CONFIG']
     settings = config.read_settings()
     # Configure TVH-IPTV-Config base URL (proto/host/port)
@@ -44,17 +46,19 @@ async def _get_tvh_settings():
         app_url = re.sub(r'^https?://', '', settings['settings']['app_url'])
         tvh_base_url = f"{app_url}{tvh_path}"
     # Configure some connection URLs
-    client_username = settings['settings']['client_username']
-    client_password = settings['settings']['client_password']
     tvh_api_url = f"{tic_base_url_protocol}://{tvh_base_url}/api"
     tvh_http_url = f"{tic_base_url_protocol}://{tvh_base_url}"
-    if settings['settings']['create_client_user'] and client_username:
-        tvh_http_url = f"{tic_base_url_protocol}://{client_username}:{client_password}@{tvh_base_url}"
+    if include_auth:
+        client_username = settings['settings']['client_username']
+        client_password = settings['settings']['client_password']
+        if settings['settings']['create_client_user'] and client_username:
+            tvh_http_url = f"{tic_base_url_protocol}://{client_username}:{client_password}@{tvh_base_url}"
     # Set stream configuration
-    stream_profile = 'pass'
     stream_priority = 300
     return {
         "tic_base_url":    tic_base_url,
+        "tvh_base_url":    tvh_base_url,
+        "tvh_path":        tvh_path,
         "tvh_api_url":     tvh_api_url,
         "tvh_http_url":    tvh_http_url,
         "stream_profile":  stream_profile,
@@ -81,7 +85,7 @@ async def _get_playlist_connection_count(config, playlist_id):
 async def _get_discover_data(playlist_id=0):
     config = current_app.config['APP_CONFIG']
     settings = config.read_settings()
-    tvh_settings = await _get_tvh_settings()
+    tvh_settings = await _get_tvh_settings(include_auth=True)
     device_name = f'TVH-IPTV-Config-{playlist_id}'
     tuner_count = await _get_playlist_connection_count(config, playlist_id)
     device_id = f'tic-12345678-{playlist_id}'
@@ -103,7 +107,7 @@ async def _get_discover_data(playlist_id=0):
 
 async def _get_lineup_list(playlist_id):
     use_tvh_source = True
-    tvh_settings = await _get_tvh_settings()
+    tvh_settings = await _get_tvh_settings(include_auth=True)
     lineup_list = []
     from backend.epgs import generate_epg_channel_id
     for channel_details in await _get_channels(playlist_id):
@@ -121,6 +125,31 @@ async def _get_lineup_list(playlist_id):
                 }
             )
     return lineup_list
+
+
+async def _get_playlist_channels(playlist_id, include_auth=False, stream_profile='pass'):
+    use_tvh_source = True
+    tvh_settings = await _get_tvh_settings(include_auth=include_auth, stream_profile=stream_profile)
+    playlist = [f'#EXTM3U url-tvg="{tvh_settings["tic_base_url"]}/tic-web/epg.xml"']
+    from backend.epgs import generate_epg_channel_id
+    for channel_details in await _get_channels(playlist_id):
+        current_app.logger.warning(channel_details)
+        channel_id = generate_epg_channel_id(channel_details["number"], channel_details["name"])
+        channel_name = channel_details['name']
+        channel_logo_url = channel_details['logo_url']
+        channel_uuid = channel_details['tvh_uuid']
+        line = f'#EXTINF:-1 tvg-name="{channel_name}" tvg-logo="{channel_logo_url}" tvg-id="{channel_uuid}" tvg-chno="{channel_id}"'
+        if channel_details['tags']:
+            group_title = channel_details['tags'][0]
+            line += f' group-title="{group_title}"'
+        playlist.append(line)
+        # TODO: Add support for fetching a stream from this application without using TVH as a proxy
+        if use_tvh_source and channel_details.get('tvh_uuid'):
+            channel_url = f'{tvh_settings["tvh_http_url"]}/stream/channel/{channel_details["tvh_uuid"]}'
+            path_args = f'?profile={tvh_settings["stream_profile"]}&weight={tvh_settings["stream_priority"]}'
+            url = f'{channel_url}{path_args}'
+            playlist.append(url)
+    return playlist
 
 
 @blueprint.route('/tic-api/hdhr_device/<playlist_id>/discover.json', methods=['GET'])
@@ -157,3 +186,19 @@ async def device_xml(playlist_id):
     discover_data = await _get_discover_data(playlist_id)
     xml_content = await render_template_string(device_xml_template, data=discover_data)
     return Response(xml_content, mimetype='application/xml')
+
+
+@blueprint.route('/tic-api/tvh_playlist/<playlist_id>/channels.m3u', methods=['GET'])
+async def tvh_playlist_m3u(playlist_id):
+    # Check for 'include_auth' GET argument
+    include_auth = request.args.get('include_auth') != 'false'
+    stream_profile = request.args.get('profile', 'pass')
+
+    # Get the playlist channels
+    file_lines = await _get_playlist_channels(playlist_id, include_auth=include_auth, stream_profile=stream_profile)
+    # Join the lines to form the m3u content
+    m3u_content = "\n".join(file_lines)
+    # Create a response object with appropriate headers
+    response = Response(m3u_content, mimetype='application/vnd.apple.mpegurl')
+    response.headers['Content-Disposition'] = f'attachment; filename="{playlist_id}_channels.m3u"'
+    return response

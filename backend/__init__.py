@@ -58,7 +58,7 @@ def register_blueprints(app):
     import_module('backend.api.routes_playlists')
     import_module('backend.api.routes_epgs')
     import_module('backend.api.routes_channels')
-    import_module('backend.api.routes_tvh_proxy')
+    import_module('backend.api.routes_playlist_proxy')
     import_module('backend.api.routes_hls_proxy')
     app.register_blueprint(module.blueprint)
 

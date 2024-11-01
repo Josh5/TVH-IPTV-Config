@@ -291,7 +291,7 @@ export default defineComponent({
             color: "green",
             textColor: "white",
             icon: "done",
-            message: "HDHomeRun Tuner Device URL copied to clipboard"
+            message: "URL copied to clipboard"
           });
         })
         .catch((err) => {
