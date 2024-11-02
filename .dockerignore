@@ -7,6 +7,8 @@ __pycache__
 # dev / testing directories
 /dev_env*
 /frontend/test_js/**
+/frontend/dist/**
+/frontend/node_modules/**
 
 # venv
 env
