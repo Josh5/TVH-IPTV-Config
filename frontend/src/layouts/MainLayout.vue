@@ -50,70 +50,169 @@
           <q-separator dark vertical inset />
 
           <q-btn-dropdown stretch flat
+                          content-class="connection-details-dropdown"
                           label="Show Connection Details">
-            <q-list>
-              <q-item-label header>EPG</q-item-label>
-              <q-item clickable @click="copyUrlToClipboard(epgUrl)"
-                      tabindex="0">
-                <q-item-section avatar>
-                  <q-avatar
-                    icon="calendar_month"
-                    color="secondary"
-                    text-color="white" />
-                </q-item-section>
-                <q-item-section>
-                  <q-item-label>XMLTV Guide</q-item-label>
-                  <q-item-label caption>{{ epgUrl }}</q-item-label>
-                </q-item-section>
-                <q-item-section side>
-                  <q-icon name="content_copy" />
-                </q-item-section>
-              </q-item>
 
-              <q-separator inset spaced />
 
-              <q-item-label header>Proxied M3U Playlists</q-item-label>
-              <q-item v-for="playlist in enabledPlaylists" :key="`x.${playlist}`"
-                      clickable
-                      @click="copyUrlToClipboard(`${appUrl}/tic-api/tvh_playlist/${playlist.id}/channels.m3u`)"
-                      tabindex="0">
-                <q-item-section avatar>
-                  <q-avatar
-                    v-if="true"
-                    icon="playlist_play"
-                    color="secondary"
-                    text-color="white" />
-                </q-item-section>
-                <q-item-section>
-                  <q-item-label>{{ playlist.name }}</q-item-label>
-                  <q-item-label caption>{{ appUrl }}/tic-api/tvh_playlist/{{ playlist.id }}/channels.m3u</q-item-label>
-                </q-item-section>
-                <q-item-section side>
-                  <q-icon name="content_copy" />
-                </q-item-section>
-              </q-item>
+            <q-card class="my-card" flat bordered>
+              <q-card-section horizontal>
+                <q-card-section>
 
-              <q-separator inset spaced />
+                  <q-card class="note-card q-my-md">
+                    <q-card-section>
+                      <div class="text-h6">How to use the Proxied M3U Playlists:</div>
+                      Filtered M3U playlist URLs are designed for use with Jellyfin/Emby.
+                      But they can also be used for any other client that supports M3U playlists.
+                      <br>
+                      Configure Jellyfin (or Emby) as follows:
+                      <br>
+                      <ol>
+                        <li>
+                          For each of the <span class="text-bold text-blue-7">Proxied M3U Playlists</span>
+                          listed:
+                          <ol type="a">
+                            <li>
+                              Create a new <b>M3U Tuner</b> in Jellyfin's <b>Live TV</b> device settings.
+                            </li>
+                            <li>
+                              Copy
+                              <q-icon name="content_copy" />
+                              the URL above to the <b>File or URL</b> field in Jellyfin.
+                            </li>
+                            <li>
+                              Configure the <b>Simultaneous stream limit</b> section in Jellyfin with the
+                              <b>Connections Limit</b> specified.
+                            </li>
+                            <li>
+                              Save the <b>Live TV Tuner Setup</b> form in Jellyfin.
+                            </li>
+                          </ol>
+                        </li>
+                        <li>
+                          Create a new "XMLTV" <b>TV Guide Data Provider</b> in Jellyfin's <b>Live TV</b> device
+                          settings.
+                          <ol type="a">
+                            <li>
+                              Copy
+                              <q-icon name="content_copy" />
+                              the <span class="text-bold text-orange-7">XMLTV Guide</span> URL to the <b>File or URL</b>
+                              field in Jellyfin.
+                            </li>
+                            <li>
+                              Save the <b>Xml TV</b> form in Jellyfin.
+                            </li>
+                          </ol>
+                        </li>
+                      </ol>
+                    </q-card-section>
+                    <q-card-section>
+                      <div class="text-h6">How to use the Proxied HDHomeRun Tuner Emulators:</div>
+                      The HDHomeRun Tuner Emulator URLs are designed for use with Jellyfin, Emby and Plex.
+                      <br><br>
+                      For each of the <span class="text-bold text-green-7">HDHomeRun Tuner Emulators</span>
+                      listed above:
+                      <ol>
+                        <li>
+                          Create a new <b>HDHomeRun</b> tuner device in Jellyfin, Emby or Plex's <b>Live TV/DVR</b>
+                          settings.
+                        </li>
+                        <li>
+                          Copy
+                          <q-icon name="content_copy" />
+                          the URL of the HDHomeRun Tuner Emulator to Jellyfin, Emby or Plex.
+                        </li>
+                        <li>
+                          <b>(Plex Only)</b> Click the link "Have an XMLTV guide on your server? Click here to use it.".
+                          Copy
+                          <q-icon name="content_copy" />
+                          the <span class="text-bold text-orange-7">XMLTV Guide</span> URL above to the
+                          <b>XMLTV GUIDE</b> field in Plex.
+                        </li>
+                        <li>
+                          <b>(Jellyfin & Emby)</b> Add a new "XMLTV" <b>TV Guide Data Provider</b>.
+                          Copy
+                          <q-icon name="content_copy" />
+                          the <span class="text-bold text-orange-7">XMLTV Guide</span> URL above to the
+                          <b>File or URL</b> field in Jellyfin/Emby.
+                        </li>
+                      </ol>
+                      <br>
+                    </q-card-section>
+                  </q-card>
+                </q-card-section>
 
-              <q-item-label header>Proxied HDHomeRun Tuner Emulators</q-item-label>
-              <q-item v-for="playlist in enabledPlaylists" :key="`x.${playlist}`"
-                      clickable @click="copyUrlToClipboard(`${appUrl}/tic-api/hdhr_device/${playlist.id}`)"
-                      tabindex="0">
-                <q-item-section avatar>
-                  <q-avatar size="2rem" font-size="82px">
-                    <img src="~assets/hd-icon.png">
-                  </q-avatar>
-                </q-item-section>
-                <q-item-section>
-                  <q-item-label>{{ playlist.name }}</q-item-label>
-                  <q-item-label caption>{{ appUrl }}/tic-api/hdhr_device/{{ playlist.id }}</q-item-label>
-                </q-item-section>
-                <q-item-section side>
-                  <q-icon name="content_copy" />
-                </q-item-section>
-              </q-item>
+                <q-separator vertical />
 
-            </q-list>
+                <q-card-section>
+
+                  <q-list>
+
+                    <q-item-label header>EPG</q-item-label>
+                    <q-item clickable @click="copyUrlToClipboard(epgUrl)"
+                            tabindex="0">
+                      <q-item-section avatar>
+                        <q-avatar
+                          icon="calendar_month"
+                          color="secondary"
+                          text-color="white" />
+                      </q-item-section>
+                      <q-item-section>
+                        <q-item-label class="text-bold text-orange-7">XMLTV Guide</q-item-label>
+                        <q-item-label caption>{{ epgUrl }}</q-item-label>
+                      </q-item-section>
+                      <q-item-section side>
+                        <q-icon name="content_copy" />
+                      </q-item-section>
+                    </q-item>
+
+                    <q-separator inset spaced />
+
+                    <q-item-label header>Proxied M3U Playlists</q-item-label>
+                    <q-item v-for="playlist in enabledPlaylists" :key="`x.${playlist}`"
+                            clickable
+                            @click="copyUrlToClipboard(`${appUrl}/tic-api/tvh_playlist/${playlist.id}/channels.m3u`)"
+                            tabindex="0">
+                      <q-item-section avatar>
+                        <q-avatar
+                          v-if="true"
+                          icon="playlist_play"
+                          color="secondary"
+                          text-color="white" />
+                      </q-item-section>
+                      <q-item-section>
+                        <q-item-label class="text-bold text-blue-7">{{ playlist.name }}</q-item-label>
+                        <q-item-label caption>{{ appUrl }}/tic-api/tvh_playlist/{{ playlist.id }}/channels.m3u
+                        </q-item-label>
+                        <q-item-label caption>Connections Limit: {{ playlist.connections }}</q-item-label>
+                      </q-item-section>
+                      <q-item-section side>
+                        <q-icon name="content_copy" />
+                      </q-item-section>
+                    </q-item>
+
+                    <q-separator inset spaced />
+
+                    <q-item-label header>Proxied HDHomeRun Tuner Emulators</q-item-label>
+                    <q-item v-for="playlist in enabledPlaylists" :key="`x.${playlist}`"
+                            clickable @click="copyUrlToClipboard(`${appUrl}/tic-api/hdhr_device/${playlist.id}`)"
+                            tabindex="0">
+                      <q-item-section avatar>
+                        <q-avatar size="2rem" font-size="82px">
+                          <img src="~assets/hd-icon.png">
+                        </q-avatar>
+                      </q-item-section>
+                      <q-item-section>
+                        <q-item-label class="text-bold text-green-7">{{ playlist.name }}</q-item-label>
+                        <q-item-label caption>{{ appUrl }}/tic-api/hdhr_device/{{ playlist.id }}</q-item-label>
+                      </q-item-section>
+                      <q-item-section side>
+                        <q-icon name="content_copy" />
+                      </q-item-section>
+                    </q-item>
+                  </q-list>
+                </q-card-section>
+              </q-card-section>
+            </q-card>
           </q-btn-dropdown>
           <q-separator dark vertical inset />
         </q-tabs>
@@ -179,6 +278,11 @@
 </template>
 
 <style>
+.connection-details-dropdown {
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+}
+
 .rotating-icon {
   animation: spin 2s linear infinite;
 }

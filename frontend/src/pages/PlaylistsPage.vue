@@ -38,16 +38,7 @@
                     <span class="text-grey-8"> - {{ playlist.url }}</span>
                   </q-item-label>
                   <q-item-label caption lines="1">
-                    Maximum Connections: {{ playlist.connections }}
-                  </q-item-label>
-                  <q-item-label
-                    @click="copyUrlToClipboard(`${appUrl}/tic-api/hdhr_device/${playlist.id}`)"
-                    lines="1"
-                    class="q-mt-xs text-body2 cursor-pointer">
-                    <span class="text-weight-bold text-uppercase text-blue-7">HDHomeRun Device URL: </span>
-                    <span class="text-blue-10">
-                      {{ appUrl }}/tic-api/hdhr_device/{{ playlist.id }}
-                    </span>
+                    Connections Limit: {{ playlist.connections }}
                   </q-item-label>
                 </q-item-section>
 
@@ -97,21 +88,6 @@
 
             </q-list>
           </div>
-          <q-card class="note-card q-mt-md">
-            <q-card-section>
-              <div class="text-h6">Note:</div>
-              TIC comes with an HDHomeRun emulator API endpoint. Configure it as follows:
-              <br>
-              1) For every playlist added above, copy the
-              <span class="text-bold text-blue-7">HDHOMERUN DEVICE URL</span>, highlighted in blue above, as a
-              HDHomeRun tuner to Plex, Emby or JellyFin.
-              <br>
-              2) Copy the <span class="text-bold text-orange-7">EPG URL</span> highlighted in orange at the top right
-              corner to Plex, Emby or JellyFin as the XMLTV EPG.
-              <br>
-              3) Channels should be mapped automatically from the EPG.
-            </q-card-section>
-          </q-card>
         </q-card-section>
       </q-card>
 
