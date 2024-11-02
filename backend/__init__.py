@@ -2,7 +2,6 @@
 # -*- coding:utf-8 -*-
 import logging
 import time
-from logging.config import dictConfig
 from importlib import import_module
 
 import quart_flask_patch
@@ -10,26 +9,6 @@ from quart import Quart
 
 from backend import config
 from backend.api import tasks
-
-dictConfig({
-    'version':    1,
-    'formatters': {
-        'default': {
-            'format': '%(asctime)s:%(levelname)s:%(name)s: %(message)s',
-        }
-    },
-    'handlers':   {
-        'wsgi': {
-            'class':     'logging.StreamHandler',
-            'stream':    'ext://sys.stderr',
-            'formatter': 'default'
-        }
-    },
-    'root':       {
-        'level':    'INFO',
-        'handlers': ['wsgi']
-    }
-})
 
 
 # Custom logging filter that ignores log messages for a specific endpoints
@@ -80,13 +59,12 @@ def create_app():
     # Register the route blueprints
     register_blueprints(app)
 
-    # TODO: Configure logging
-    log = logging.getLogger('werkzeug')
+    log = logging.getLogger('hypercorn.access')
     app.logger.setLevel(logging.INFO)
     log.setLevel(logging.INFO)
     if config.enable_debugging:
         app.logger.setLevel(logging.DEBUG)
         log.setLevel(logging.DEBUG)
-    app.logger.addFilter(IgnoreLoggingRoutesFilter())
+    log.addFilter(IgnoreLoggingRoutesFilter())
 
     return app
