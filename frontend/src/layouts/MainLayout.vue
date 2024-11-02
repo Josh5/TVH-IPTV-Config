@@ -333,6 +333,13 @@
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
+
+.sub-setting {
+  margin-left: 30px;
+  padding-top: 8px;
+  padding-left: 8px;
+  border-left: solid thin var(--q-primary);
+}
 </style>
 
 <script>

@@ -7,15 +7,12 @@
         <div class="col-sm-7 col-md-8">
           <div :class="$q.platform.is.mobile ? 'q-ma-sm' : 'q-ma-sm q-pa-md'">
 
-            <q-form
-              @submit="save"
-              class="q-gutter-md"
-            >
+            <q-form @submit="save" class="q-gutter-md">
+
+              <h5 v-if="aioMode === false" class="text-primary q-mb-none">TVheadend Connection</h5>
 
               <div v-if="aioMode === false">
-                <h5 class="q-mb-none">TVheadend Connection</h5>
-
-                <div class="q-gutter-sm">
+                <div>
                   <q-skeleton
                     v-if="tvhHost === null"
                     type="QInput" />
@@ -26,7 +23,7 @@
                     hint="Set Ensure you also set this to an hostname or IP that is accessible to all applications that will connect to TVH. Not just this application."
                   />
                 </div>
-                <div class="q-gutter-sm">
+                <div>
                   <q-skeleton
                     v-if="tvhPort === null"
                     type="QInput" />
@@ -36,7 +33,7 @@
                     label="TVheadend Port"
                   />
                 </div>
-                <div class="q-gutter-sm">
+                <div>
                   <q-skeleton
                     v-if="tvhUsername === null || aioMode === null"
                     type="QInput" />
@@ -48,7 +45,7 @@
                     hint="This is optional. If your TVH server is not configured with an admin user, leave this blank."
                   />
                 </div>
-                <div class="q-gutter-sm">
+                <div>
                   <q-skeleton
                     v-if="tvhPassword === null || aioMode === null"
                     type="QInput" />
@@ -83,7 +80,7 @@
               <h5 class="text-primary q-mb-none">TVheadend Users Config</h5>
 
               <div v-if="aioMode === false"
-                   class="q-gutter-sm">
+              >
                 <q-item tag="label" dense class="q-pl-none q-mr-none">
                   <q-item-section avatar>
                     <q-checkbox v-model="createClientUser" val="createClientUser" />
@@ -98,8 +95,8 @@
 
               <div
                 v-if="createClientUser || aioMode === true"
-                class="q-gutter-sm">
-                <div class="q-gutter-sm">
+              >
+                <div>
                   <q-skeleton
                     v-if="clientUsername === null"
                     type="QInput" />
@@ -111,7 +108,7 @@
                     :hint="(aioMode === true) ? `Since an admin user is configured, a client user is required.`: ``"
                   />
                 </div>
-                <div class="q-gutter-sm">
+                <div>
                   <q-skeleton
                     v-if="clientPassword === null"
                     type="QInput" />
@@ -137,7 +134,7 @@
 
               <h5 class="text-primary q-mb-none">Stream Config</h5>
 
-              <div class="q-gutter-sm">
+              <div>
                 <q-item tag="label" dense class="q-pl-none q-mr-none">
                   <q-item-section avatar>
                     <q-checkbox v-model="enableStreamBuffer" val="createClientUser" />
@@ -155,7 +152,7 @@
 
               <div
                 v-if="enableStreamBuffer"
-                class="q-gutter-sm">
+                class="sub-setting">
                 <q-skeleton
                   v-if="defaultFfmpegPipeArgs === null"
                   type="QInput" />
@@ -176,6 +173,23 @@
         </div>
         <div class="col-sm-5 col-md-4">
           <q-card class="note-card q-my-md">
+            <q-card-section>
+              <div class="text-h5 q-mb-none">Setup Steps:</div>
+              <q-list>
+
+                <q-separator inset spaced />
+
+                <q-item>
+                  <q-item-section>
+                    <q-item-label>
+                      1. Configure the Client username and password.
+                      This will be applied to the playlists and guide data supplied to any clients.
+                    </q-item-label>
+                  </q-item-section>
+                </q-item>
+
+              </q-list>
+            </q-card-section>
             <q-card-section>
               <div class="text-h5 q-mb-none">Notes:</div>
               <q-list>
@@ -202,8 +216,7 @@
                   <q-item-section>
                     <q-item-label>
                       The <b>Stream Buffer</b> option is not required in order for multiple clients to view a single
-                      channel as
-                      one connection on that playlist through the TVheadend backend.
+                      channel as one connection on that playlist through the TVheadend backend.
                     </q-item-label>
                   </q-item-section>
                 </q-item>

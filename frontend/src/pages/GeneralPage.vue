@@ -4,69 +4,64 @@
     <div class="q-pa-none">
 
       <div class="row">
-        <div class="col-sm-12 col-md-10 col-lg-8">
+        <div class="col-sm-7 col-md-8">
           <div :class="$q.platform.is.mobile ? 'q-ma-sm' : 'q-ma-sm q-pa-md'">
 
-            <q-form
-              @submit="save"
-              class="q-gutter-md"
-            >
+            <q-form @submit="save" class="q-gutter-md">
 
-              <div>
-                <h5 class="q-mb-none">Authentication</h5>
+              <h5 class="text-primary q-mb-none">Authentication</h5>
 
-                <div v-if="aioMode === false"
-                     class="q-gutter-sm">
-                  <q-item tag="label" dense class="q-pl-none q-mr-none">
-                    <q-item-section avatar>
-                      <q-checkbox v-model="enableAdminUser" val="enableAdminUser" />
-                    </q-item-section>
-                    <q-item-section>
-                      <q-item-label>Enable authentication on TIC web interface</q-item-label>
-                    </q-item-section>
-                  </q-item>
-                </div>
-
-                <div
-                  v-if="aioMode === true || enableAdminUser === true"
-                  class="q-gutter-sm">
-                  <q-skeleton
-                    v-if="adminUsername === null"
-                    type="QInput" />
-                  <q-input
-                    v-else
-                    v-model="adminUsername"
-                    readonly
-                    label="Admin Username"
-                    :hint="(aioMode === true) ? `Note: This admin user is for both TIC and TVH (username cannot be modified).` : `Note: Username cannot be modified.`"
-                  />
-                </div>
-                <div
-                  v-if="aioMode === true || enableAdminUser === true"
-                  class="q-gutter-sm">
-                  <q-skeleton
-                    v-if="adminPassword === null"
-                    type="QInput" />
-                  <q-input
-                    v-else
-                    v-model="adminPassword"
-                    label="Admin Password"
-                    :hint="(aioMode === true) ? `Note: The admin password configured here will be also applied to TVH.` : ``"
-                    :type="hideAdminPassword ? 'password' : 'text'">
-                    <template v-slot:append>
-                      <q-icon
-                        :name="hideAdminPassword ? 'visibility_off' : 'visibility'"
-                        class="cursor-pointer"
-                        @click="hideAdminPassword = !hideAdminPassword"
-                      />
-                    </template>
-                  </q-input>
-                </div>
+              <div v-if="aioMode === false"
+                   class="q-gutter-sm">
+                <q-item tag="label" dense class="q-pl-none q-mr-none">
+                  <q-item-section avatar>
+                    <q-checkbox v-model="enableAdminUser" val="enableAdminUser" />
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label>Enable authentication on TIC web interface</q-item-label>
+                  </q-item-section>
+                </q-item>
               </div>
 
-              <h5 class="q-mb-none">Connections</h5>
+              <div
+                v-if="aioMode === true || enableAdminUser === true"
+                class="q-gutter-sm">
+                <q-skeleton
+                  v-if="adminUsername === null"
+                  type="QInput" />
+                <q-input
+                  v-else
+                  v-model="adminUsername"
+                  readonly
+                  label="Admin Username"
+                  :hint="(aioMode === true) ? `Note: This admin user is for both TIC and TVH (username cannot be modified).` : `Note: Username cannot be modified.`"
+                />
+              </div>
+              <div
+                v-if="aioMode === true || enableAdminUser === true"
+                class="q-gutter-sm">
+                <q-skeleton
+                  v-if="adminPassword === null"
+                  type="QInput" />
+                <q-input
+                  v-else
+                  v-model="adminPassword"
+                  label="Admin Password"
+                  :hint="(aioMode === true) ? `Note: The admin password configured here will be also applied to TVH.` : ``"
+                  :type="hideAdminPassword ? 'password' : 'text'">
+                  <template v-slot:append>
+                    <q-icon
+                      :name="hideAdminPassword ? 'visibility_off' : 'visibility'"
+                      class="cursor-pointer"
+                      @click="hideAdminPassword = !hideAdminPassword"
+                    />
+                  </template>
+                </q-input>
+              </div>
 
-              <div class="q-gutter-sm q-mt-sm">
+              <h5 class="text-primary q-mb-none">Connections</h5>
+
+              <div class="q-gutter-sm">
                 <q-skeleton
                   v-if="appUrl === null"
                   type="QInput" />
@@ -84,6 +79,54 @@
 
             </q-form>
           </div>
+        </div>
+        <div class="col-sm-5 col-md-4">
+          <q-card class="note-card q-my-md">
+            <q-card-section>
+              <div class="text-h5 q-mb-none">Setup Steps:</div>
+              <q-list>
+
+                <q-separator inset spaced v-if="aioMode === true" />
+
+                <q-item v-if="aioMode === true">
+                  <q-item-section>
+                    <q-item-label>
+                      1. Configure the Admin username and password. This user should not be used for streaming clients.
+                    </q-item-label>
+                  </q-item-section>
+                </q-item>
+                <q-item v-if="aioMode === true">
+                  <q-item-section>
+                    <q-item-label>
+                      2. Configure the connection details that clients should use to connect to TIC.
+                      This will be applied to the playlists and guide data supplied to these clients.
+                    </q-item-label>
+                  </q-item-section>
+                </q-item>
+
+              </q-list>
+            </q-card-section>
+            <q-card-section>
+              <div class="text-h5 q-mb-none">Notes:</div>
+              <q-list>
+
+                <q-separator inset spaced v-if="aioMode === true" />
+
+                <q-item-label class="text-primary" v-if="aioMode === true">
+                  Authentication:
+                </q-item-label>
+                <q-item v-if="aioMode === true">
+                  <q-item-section>
+                    <q-item-label>
+                      Authentication is shared between TIC and the TVheadend Backend.
+                      Updating the admin user here will also update the admin user in TVheadend.
+                    </q-item-label>
+                  </q-item-section>
+                </q-item>
+
+              </q-list>
+            </q-card-section>
+          </q-card>
         </div>
       </div>
     </div>

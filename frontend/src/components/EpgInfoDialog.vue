@@ -93,7 +93,7 @@
                 <q-input
                   v-else
                   v-model="name"
-                  label="Playlist Name"
+                  label="EPG Name"
                 />
               </div>
               <div class="q-gutter-sm">
@@ -104,7 +104,7 @@
                   v-else
                   v-model="url"
                   type="textarea"
-                  label="Playlist URL"
+                  label="EPG URL"
                 />
               </div>
 
