@@ -32,13 +32,21 @@
             v-if="$q.platform.is.mobile"
             class="col">
             <q-btn
+              v-if="selected.length > 0"
+              color="grey-7"
+              dense
+              round
+              flat
+              icon="publish"
+              v-close-popup />
+            <q-btn
+              v-else
               color="grey-7"
               dense
               round
               flat
               icon="arrow_back"
-              v-close-popup>
-            </q-btn>
+              v-close-popup />
           </div>
 
           <div class="col">
@@ -51,6 +59,17 @@
             v-if="!$q.platform.is.mobile"
             class="col-auto">
             <q-btn
+              v-if="selected.length > 0"
+              color="grey-7"
+              dense
+              round
+              flat
+              icon="publish"
+              v-close-popup>
+              <q-tooltip class="bg-white text-primary">Import Selected Streams As Channels</q-tooltip>
+            </q-btn>
+            <q-btn
+              v-else
               color="grey-7"
               dense
               round
@@ -121,27 +140,27 @@
                 <template v-slot:top-right>
                   <q-input borderless dense debounce="300" v-model="filter" placeholder="Search">
                     <template v-slot:append>
-                      <q-icon name="search"/>
+                      <q-icon name="search" />
                     </template>
                   </q-input>
                 </template>
 
                 <template v-slot:no-data="{ icon, message, filter }">
                   <div class="full-width row flex-center text-primary q-gutter-sm">
-                    <q-icon size="2em" :name="filter ? 'filter_b_and_w' : icon"/>
+                    <q-icon size="2em" :name="filter ? 'filter_b_and_w' : icon" />
                     <span>{{ message }}</span>
-                    <q-icon size="2em" :name="filter ? 'filter_b_and_w' : icon"/>
+                    <q-icon size="2em" :name="filter ? 'filter_b_and_w' : icon" />
                   </div>
                 </template>
 
                 <template v-slot:body="props">
                   <q-tr :props="props">
                     <q-td auto-width>
-                      <q-checkbox v-model="props.selected" color="primary"/>
+                      <q-checkbox v-model="props.selected" color="primary" />
                     </q-td>
                     <q-td key="name" :props="props" style="max-width: 60px;">
                       <q-avatar rounded>
-                        <img :src="props.row.tvg_logo" style="height:40px; width:auto; max-width:120px;"/>
+                        <img :src="props.row.tvg_logo" style="height:40px; width:auto; max-width:120px;" />
                       </q-avatar>
                     </q-td>
                     <q-td key="name" :props="props"
@@ -173,29 +192,29 @@
 
 <script>
 
-import axios from "axios";
-import {ref} from "vue";
+import axios from 'axios';
+import {ref} from 'vue';
 
 const columns = [
   {name: 'tvg_logo', required: true, align: 'left', label: 'Logo', field: 'tvg_logo', sortable: false},
   {name: 'name', required: true, align: 'left', label: 'Name', field: 'name', sortable: true},
   {name: 'playlist_name', required: true, align: 'left', label: 'Playlist', field: 'playlist_name', sortable: false},
-]
+];
 
 export default {
   name: 'ChannelStreamSelectorDialog',
   props: {
     dialogHeader: {
       type: String,
-      default: ' --- header --- '
+      default: ' --- header --- ',
     },
     hideStreams: {
-      type: Array
-    }
+      type: Array,
+    },
   },
   emits: [
     // REQUIRED
-    'ok', 'hide', 'path'
+    'ok', 'hide', 'path',
   ],
   methods: {
     // following method is REQUIRED
@@ -204,7 +223,7 @@ export default {
       this.$refs.channelStreamSelectorDialogRef.show();
       this.fetchStreamsList({
         pagination: this.pagination,
-        filter: this.filter
+        filter: this.filter,
       });
     },
 
@@ -218,32 +237,32 @@ export default {
       // required to be emitted
       // when QDialog emits "hide" event
       // TODO: Insert the playlist name in there
-      let returnItems = []
+      let returnItems = [];
       for (const i in this.selected) {
-        let selected = this.selected[i]
+        let selected = this.selected[i];
         returnItems.push({
           'id': selected['id'],
           'playlist_id': selected['playlist_id'],
           'playlist_name': selected['playlist_name'],
           'channel_id': selected['channel_id'],
           'stream_name': selected['name'],
-        })
+        });
       }
-      this.$emit('ok', {selectedStreams: returnItems})
-      this.$emit('hide')
+      this.$emit('ok', {selectedStreams: returnItems});
+      this.$emit('hide');
     },
-    fetchStreamsList: function (props) {
-      const {page, rowsPerPage, sortBy, descending} = props.pagination
-      const filter = props.filter
+    fetchStreamsList: function(props) {
+      const {page, rowsPerPage, sortBy, descending} = props.pagination;
+      const filter = props.filter;
 
       // Show loading animation
       this.loading = true;
 
       // get all rows if "All" (0) is selected
-      const fetchCount = rowsPerPage === 0 ? pagination.value.rowsNumber : rowsPerPage
+      const fetchCount = rowsPerPage === 0 ? pagination.value.rowsNumber : rowsPerPage;
 
       // calculate starting row of data
-      const startRow = (page - 1) * rowsPerPage
+      const startRow = (page - 1) * rowsPerPage;
 
       // Fetch from server
       let data = {
@@ -252,13 +271,13 @@ export default {
         search_value: filter,
         order_by: sortBy,
         order_direction: descending ? 'desc' : 'asc',
-      }
+      };
       // Fetch from server
-      this.rows = []
+      this.rows = [];
       axios({
         method: 'POST',
         url: '/tic-api/playlists/streams',
-        data: data
+        data: data,
       }).then((response) => {
         // update rowsCount with appropriate value
         this.pagination.rowsNumber = response.data.data.records_filtered;
@@ -275,7 +294,7 @@ export default {
             playlist_id: stream.playlist_id,
             playlist_name: stream.playlist_name,
             tvg_logo: stream.tvg_logo,
-          }
+          };
         }
 
         // clear out existing data and add new
@@ -288,24 +307,26 @@ export default {
         this.pagination.descending = descending;
 
         // Hide loading animation
-        this.loading = false
+        this.loading = false;
       });
     },
-    getSelectedString: function () {
-      return this.selected.length === 0 ? '' : `${this.selected.length} record${this.selected.length > 1 ? 's' : ''} selected of ${this.rows.length}`
+    getSelectedString: function() {
+      return this.selected.length === 0 ?
+        '' :
+        `${this.selected.length} record${this.selected.length > 1 ? 's' : ''} selected of ${this.rows.length}`;
     },
-    genRowIndex: function (row) {
-      return `${row.playlist_id}-${row.name}`
-    }
+    genRowIndex: function(row) {
+      return `${row.playlist_id}-${row.name}`;
+    },
   },
   computed: {
     tableStyle() {
       const dialogHeight = this.$refs.channelStreamSelectorDialogRef.$el.offsetHeight;
-      const tableHeight = (dialogHeight - 150)
-      return `height:${tableHeight}px;`
-    }
+      const tableHeight = (dialogHeight - 150);
+      return `height:${tableHeight}px;`;
+    },
   },
-  data: function () {
+  data: function() {
     return {
       maximizedToggle: true,
       currentPlugin: ref(null),
@@ -322,11 +343,11 @@ export default {
         descending: false,
         page: 1,
         rowsPerPage: 15,
-        rowsNumber: 10
+        rowsNumber: 10,
       }),
       loading: ref(false),
 
-    }
-  }
-}
+    };
+  },
+};
 </script>

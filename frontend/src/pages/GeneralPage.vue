@@ -34,7 +34,7 @@
                   v-model="adminUsername"
                   readonly
                   label="Admin Username"
-                  :hint="(aioMode === true) ? `Note: This admin user is for both TIC and TVH (username cannot be modified).` : `Note: Username cannot be modified.`"
+                  :hint="(aioMode === true) ? `Note: This admin user is for both TIC and TVheadend (username cannot be modified).` : `Note: Username cannot be modified.`"
                 />
               </div>
               <div
@@ -47,7 +47,7 @@
                   v-else
                   v-model="adminPassword"
                   label="Admin Password"
-                  :hint="(aioMode === true) ? `Note: The admin password configured here will be also applied to TVH.` : ``"
+                  :hint="(aioMode === true) ? `Note: The admin password configured here will be also applied to TVheadend.` : ``"
                   :type="hideAdminPassword ? 'password' : 'text'">
                   <template v-slot:append>
                     <q-icon
@@ -68,7 +68,7 @@
                 <q-input
                   v-else
                   v-model="appUrl"
-                  label="TVH IPTV Config Host"
+                  label="TIC Host"
                   hint="External access host & port. This is needed for other applications to connect to TIC. This will be used in the generated XMLTV EPG, Custom Playlist and HDHomeRun Tuner Emulators. Ensure this is set to something that external services can use to reach TIC."
                 />
               </div>

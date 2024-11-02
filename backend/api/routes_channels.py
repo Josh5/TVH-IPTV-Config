@@ -92,6 +92,21 @@ async def api_add_multiple_channels():
     )
 
 
+@blueprint.route('/tic-api/channels/settings/multiple/delete', methods=['POST'])
+@admin_auth_required
+async def api_delete_multiple_channels():
+    json_data = await request.get_json()
+    config = current_app.config['APP_CONFIG']
+    current_app.logger.warning(json_data)
+    for channel_id in json_data.get('channels', {}):
+        delete_channel(config, channel_id)
+    return jsonify(
+        {
+            "success": True
+        }
+    )
+
+
 @blueprint.route('/tic-api/channels/settings/<channel_id>/delete', methods=['DELETE'])
 @admin_auth_required
 async def api_delete_config_channels(channel_id):

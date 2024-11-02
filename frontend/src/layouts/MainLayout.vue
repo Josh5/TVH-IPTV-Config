@@ -6,7 +6,7 @@
           <q-avatar size="2rem" font-size="82px">
             <img src="~assets/icon.png">
           </q-avatar>
-          TVH IPTV Config
+          TIC (<u>T</u>Vheadend <u>I</u>PTV <u>C</u>onfig)
         </q-toolbar-title>
         <q-separator dark vertical inset />
 
@@ -76,8 +76,10 @@
                             </li>
                             <li>
                               Copy
+                              (
                               <q-icon name="content_copy" />
-                              the URL above to the <b>File or URL</b> field in Jellyfin.
+                              )
+                              the URL of the playlist to the <b>File or URL</b> field in Jellyfin.
                             </li>
                             <li>
                               Configure the <b>Simultaneous stream limit</b> section in Jellyfin with the
@@ -94,7 +96,9 @@
                           <ol type="a">
                             <li>
                               Copy
+                              (
                               <q-icon name="content_copy" />
+                              )
                               the <span class="text-bold text-orange-7">XMLTV Guide</span> URL to the <b>File or URL</b>
                               field in Jellyfin.
                             </li>
@@ -118,20 +122,26 @@
                         </li>
                         <li>
                           Copy
+                          (
                           <q-icon name="content_copy" />
+                          )
                           the URL of the HDHomeRun Tuner Emulator to Jellyfin, Emby or Plex.
                         </li>
                         <li>
                           <b>(Plex Only)</b> Click the link "Have an XMLTV guide on your server? Click here to use it.".
                           Copy
+                          (
                           <q-icon name="content_copy" />
+                          )
                           the <span class="text-bold text-orange-7">XMLTV Guide</span> URL above to the
                           <b>XMLTV GUIDE</b> field in Plex.
                         </li>
                         <li>
                           <b>(Jellyfin & Emby)</b> Add a new "XMLTV" <b>TV Guide Data Provider</b>.
                           Copy
+                          (
                           <q-icon name="content_copy" />
+                          )
                           the <span class="text-bold text-orange-7">XMLTV Guide</span> URL above to the
                           <b>File or URL</b> field in Jellyfin/Emby.
                         </li>
@@ -359,8 +369,8 @@ const linksList = [
   },
   {
     title: 'TVheadend',
-    caption: 'Connect to TVheadend',
-    icon: 'img:https://avatars.githubusercontent.com/u/1908588?s=280&v=4',
+    caption: 'TVheadend Settings',
+    icon: 'img:icons/tvh-icon.svg',
     link: '/tvheadend',
   },
   {
