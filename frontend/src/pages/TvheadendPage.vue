@@ -4,7 +4,7 @@
     <div class="q-pa-none">
 
       <div class="row">
-        <div class="col-sm-12 col-md-10 col-lg-8">
+        <div class="col-sm-7 col-md-8">
           <div :class="$q.platform.is.mobile ? 'q-ma-sm' : 'q-ma-sm q-pa-md'">
 
             <q-form
@@ -80,7 +80,7 @@
                 <q-separator />
               </div>
 
-              <h5 class="q-mb-none">TVheadend Users Config</h5>
+              <h5 class="text-primary q-mb-none">TVheadend Users Config</h5>
 
               <div v-if="aioMode === false"
                    class="q-gutter-sm">
@@ -132,13 +132,39 @@
                     </template>
                   </q-input>
                 </div>
-                <q-card class="note-card q-mt-md">
-                  <q-card-section>
-                    <div class="text-h6">Note:</div>
-                    If you want to have additional client users created, they can be added in the Theadend web
-                    interface.
-                  </q-card-section>
-                </q-card>
+              </div>
+
+
+              <h5 class="text-primary q-mb-none">Stream Config</h5>
+
+              <div class="q-gutter-sm">
+                <q-item tag="label" dense class="q-pl-none q-mr-none">
+                  <q-item-section avatar>
+                    <q-checkbox v-model="enableStreamBuffer" val="createClientUser" />
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label>Enable Stream Buffer</q-item-label>
+                    <q-item-label caption>
+                      Adds a FFmpeg pipe to the TVheadend stream source.
+                      This can improve stability from multiple client connections, but will introduce latency for the
+                      first client that connects.
+                    </q-item-label>
+                  </q-item-section>
+                </q-item>
+              </div>
+
+              <div
+                v-if="enableStreamBuffer"
+                class="q-gutter-sm">
+                <q-skeleton
+                  v-if="defaultFfmpegPipeArgs === null"
+                  type="QInput" />
+                <q-input
+                  v-else
+                  v-model="defaultFfmpegPipeArgs"
+                  label="Default FFmpeg Stream Buffer Options"
+                  hint="Note: [URL] and [SERVICE_NAME] will be replaced with the stream source and the service name respectively."
+                />
               </div>
 
               <div>
@@ -147,6 +173,44 @@
 
             </q-form>
           </div>
+        </div>
+        <div class="col-sm-5 col-md-4">
+          <q-card class="note-card q-my-md">
+            <q-card-section>
+              <div class="text-h5 q-mb-none">Notes:</div>
+              <q-list>
+
+                <q-separator inset spaced />
+
+                <q-item-label class="text-primary">
+                  TVheadend Users Config:
+                </q-item-label>
+                <q-item>
+                  <q-item-section>
+                    <q-item-label>
+                      If you want to have additional client users created, they can be added in the TVheadend Backend.
+                    </q-item-label>
+                  </q-item-section>
+                </q-item>
+
+                <q-separator inset spaced />
+
+                <q-item-label class="text-primary">
+                  Stream Config:
+                </q-item-label>
+                <q-item>
+                  <q-item-section>
+                    <q-item-label>
+                      The <b>Stream Buffer</b> option is not required in order for multiple clients to view a single
+                      channel as
+                      one connection on that playlist through the TVheadend backend.
+                    </q-item-label>
+                  </q-item-section>
+                </q-item>
+
+              </q-list>
+            </q-card-section>
+          </q-card>
         </div>
       </div>
     </div>

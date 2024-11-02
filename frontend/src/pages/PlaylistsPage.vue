@@ -91,47 +91,6 @@
         </q-card-section>
       </q-card>
 
-      <q-card flat>
-        <q-card-section :class="$q.platform.is.mobile ? 'q-px-none' : ''">
-          <q-form @submit="save">
-
-            <h5 class="q-mt-none q-mb-none">Stream Config</h5>
-
-            <div class="q-gutter-sm">
-              <q-item tag="label" dense class="q-pl-none q-mr-none">
-                <q-item-section avatar>
-                  <q-checkbox v-model="enableStreamBuffer" val="createClientUser" />
-                </q-item-section>
-                <q-item-section>
-                  <q-item-label>Enable Stream Buffer</q-item-label>
-                </q-item-section>
-              </q-item>
-            </div>
-
-            <div
-              v-if="enableStreamBuffer"
-              class="q-gutter-sm">
-              <q-skeleton
-                v-if="defaultFfmpegPipeArgs === null"
-                type="QInput" />
-              <q-input
-                v-else
-                v-model="defaultFfmpegPipeArgs"
-                label="Default FFmpeg Stream Buffer Options"
-                hint="Note: [URL] and [SERVICE_NAME] will be replaced with the stream source and the service name respectively."
-              />
-            </div>
-
-            <q-separator />
-
-            <div>
-              <q-btn label="Save" type="submit" color="primary" class="q-mt-lg" />
-            </div>
-
-          </q-form>
-        </q-card-section>
-      </q-card>
-
     </div>
 
   </q-page>
