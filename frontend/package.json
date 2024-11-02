@@ -17,27 +17,28 @@
   },
   "dependencies": {
     "@quasar/extras": "^1.16.12",
-    "axios": "^1.7.7",
+    "axios": "^1.2.1",
     "core-js": "^3.39.0",
     "pinia": "^2.2.5",
     "quasar": "^2.17.1",
     "stream": "^0.0.3",
     "timers": "^0.1.1",
-    "vue": "^3.5.12",
-    "vue-router": "^4.4.5",
+    "vue": "^3.2.29",
+    "vue-router": "^4.0.12",
     "vuedraggable": "^4.1.0",
     "xml2js": "^0.6.2"
   },
   "devDependencies": {
-    "@babel/eslint-parser": "^7.25.9",
-    "@quasar/app-webpack": "^3.14.2",
+    "@babel/eslint-parser": "^7.13.14",
+    "@quasar/app-webpack": "^3.9.2",
     "@vue/devtools": "^7.6.2",
     "eslint": "^9.13.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-vue": "^9.30.0",
     "eslint-webpack-plugin": "^4.2.0",
     "nodemon": "^3.1.7",
-    "prettier": "^3.3.3"
+    "prettier": "^3.3.3",
+    "sass-embedded": "^1.80.6"
   },
   "browserslist": [
     "last 10 Chrome versions",
@@ -51,7 +52,7 @@
     "last 5 Opera versions"
   ],
   "engines": {
-    "node": ">= 12.22.1",
+    "node": "^20 || ^18 || ^16",
     "npm": ">= 6.13.4",
     "yarn": ">= 1.21.1"
   }

@@ -7,7 +7,7 @@ FROM ${BASE_IMAGE} AS base_image
 # |  _| |  _ <| |_| | |\  | | | | |___| |\  | |_| |  ___) || |/ ___ \ |_| | |___
 # |_|   |_| \_\\___/|_| \_| |_| |_____|_| \_|____/  |____/ |_/_/   \_\____|_____|
 #
-FROM node:22-bookworm AS frontend_build_stage
+FROM node:20-bookworm AS frontend_build_stage
 
 COPY ./frontend/package.json /build/
 COPY ./frontend/package-lock.json /build/
@@ -28,7 +28,7 @@ RUN \
             python3-wheel \
     && \
     echo "** Install node dependencies **" \
-        && npm ci \
+        && npm ci --include dev \
     && \
     echo
 

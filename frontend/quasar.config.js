@@ -8,13 +8,11 @@
 // Configuration for your app
 // https://v2.quasar.dev/quasar-cli-webpack/quasar-config-js
 
-
-const ESLintPlugin = require('eslint-webpack-plugin')
-
+const ESLintPlugin = require('eslint-webpack-plugin');
 
 const {configure} = require('quasar/wrappers');
 
-module.exports = configure(function (ctx) {
+module.exports = configure(function(ctx) {
   return {
     // https://v2.quasar.dev/quasar-cli-webpack/supporting-ts
     supportTS: false,
@@ -31,13 +29,13 @@ module.exports = configure(function (ctx) {
 
     // https://v2.quasar.dev/quasar-cli-webpack/quasar-config-js#Property%3A-css
     css: [
-      'app.scss'
+      'app.scss',
     ],
 
     // https://github.com/quasarframework/quasar/tree/dev/extras
     extras: [
       // 'ionicons-v4',
-      // 'mdi-v5',
+      // 'mdi-v7',
       'fontawesome-v6',
       // 'eva-icons',
       // 'themify',
@@ -74,16 +72,16 @@ module.exports = configure(function (ctx) {
       // "chain" is a webpack-chain object https://github.com/neutrinojs/webpack-chain
 
       chainWebpack(chain) {
-        chain.plugin('eslint-webpack-plugin')
-          .use(ESLintPlugin, [{extensions: ['js', 'vue']}])
-      }
+        chain.plugin('eslint-webpack-plugin').
+          use(ESLintPlugin, [{extensions: ['js', 'vue']}]);
+      },
 
     },
 
     // Full list of options: https://v2.quasar.dev/quasar-cli-webpack/quasar-config-js#Property%3A-devServer
     devServer: {
       server: {
-        type: 'http'
+        type: 'http',
       },
       port: 8080,
       proxy: {
@@ -91,10 +89,10 @@ module.exports = configure(function (ctx) {
         '/tic-web/epg.xml': 'http://localhost:9985',
         '/tic-tvh': {
           target: 'ws://localhost:9985',
-          ws: true
+          ws: true,
         },
       },
-      open: false // opens browser window automatically
+      open: false, // opens browser window automatically
     },
 
     // https://v2.quasar.dev/quasar-cli-webpack/quasar-config-js#Property%3A-framework
@@ -116,7 +114,7 @@ module.exports = configure(function (ctx) {
         'Dialog',
         'Loading',
         'Notify',
-      ]
+      ],
     },
 
     // animations: 'all', // --- includes all animations
@@ -136,17 +134,15 @@ module.exports = configure(function (ctx) {
       maxAge: 1000 * 60 * 60 * 24 * 30,
       // Tell browser when a file from the server should expire from cache (in ms)
 
-
       chainWebpackWebserver(chain) {
-        chain.plugin('eslint-webpack-plugin')
-          .use(ESLintPlugin, [{extensions: ['js']}])
+        chain.plugin('eslint-webpack-plugin').
+          use(ESLintPlugin, [{extensions: ['js']}]);
       },
-
 
       middlewares: [
         ctx.prod ? 'compression' : '',
-        'render' // keep this as last one
-      ]
+        'render', // keep this as last one
+      ],
     },
 
     // https://v2.quasar.dev/quasar-cli-webpack/developing-pwa/configuring-pwa
@@ -158,10 +154,9 @@ module.exports = configure(function (ctx) {
       // if using workbox in InjectManifest mode
 
       chainWebpackCustomSW(chain) {
-        chain.plugin('eslint-webpack-plugin')
-          .use(ESLintPlugin, [{extensions: ['js']}])
+        chain.plugin('eslint-webpack-plugin').
+          use(ESLintPlugin, [{extensions: ['js']}]);
       },
-
 
       manifest: {
         name: `TVH IPTV Config`,
@@ -175,30 +170,30 @@ module.exports = configure(function (ctx) {
           {
             src: 'icons/icon-128x128.png',
             sizes: '128x128',
-            type: 'image/png'
+            type: 'image/png',
           },
           {
             src: 'icons/icon-192x192.png',
             sizes: '192x192',
-            type: 'image/png'
+            type: 'image/png',
           },
           {
             src: 'icons/icon-256x256.png',
             sizes: '256x256',
-            type: 'image/png'
+            type: 'image/png',
           },
           {
             src: 'icons/icon-384x384.png',
             sizes: '384x384',
-            type: 'image/png'
+            type: 'image/png',
           },
           {
             src: 'icons/icon-512x512.png',
             sizes: '512x512',
-            type: 'image/png'
-          }
-        ]
-      }
+            type: 'image/png',
+          },
+        ],
+      },
     },
 
     // Full list of options: https://v2.quasar.dev/quasar-cli-webpack/developing-cordova-apps/configuring-cordova
@@ -208,7 +203,7 @@ module.exports = configure(function (ctx) {
 
     // Full list of options: https://v2.quasar.dev/quasar-cli-webpack/developing-capacitor-apps/configuring-capacitor
     capacitor: {
-      hideSplashscreen: true
+      hideSplashscreen: true,
     },
 
     // Full list of options: https://v2.quasar.dev/quasar-cli-webpack/developing-electron-apps/configuring-electron
@@ -231,22 +226,21 @@ module.exports = configure(function (ctx) {
       builder: {
         // https://www.electron.build/configuration/configuration
 
-        appId: 'tvh_iptv_config'
+        appId: 'tvh_iptv_config',
       },
 
       // "chain" is a webpack-chain object https://github.com/neutrinojs/webpack-chain
 
       chainWebpackMain(chain) {
-        chain.plugin('eslint-webpack-plugin')
-          .use(ESLintPlugin, [{extensions: ['js']}])
+        chain.plugin('eslint-webpack-plugin').
+          use(ESLintPlugin, [{extensions: ['js']}]);
       },
-
 
       chainWebpackPreload(chain) {
-        chain.plugin('eslint-webpack-plugin')
-          .use(ESLintPlugin, [{extensions: ['js']}])
+        chain.plugin('eslint-webpack-plugin').
+          use(ESLintPlugin, [{extensions: ['js']}]);
       },
 
-    }
-  }
+    },
+  };
 });
