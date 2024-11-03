@@ -5,7 +5,7 @@
 # File Created: Tuesday, 11th April 2023 3:31:39 pm
 # Author: Josh.5 (jsunnex@gmail.com)
 # -----
-# Last Modified: Sunday, 30th June 2024 12:45:49 pm
+# Last Modified: Sunday, 3rd November 2024 2:39:21 pm
 # Modified By: Josh5 (jsunnex@gmail.com)
 ###
 
@@ -23,9 +23,7 @@ source venv-local/bin/activate
 
 # Configure env
 export PYTHONUNBUFFERED=1;
-export FLASK_APP=run.py;
-export FLASK_DEBUG=true;
-export ENABLE_DEBUGGING=true;
+export ENABLE_APP_DEBUGGING=true;
 export HOME_DIR="${PWD}/dev_env/config/"
 
 mkdir -p "${HOME_DIR}"

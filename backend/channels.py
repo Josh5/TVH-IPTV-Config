@@ -18,7 +18,7 @@ from backend.models import db, Session, Channel, ChannelTag, Epg, ChannelSource,
 from backend.playlists import fetch_playlist_streams
 from backend.tvheadend.tvh_requests import get_tvh
 
-logger = logging.getLogger('werkzeug.channels')
+logger = logging.getLogger('tic.channels')
 
 image_placeholder_base64 = 'iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAIAAAD/gAIDAAACiUlEQVR4nO2cy46sMAxEzdX8/y/3XUSKUM+I7sLlF6qzYgE4HJwQEsLxer1MfMe/6gJMQrIAJAtAsgAkC0CyACQLQLIAJAtAsgAkC0CyACQLQLIAJAtAsgAkC0CyACQL4Md5/HEclFH84ziud+gwV+C61H2F905yFvTxDNDOQXjz4p6vddTt0M7Db0OoRN/7cmZi6Nm+iphWblbrlnnm90CsMBe+EmpNTsVk3pM/faXd9oRYzH7WLui2lmlqFeBjF8QD/2LKn/Fxd4jfgy/vPcblV+zrTmiluCDIF1/WqgW/269kInyRZZ3bi+f5Ysr63bI+zFf4EE25LyI0WRcP7FpfxOTiyPrYtXmGr7yR0gfUx9Rh5em+CLKg14sqX5SaWDBhMTe/vLLuvbWW+PInV9lU2MT8qpw3HOereJJ1li+XLMowW6YvZ7PVYvp+Sn61kGVDfHWRZRN8NZJl7X31kmW9fbWTZY19dZRlXX01lWUtffWVZf18tZZlzXy5ZEV/iLGjrA1/LOf7WffMWjTJrxmyrIevMbKsgS+vrJxm6xxubdwI6h9QmpRZi8L8IshKTi675YsyTjkvsxYl+TVVllX44sjKr4k77tq4js76JJeWWW19ET9eHlwNN2n1kbxooPBzyLXxVgDuN/HkzGrli756IGQxQvIqlLfQe5tehpA2q0N+RRDVwBf62nRfNHCmxFfo+o7YrkOyr+j1HRktceFKVvKq7AcsM70+M9FX6jO+avU9K25Nhyj/vw4UX2W9R0v/Y4jfV6WsMzn/ovH+D6aJrDQ8z5knDNFAPH9GugmSBSBZAJIFIFkAkgUgWQCSBSBZAJIFIFkAkgUgWQCSBSBZAJIFIFkA/wGlHK2X7Li2TQAAAABJRU5ErkJggg=='
 
@@ -31,12 +31,13 @@ async def read_config_all_channels(filter_playlist_ids=None, output_for_export=F
 
     async with Session() as session:
         async with session.begin():
-            query = select(Channel).options(
-                joinedload(Channel.tags),
-                joinedload(Channel.sources).subqueryload(ChannelSource.playlist)
-            ).order_by(Channel.id)
-
-            result = await session.execute(query)
+            result = await session.execute(
+                select(Channel)
+                .options(
+                    joinedload(Channel.tags),
+                    joinedload(Channel.sources).subqueryload(ChannelSource.playlist)
+                ).order_by(Channel.id)
+            )
             channels = result.scalars().unique().all()
 
             for result in channels:

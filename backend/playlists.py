@@ -14,7 +14,7 @@ from backend.ffmpeg import ffprobe_file
 from backend.models import db, Session, Playlist, PlaylistStreams
 from backend.tvheadend.tvh_requests import get_tvh, network_template
 
-logger = logging.getLogger('werkzeug.playlists')
+logger = logging.getLogger('tic.playlists')
 
 
 async def read_config_all_playlists(config, output_for_export=False):

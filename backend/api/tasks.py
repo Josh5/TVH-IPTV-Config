@@ -6,7 +6,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 scheduler = AsyncIOScheduler()
 
-logger = logging.getLogger('werkzeug.tasks')
+logger = logging.getLogger('tic.tasks')
 
 import itertools
 from asyncio import Lock, PriorityQueue

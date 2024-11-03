@@ -5,7 +5,7 @@
 # File Created: Monday, 13th May 2024 4:20:35 pm
 # Author: Josh.5 (jsunnex@gmail.com)
 # -----
-# Last Modified: Monday, 24th June 2024 12:56:01 am
+# Last Modified: Sunday, 3rd November 2024 2:39:11 pm
 # Modified By: Josh5 (jsunnex@gmail.com)
 ###
 
@@ -60,7 +60,8 @@ if [[ -f /version.txt ]]; then
 fi
 
 # Ensure the customer is set
-print_log info "ENABLE_DEBUGGING: ${ENABLE_DEBUGGING:-ENABLE_DEBUGGING variable has not been set}"
+print_log info "ENABLE_APP_DEBUGGING: ${ENABLE_APP_DEBUGGING:-ENABLE_APP_DEBUGGING variable has not been set}"
+print_log info "ENABLE_SQLALCHEMY_DEBUGGING: ${ENABLE_SQLALCHEMY_DEBUGGING:-ENABLE_SQLALCHEMY_DEBUGGING variable has not been set}"
 print_log info "SKIP_MIGRATIONS: ${SKIP_MIGRATIONS:-SKIP_MIGRATIONS variable has not been set}"
 print_log info "RUN_PIP_INSTALL: ${RUN_PIP_INSTALL:-RUN_PIP_INSTALL variable has not been set}"
 

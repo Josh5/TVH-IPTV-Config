@@ -9,8 +9,8 @@ import asyncio
 
 # Create app
 app = create_app()
-if config.enable_debugging:
-    app.logger.info(' DEBUGGING   = ' + str(config.enable_debugging))
+if config.enable_app_debugging:
+    app.logger.info(' DEBUGGING   = ' + str(config.enable_app_debugging))
     app.logger.debug('DBMS        = ' + config.sqlalchemy_database_uri)
     app.logger.debug('ASSETS_ROOT = ' + config.assets_root)
 
@@ -100,5 +100,5 @@ if __name__ == "__main__":
     # Start Quart server
     app.logger.info("Starting Quart server...")
     app.run(loop=loop, host=config.flask_run_host, port=config.flask_run_port,
-            debug=config.enable_debugging, use_reloader=config.enable_debugging)
+            debug=config.enable_app_debugging, use_reloader=config.enable_app_debugging)
     app.logger.info("Quart server completed.")

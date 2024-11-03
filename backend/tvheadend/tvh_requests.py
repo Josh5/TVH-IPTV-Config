@@ -7,7 +7,7 @@ import os
 import aiohttp
 import asyncio
 
-logger = logging.getLogger('werkzeug.tvh_requests')
+logger = logging.getLogger('tic.tvh_requests')
 
 # TVheadend API URLs:
 api_config_save = "config/save"

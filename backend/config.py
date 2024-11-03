@@ -223,9 +223,13 @@ class Config:
 
 frontend_dir = os.path.join(os.path.dirname(os.path.abspath(os.path.dirname(__file__))), 'frontend')
 
-enable_debugging = False
-if os.environ.get('ENABLE_DEBUGGING', 'false').lower() == 'true':
-    enable_debugging = True
+enable_app_debugging = False
+if os.environ.get('ENABLE_APP_DEBUGGING', 'false').lower() == 'true':
+    enable_app_debugging = True
+
+enable_sqlalchemy_debugging = False
+if os.environ.get('ENABLE_SQLALCHEMY_DEBUGGING', 'false').lower() == 'true':
+    enable_sqlalchemy_debugging = True
 
 flask_run_host = os.environ.get('FLASK_RUN_HOST', '0.0.0.0')
 flask_run_port = int(os.environ.get('FLASK_RUN_PORT', '9985'))

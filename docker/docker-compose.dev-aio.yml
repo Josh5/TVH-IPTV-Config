@@ -41,10 +41,10 @@ services:
       - SKIP_MIGRATIONS=false
       # Executes a pip install on container startup (might be required to generate the venv)
       - RUN_PIP_INSTALL=false
-      # Enables debug logging
-      - ENABLE_DEBUGGING=true
-      # Sets Flask Debug mode on. Will restart the process if changes to files are made
-      - FLASK_DEBUG=true
+      # Enables debug logging for main application
+      - ENABLE_APP_DEBUGGING=true
+      # Enables debug logging for DB queries
+      - ENABLE_SQLALCHEMY_DEBUGGING=false
 
     # VOLUMES:
     volumes:

@@ -24,7 +24,7 @@ from backend.channels import read_base46_image_string
 from backend.models import db, Session, Epg, Channel, EpgChannels, EpgChannelProgrammes
 from backend.tvheadend.tvh_requests import get_tvh
 
-logger = logging.getLogger('werkzeug.epgs')
+logger = logging.getLogger('tic.epgs')
 
 
 def generate_epg_channel_id(number, name):
@@ -371,7 +371,6 @@ async def build_custom_epg(config):
                     'icon_url':        programme.icon_url,
                     'categories':      json.loads(programme.categories)
                 })
-                await asyncio.sleep(.1)
             all_channel_programmes_data.append({
                 'channel':    channel_id,
                 'tags':       [tag.name for tag in result.tags],
@@ -396,6 +395,7 @@ async def build_custom_epg(config):
         # Add a <active> element to the <channel> element
         active = ET.SubElement(channel, 'active')
         active.text = 'true'
+        await asyncio.sleep(.1)
     # Loop through all <programme> elements returned
     logger.info("   - Generating XML channel programme data.")
     for channel_programmes_data in all_channel_programmes_data:
@@ -436,6 +436,7 @@ async def build_custom_epg(config):
                 output_child = ET.SubElement(output_programme, 'category')
                 output_child.text = tag
                 output_child.set('lang', 'en')
+        await asyncio.sleep(.1)
     # Create an XML file and write the output root element to it
     logger.info("   - Writing out XMLTV file.")
     output_tree = ET.ElementTree(output_root)

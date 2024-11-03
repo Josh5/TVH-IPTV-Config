@@ -10,7 +10,7 @@ from backend import config
 metadata = MetaData()
 Base = declarative_base(metadata=metadata)
 
-engine = create_async_engine(config.sqlalchemy_database_async_uri, echo=True)
+engine = create_async_engine(config.sqlalchemy_database_async_uri, echo=config.enable_sqlalchemy_debugging)
 Session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 # Use of 'db' in this project is now deprecated and will be removed in a future release. Use Session instead.
