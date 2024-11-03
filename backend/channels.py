@@ -237,8 +237,13 @@ async def add_new_channel(config, data, commit=True):
         if playlist_info.use_hls_proxy:
             if not playlist_info.use_custom_hls_proxy:
                 app_url = settings['settings']['app_url']
+                playlist_url = playlist_stream['url']
+                extension = 'ts'
+                if playlist_url.endswith('m3u8'):
+                    extension = 'm3u8'
+                encoded_playlist_url = base64.b64encode(playlist_url.encode('utf-8')).decode('utf-8')
                 # noinspection HttpUrlsUsage
-                playlist_stream['url'] = f'{app_url}/tic-hls-proxy.m3u8?url={playlist_stream["url"]}'
+                playlist_stream['url'] = f'{app_url}/tic-hls-proxy/{encoded_playlist_url}.{extension}'
             else:
                 hls_proxy_path = playlist_info.hls_proxy_path
                 playlist_url = playlist_stream['url']
@@ -329,8 +334,13 @@ async def update_channel(config, channel_id, data):
                     if playlist_info.use_hls_proxy:
                         if not playlist_info.use_custom_hls_proxy:
                             app_url = settings['settings']['app_url']
+                            playlist_url = playlist_stream['url']
+                            extension = 'ts'
+                            if playlist_url.endswith('m3u8'):
+                                extension = 'm3u8'
+                            encoded_playlist_url = base64.b64encode(playlist_url.encode('utf-8')).decode('utf-8')
                             # noinspection HttpUrlsUsage
-                            playlist_stream['url'] = f'{app_url}/tic-hls-proxy.m3u8?url={playlist_stream["url"]}'
+                            playlist_stream['url'] = f'{app_url}/tic-hls-proxy/{encoded_playlist_url}.{extension}'
                         else:
                             hls_proxy_path = playlist_info.hls_proxy_path
                             playlist_url = playlist_stream['url']
@@ -362,9 +372,15 @@ async def update_channel(config, channel_id, data):
                             if playlist_info.use_hls_proxy:
                                 if not playlist_info.use_custom_hls_proxy:
                                     app_url = settings['settings']['app_url']
+                                    playlist_url = playlist_stream['url']
+                                    extension = 'ts'
+                                    if playlist_url.endswith('m3u8'):
+                                        extension = 'm3u8'
+                                    encoded_playlist_url = base64.b64encode(playlist_url.encode('utf-8')).decode(
+                                        'utf-8')
                                     # noinspection HttpUrlsUsage
                                     playlist_stream[
-                                        'url'] = f'{app_url}/tic-hls-proxy.m3u8?url={playlist_stream["url"]}'
+                                        'url'] = f'{app_url}/tic-hls-proxy/{encoded_playlist_url}.{extension}'
                                 else:
                                     hls_proxy_path = playlist_info.hls_proxy_path
                                     playlist_url = playlist_stream['url']

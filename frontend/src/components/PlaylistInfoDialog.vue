@@ -224,7 +224,7 @@ export default {
       this.connections = 1;
       this.useHlsProxy = false;
       this.useCustomHlsProxy = false;
-      this.hlsProxyPath = window.location.origin + '/tic-hls-proxy.m3u8?url=[URL]';
+      this.hlsProxyPath = window.location.origin + '/tic-hls-proxy/[B64_URL].m3u8';
     },
 
     // following method is REQUIRED

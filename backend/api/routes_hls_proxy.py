@@ -2,20 +2,14 @@
 # -*- coding:utf-8 -*-
 import asyncio
 import base64
-import hashlib
+import os
 import time
-from concurrent.futures import ThreadPoolExecutor
 
-import requests
-from quart import request, current_app, Response, stream_with_context, Quart
-from requests.exceptions import InvalidURL
+from quart import current_app, Response
 
 from backend.api import blueprint
 import aiohttp
-from urllib.parse import urljoin, urlencode, urlparse, unquote
-
-hls_proxy_path = 'tic-hls-proxy'
-
+from urllib.parse import urlparse
 
 # Test:
 #       > mkfifo /tmp/ffmpegpipe
@@ -23,154 +17,117 @@ hls_proxy_path = 'tic-hls-proxy'
 #       > vlc /tmp/ffmpegpipe
 #
 #   Or:
-#       > ffmpeg  -probesize 50M -analyzeduration 0 -fpsprobesize 0 -i "<URL>" -c copy -y -f mpegts - | vlc -
+#       > ffmpeg -probesize 10M -analyzeduration 0 -fpsprobesize 0 -i "<URL>" -c copy -y -f mpegts - | vlc -
 #
+
+hls_proxy_prefix = os.environ.get('HLS_PROXY_PREFIX', '/')
+if not hls_proxy_prefix.startswith("/"):
+    hls_proxy_prefix = "/" + hls_proxy_prefix
+
+hls_proxy_host_ip = os.environ.get('HLS_PROXY_HOST_IP')
+hls_proxy_port = os.environ.get('HLS_PROXY_PORT')
+
 
 class InMemoryCache:
     _instance = None
     _lock = asyncio.Lock()
-    _expiration_time = 300  # 5 minutes
 
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super(InMemoryCache, cls).__new__(cls)
             cls._instance.cache = {}
-            cls._instance.timestamps = {}
+            cls._instance.expiration_times = {}
         return cls._instance
 
     async def get(self, key):
         async with self._lock:
             return self.cache.get(key)
 
-    async def set(self, key, value):
+    async def set(self, key, value, expiration_time=None):
+        if expiration_time is None:
+            expiration_time = 30
         async with self._lock:
             self.cache[key] = value
-            self.timestamps[key] = time.time()
+            # Set expiration time; use default if not provided
+            self.expiration_times[key] = time.time() + expiration_time
 
     async def exists(self, key):
         async with self._lock:
-            return key in self.cache
+            current_time = time.time()
+            # Check if the key exists in both cache and expiration_times, and if it hasn't expired
+            if key in self.cache and key in self.expiration_times and (current_time <= self.expiration_times[key]):
+                return True
+            return False
 
     async def delete(self, key):
         async with self._lock:
             if key in self.cache:
                 del self.cache[key]
-                del self.timestamps[key]
+                del self.expiration_times[key]
 
     async def evict_expired_items(self):
         async with self._lock:
             current_time = time.time()
-            keys_to_delete = [key for key, timestamp in self.timestamps.items() if
-                              current_time - timestamp > self._expiration_time]
+            keys_to_delete = [key for key, expiration_time in self.expiration_times.items() if
+                              current_time > expiration_time]
             for key in keys_to_delete:
                 del self.cache[key]
-                del self.timestamps[key]
+                del self.expiration_times[key]
 
 
 cache = InMemoryCache()
-executor = ThreadPoolExecutor(max_workers=10)
 
 
-def get_cache_key(url):
-    return hashlib.md5(url.encode()).hexdigest()
+async def periodic_cache_cleanup():
+    while True:
+        await cache.evict_expired_items()
+        await asyncio.sleep(60)  # Evict every minute
 
 
-async def send_from_cache(cache_key, content_type='video/MP2T'):
-    cached_data = await cache.get(cache_key)
-
-    @stream_with_context
-    async def generate():
-        yield cached_data
-
-    return Response(generate(), status=200, content_type=content_type)
-
-
-def add_proxy_arg(url, base_url):
-    url_parts = list(urlparse(url))
-    path = url_parts[2]
-    if path.endswith('.m3u8'):
-        extension = 'm3u8'
-    elif path.endswith('.ts'):
-        extension = 'ts'
-    else:
-        extension = 'unknown'
-    full_url = urljoin(base_url, url)
-    full_url_encoded = base64.urlsafe_b64encode(full_url.encode()).decode()
-    return f'{hls_proxy_path}.{extension}?encoded_remote={full_url_encoded}'
+async def prefetch_segments(segment_urls):
+    async with aiohttp.ClientSession() as session:
+        for url in segment_urls:
+            if not await cache.exists(url):
+                current_app.logger.info("[CACHE] Saved URL '%s' to cache", url)
+                try:
+                    async with session.get(url) as resp:
+                        if resp.status == 200:
+                            content = await resp.read()
+                            await cache.set(url, content, expiration_time=30)  # Cache for 30 seconds
+                except Exception as e:
+                    current_app.logger.error("Failed to prefetch URL '%s': %s", url, e)
 
 
-async def get_upstream_url():
-    current_app.logger.debug(f"Query parameters: {request.args}")
-
-    upstream_url = request.args.get('url')
-    key_cache_id = request.args.get('key_cache_id')
-    encoded_remote = request.args.get('encoded_remote')
-    if key_cache_id:
-        return None, key_cache_id, None
-    elif encoded_remote:
-        try:
-            upstream_url = base64.urlsafe_b64decode(encoded_remote).decode()
-        except Exception as e:
-            current_app.logger.error(f"Failed to decode encoded_remote '%s': %s", encoded_remote, e)
-            error_response = [f"Invalid 'encoded_remote' parameter", 400]
-            return error_response, None, None
-    else:
-        if not upstream_url:
-            current_app.logger.error(f"Missing 'url' query parameter. Received query parameters: {request.args}")
-            error_response = [f"Missing 'url' query parameter. Received query parameters: {request.args}", 400]
-            return error_response, None, None
-
-    upstream_url = unquote(upstream_url)
-    current_app.logger.debug(f"Decoded upstream URL: {upstream_url}")
-    current_app.logger.debug(f"Request for {upstream_url} received")
-
-    # Parse the provided URL
-    parsed_url = urlparse(upstream_url)
-    path = parsed_url.path
-    base_url = f"{parsed_url.scheme}://{parsed_url.netloc}/"
-
-    current_app.logger.debug(f"Base URL: {base_url}, Path: {path}")
-
-    # Forward the headers, except for Host
-    headers = {key: value for key, value in request.headers.items() if key != 'Host'}
-    headers[
-        'User-Agent'] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-
-    # Log headers and request details
-    current_app.logger.debug(f"Headers: {headers}")
-    current_app.logger.debug(f"Request method: {request.method}")
-    current_app.logger.debug(f"Request path: {request.path}")
-    current_app.logger.debug(f"Request data: {await request.get_data()}")
-    current_app.logger.debug(f"Request cookies: {request.cookies}")
-
-    return None, upstream_url, headers
+def generate_base64_encoded_url(url_to_encode, extension):
+    full_url_encoded = base64.b64encode(url_to_encode.encode('utf-8')).decode('utf-8')
+    host_base_url = ''
+    host_base_url_prefix = 'http'
+    host_base_url_port = ''
+    if hls_proxy_port:
+        if hls_proxy_port == '443':
+            host_base_url_prefix = 'https'
+        host_base_url_port = f':{hls_proxy_port}'
+    if hls_proxy_host_ip:
+        host_base_url = f'{host_base_url_prefix}://{hls_proxy_host_ip}{host_base_url_port}{hls_proxy_prefix}/'
+    return f'{host_base_url}{full_url_encoded}.{extension}'
 
 
-async def evict_cache_task():
-    await cache.evict_expired_items()
+async def fetch_and_update_playlist(decoded_url):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(decoded_url) as resp:
+            if resp.status != 200:
+                return None
 
+            # Get actual URL after any redirects
+            parsed_response_url = urlparse(str(resp.url))
+            response_url = f"{parsed_response_url.scheme}://{parsed_response_url.hostname}"
 
-async def cache_url_file(url, headers):
-    cache_key = get_cache_key(url)
-    if await cache.exists(cache_key):
-        return cache_key
+            # Read the original playlist content
+            playlist_content = await resp.text()
 
-    try:
-        def fetch(u, h):
-            return requests.get(u, headers=h, stream=True, allow_redirects=True)
-
-        loop = asyncio.get_event_loop()
-        resp = await loop.run_in_executor(None, fetch, url, headers)
-
-        data = bytearray()
-        for chunk in resp.iter_content(chunk_size=4096):
-            data.extend(chunk)
-        await cache.set(cache_key, data)
-        current_app.logger.info(f"Saved URL '%s' to cache: %s", url, cache_key)
-    except Exception as e:
-        current_app.logger.info(f"Failed to cache URL '%s' to cache: %s - %s", url, cache_key, e)
-
-    return cache_key
+            # Update child URLs in the playlist
+            updated_playlist = update_child_urls(playlist_content, response_url)
+            return updated_playlist
 
 
 def get_key_uri_from_ext_x_key(line):
@@ -184,123 +141,113 @@ def get_key_uri_from_ext_x_key(line):
     return None
 
 
-@blueprint.route(f'/{hls_proxy_path}.m3u8', methods=['GET'])
-async def hls_proxy_m3u8():
-    error_response, upstream_url, headers = await get_upstream_url()
-    if error_response:
-        return Response(error_response[0], status=error_response[1])
+def update_child_urls(playlist_content, source_url):
+    current_app.logger.debug(f"Original Playlist Content:\n{playlist_content}")
 
+    updated_lines = []
+    lines = playlist_content.splitlines()
+    segment_urls = []
+
+    # Generate the source base URL
+    parsed_source_base_url = urlparse(source_url)
+    source_base_url = f"{parsed_source_base_url.scheme}://{parsed_source_base_url.hostname}"
+
+    for line in lines:
+        stripped_line = line.strip()
+
+        # Ignore empty lines
+        if not stripped_line:
+            continue
+
+        # Lines starting with # are preserved as is
+        if line.startswith("#EXT-X-KEY"):
+            key_uri = get_key_uri_from_ext_x_key(line)
+            if key_uri:
+                new_key_uri = generate_base64_encoded_url(key_uri, 'key')
+                updated_lines.append(line.replace(key_uri, new_key_uri))
+                segment_urls.append(key_uri)
+            else:
+                updated_lines.append(line)
+            continue
+        elif stripped_line.startswith('#'):
+            updated_lines.append(line)
+            continue
+
+        # Encode regular URL lines
+        extension = 'ts'
+        if stripped_line.endswith('m3u8'):
+            extension = 'm3u8'
+        url_to_encode = f"{source_base_url}/{stripped_line}"
+        updated_lines.append(generate_base64_encoded_url(url_to_encode, extension))
+
+        # Add any ts files to list of segments to pre-fetch
+        if extension == 'ts':
+            segment_urls.append(url_to_encode)
+
+    # Start prefetching segments in the background
+    asyncio.create_task(prefetch_segments(segment_urls))
+
+    # Join the updated lines into a single string
+    modified_playlist = "\n".join(updated_lines)
+    current_app.logger.debug(f"Modified Playlist Content:\n{modified_playlist}")
+    return modified_playlist
+
+
+@blueprint.route(f'{hls_proxy_prefix.lstrip("/")}/<encoded_url>.m3u8', methods=['GET'])
+async def proxy_m3u8(encoded_url):
+    # Decode the Base64 encoded URL
+    decoded_url = base64.b64decode(encoded_url).decode('utf-8')
+
+    updated_playlist = await fetch_and_update_playlist(decoded_url)
+    if updated_playlist is None:
+        current_app.logger.error("Failed to fetch the original playlist '%s'", decoded_url)
+        return Response("Failed to fetch the original playlist.", status=404)
+
+    current_app.logger.info(f"[MISS] Serving m3u8 URL '%s' without cache", decoded_url)
+    return Response(updated_playlist, content_type='application/vnd.apple.mpegurl')
+
+
+@blueprint.route(f'{hls_proxy_prefix.lstrip("/")}/<encoded_url>.key', methods=['GET'])
+async def proxy_key(encoded_url):
+    # Decode the Base64 encoded URL
+    decoded_url = base64.b64decode(encoded_url).decode('utf-8')
+
+    # Check if the .key file is already cached
+    if await cache.exists(decoded_url):
+        current_app.logger.info(f"[HIT] Serving key URL from cache: %s", decoded_url)
+        cached_content = await cache.get(decoded_url)
+        return Response(cached_content, content_type='application/octet-stream')
+
+    # If not cached, fetch the file and cache it
+    current_app.logger.info(f"[MISS] Serving key URL '%s' without cache", decoded_url)
     async with aiohttp.ClientSession() as session:
-        async with session.request(
-                method=request.method,
-                url=upstream_url,
-                headers=headers,
-                data=await request.get_data(),
-                cookies=request.cookies,
-                allow_redirects=True) as resp:
-
-            current_app.logger.debug(f"Upstream response status: {resp.status}")
-            current_app.logger.debug(f"Upstream response headers: {resp.headers}")
-
-            final_url = str(resp.url)
-            new_base_url = '/'.join(final_url.split('/')[:-1]) + '/'
-            current_app.logger.debug(f"New base URL: {new_base_url}")
-
-            content = await resp.text()
-            current_app.logger.debug(f"Original Playlist Content:\n{content}")
-            lines = content.splitlines()
-            updated_lines = []
-            for line in lines:
-                if line.startswith("#EXT-X-KEY"):
-                    key_uri = get_key_uri_from_ext_x_key(line)
-                    if key_uri:
-                        key_url = urljoin(new_base_url, key_uri)
-                        key_cache_id = await cache_url_file(key_url, headers)
-                        updated_line = line.replace(key_uri, f'{hls_proxy_path}.key?key_cache_id={key_cache_id}')
-                        updated_lines.append(updated_line)
-                    else:
-                        updated_lines.append(line)
-                elif line.startswith("#"):
-                    updated_lines.append(line)
-                elif line.strip() == "":
-                    updated_lines.append("")
-                else:
-                    parsed_line = urlparse(line)
-                    path = parsed_line.path
-                    if path.endswith(".ts"):
-                        ts_url = urljoin(new_base_url, line)
-                        current_app.add_background_task(cache_url_file, ts_url, headers)
-                    updated_lines.append(add_proxy_arg(line, new_base_url))
-            current_app.add_background_task(evict_cache_task)
-            content = "\n".join(updated_lines)
-            current_app.logger.debug(f"Modified Playlist Content:\n{content}")
-            response = Response(content, resp.status, content_type=resp.headers['Content-Type'])
-
-            for key, value in resp.headers.items():
-                if key.lower() not in ['content-length', 'transfer-encoding', 'content-encoding']:
-                    response.headers[key] = value
-
-            return response
+        async with session.get(decoded_url) as resp:
+            if resp.status != 200:
+                current_app.logger.error("Failed to fetch key file '%s'", decoded_url)
+                return Response("Failed to fetch the file.", status=404)
+            content = await resp.read()
+            await cache.set(decoded_url, content, expiration_time=30)  # Cache for 30 seconds
+            return Response(content, content_type='application/octet-stream')
 
 
-@blueprint.route(f'/{hls_proxy_path}.key', methods=['GET'])
-async def hls_proxy_key():
-    key_cache_id = request.args.get('key_cache_id')
-    if not key_cache_id:
-        current_app.logger.error(f"Missing 'key_cache_id' query parameter. Received query parameters: {request.args}")
-        return Response(f"Missing 'key_cache_id' query parameter. Received query parameters: {request.args}",
-                        status=400)
+@blueprint.route(f'{hls_proxy_prefix.lstrip("/")}/<encoded_url>.ts', methods=['GET'])
+async def proxy_ts(encoded_url):
+    # Decode the Base64 encoded URL
+    decoded_url = base64.b64decode(encoded_url).decode('utf-8')
 
-    if await cache.exists(key_cache_id):
-        current_app.logger.info(f"Serving key URL from cache: %s", key_cache_id)
-        return await send_from_cache(key_cache_id, content_type="binary/octet-stream")
+    # Check if the .ts file is already cached
+    if await cache.exists(decoded_url):
+        current_app.logger.info(f"[HIT] Serving ts URL from cache: %s", decoded_url)
+        cached_content = await cache.get(decoded_url)
+        return Response(cached_content, content_type='video/mp2t')
 
-
-@blueprint.route(f'/{hls_proxy_path}.ts', methods=['GET'])
-async def hls_proxy_ts():
-    error_response, upstream_url, headers = await get_upstream_url()
-    if error_response:
-        return Response(error_response[0], status=error_response[1])
-
-    cache_key = get_cache_key(upstream_url)
-
-    if await cache.exists(cache_key):
-        current_app.logger.info(f"Serving URL '%s' from cache: %s", upstream_url, cache_key)
-        return await send_from_cache(cache_key)
-
-    try:
-        def fetch(u, h, d, c):
-            return requests.request(
-                method='GET',
-                url=u,
-                headers=h,
-                data=d,
-                cookies=c,
-                stream=True,
-                allow_redirects=True
-            )
-
-        request_data = await request.get_data()
-        loop = asyncio.get_event_loop()
-        resp = await loop.run_in_executor(None, fetch, upstream_url, headers, request_data, request.cookies)
-    except InvalidURL as e:
-        current_app.logger.debug(f"Request was supplied an invalid URL: %s", e)
-        return Response(f"Request was supplied an invalid URL", status=400)
-
-    current_app.logger.debug(f"Upstream response status: {resp.status_code}")
-    current_app.logger.debug(f"Upstream response headers: {resp.headers}")
-
-    async def generate():
-        while True:
-            chunk = await loop.run_in_executor(None, lambda: resp.raw.read(4096))
-            if not chunk:
-                break
-            yield chunk
-
-    response = Response(generate(), resp.status_code, content_type=resp.headers['Content-Type'])
-
-    for key, value in resp.headers.items():
-        if key.lower() not in ['content-length', 'transfer-encoding', 'content-encoding']:
-            response.headers[key] = value
-
-    return response
+    # If not cached, fetch the file and cache it
+    current_app.logger.info(f"[MISS] Serving ts URL '%s' without cache", decoded_url)
+    async with aiohttp.ClientSession() as session:
+        async with session.get(decoded_url) as resp:
+            if resp.status != 200:
+                current_app.logger.error("Failed to fetch ts file '%s'", decoded_url)
+                return Response("Failed to fetch the file.", status=404)
+            content = await resp.read()
+            await cache.set(decoded_url, content, expiration_time=30)  # Cache for 30 seconds
+            return Response(content, content_type='video/mp2t')
