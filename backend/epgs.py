@@ -371,11 +371,13 @@ async def build_custom_epg(config):
                     'icon_url':        programme.icon_url,
                     'categories':      json.loads(programme.categories)
                 })
+                await asyncio.sleep(.1)
             all_channel_programmes_data.append({
                 'channel':    channel_id,
                 'tags':       [tag.name for tag in result.tags],
                 'programmes': programmes
             })
+        await asyncio.sleep(.1)
     # Loop over all configured channels
     logger.info("   - Generating XML channel info.")
     for channel_info in configured_channels:
@@ -587,5 +589,5 @@ async def update_channel_epg_with_online_data(config):
 # --- TVH Functions ---
 async def run_tvh_epg_grabbers(config):
     # Trigger a re-grab of the EPG in TVH
-    tvh = await get_tvh(config)
-    await tvh.run_internal_epg_grabber()
+    async with await get_tvh(config) as tvh:
+        await tvh.run_internal_epg_grabber()

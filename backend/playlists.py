@@ -300,51 +300,50 @@ def read_filtered_stream_details_from_all_playlists(request_json):
 
 
 async def delete_playlist_network_in_tvh(config, net_uuid):
-    tvh = await get_tvh(config)
-    await tvh.delete_network(net_uuid)
+    async with await get_tvh(config) as tvh:
+        await tvh.delete_network(net_uuid)
 
 
 async def publish_playlist_networks(config):
     logger.info("Publishing all playlist networks to TVH")
-    tvh = await get_tvh(config)
+    async with await get_tvh(config) as tvh:
+        # Loop over configured playlists
+        existing_uuids = []
+        net_priority = 0
+        for result in db.session.query(Playlist).all():
+            net_priority += 1
+            net_uuid = result.tvh_uuid
+            playlist_name = result.name
+            max_streams = result.connections
+            network_name = f"playlist_{result.id}_{result.name}"
+            logger.info("Publishing playlist to TVH - %s.", network_name)
+            if net_uuid:
+                found = False
+                for net in await tvh.list_cur_networks():
+                    if net.get('uuid') == net_uuid:
+                        found = True
+                if not found:
+                    net_uuid = None
+            if not net_uuid:
+                # No network exists, create one
+                # Check if network exists with this playlist name
+                net_uuid = await tvh.create_network(playlist_name, network_name, max_streams, net_priority)
+            # Update network
+            net_conf = network_template.copy()
+            net_conf['uuid'] = net_uuid
+            net_conf['enabled'] = result.enabled
+            net_conf['networkname'] = playlist_name
+            net_conf['pnetworkname'] = network_name
+            net_conf['max_streams'] = max_streams
+            net_conf['priority'] = net_priority
+            await tvh.idnode_save(net_conf)
+            # Save network UUID against playlist in settings
+            result.tvh_uuid = net_uuid
+            db.session.commit()
+            # Append to list of current network UUIDs
+            existing_uuids.append(net_uuid)
 
-    # Loop over configured playlists
-    existing_uuids = []
-    net_priority = 0
-    for result in db.session.query(Playlist).all():
-        net_priority += 1
-        net_uuid = result.tvh_uuid
-        playlist_name = result.name
-        max_streams = result.connections
-        network_name = f"playlist_{result.id}_{result.name}"
-        logger.info("Publishing playlist to TVH - %s.", network_name)
-        if net_uuid:
-            found = False
-            for net in await tvh.list_cur_networks():
-                if net.get('uuid') == net_uuid:
-                    found = True
-            if not found:
-                net_uuid = None
-        if not net_uuid:
-            # No network exists, create one
-            # Check if network exists with this playlist name
-            net_uuid = await tvh.create_network(playlist_name, network_name, max_streams, net_priority)
-        # Update network
-        net_conf = network_template.copy()
-        net_conf['uuid'] = net_uuid
-        net_conf['enabled'] = result.enabled
-        net_conf['networkname'] = playlist_name
-        net_conf['pnetworkname'] = network_name
-        net_conf['max_streams'] = max_streams
-        net_conf['priority'] = net_priority
-        await tvh.idnode_save(net_conf)
-        # Save network UUID against playlist in settings
-        result.tvh_uuid = net_uuid
-        db.session.commit()
-        # Append to list of current network UUIDs
-        existing_uuids.append(net_uuid)
-
-    #  TODO: Remove any networks that are not managed. DONT DO THIS UNTIL THINGS ARE ALL WORKING!
+        #  TODO: Remove any networks that are not managed. DONT DO THIS UNTIL THINGS ARE ALL WORKING!
 
 
 async def probe_playlist_stream(playlist_stream_id):

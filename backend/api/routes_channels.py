@@ -53,7 +53,7 @@ async def api_get_channel_config(channel_id):
 async def api_set_config_channels(channel_id):
     json_data = await request.get_json()
     config = current_app.config['APP_CONFIG']
-    update_channel(config, channel_id, json_data)
+    await update_channel(config, channel_id, json_data)
     await queue_background_channel_update_tasks(config)
     return jsonify(
         {
@@ -69,7 +69,7 @@ async def api_set_config_multiple_channels():
     config = current_app.config['APP_CONFIG']
     for channel_id in json_data.get('channels', {}):
         channel = json_data['channels'][channel_id]
-        update_channel(config, channel_id, channel)
+        await update_channel(config, channel_id, channel)
     await queue_background_channel_update_tasks(config)
     return jsonify(
         {
@@ -99,7 +99,7 @@ async def api_delete_multiple_channels():
     config = current_app.config['APP_CONFIG']
     current_app.logger.warning(json_data)
     for channel_id in json_data.get('channels', {}):
-        delete_channel(config, channel_id)
+        await delete_channel(config, channel_id)
     return jsonify(
         {
             "success": True
@@ -111,7 +111,7 @@ async def api_delete_multiple_channels():
 @admin_auth_required
 async def api_delete_config_channels(channel_id):
     config = current_app.config['APP_CONFIG']
-    delete_channel(config, channel_id)
+    await delete_channel(config, channel_id)
     return jsonify(
         {
             "success": True
