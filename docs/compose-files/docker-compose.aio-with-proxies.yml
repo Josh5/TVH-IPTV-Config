@@ -1,6 +1,4 @@
 ---
-version: "2.4"
-
 # https://gist.github.com/Josh5/b8ad8cc8c2c945f3c270fe0d1c1a3172#file-docker-wg-net-sh
 # docker-wg-net.sh --network-name vpn-uk-net
 networks:
