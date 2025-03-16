@@ -7,7 +7,7 @@ import aiofiles
 import aiohttp
 import time
 from operator import attrgetter
-from sqlalchemy import or_, select, delete, insert
+from sqlalchemy import or_, select, delete, insert, func
 from sqlalchemy.orm import joinedload
 
 from backend.ffmpeg import ffprobe_file
@@ -350,3 +350,92 @@ async def probe_playlist_stream(playlist_stream_id):
     playlist_stream = db.session.query(PlaylistStreams).where(PlaylistStreams.id == playlist_stream_id).one()
     probe_data = await ffprobe_file(playlist_stream.url)
     return probe_data
+
+
+async def get_playlist_groups(config, playlist_id, start=0, length=10, search_value='', order_by='name', order_direction='asc'):
+    """
+    Get all groups from a specific playlist with filtering, sorting and pagination
+    """
+    async with Session() as session:
+        async with session.begin():
+            # Get distinct group count query (this is what needs to be fixed)
+            distinct_groups_count_query = select(func.count()).select_from(
+                select(PlaylistStreams.group_title)
+                .filter(
+                    PlaylistStreams.playlist_id == playlist_id,
+                    PlaylistStreams.group_title != None,
+                    PlaylistStreams.group_title != ''
+                )
+                .group_by(PlaylistStreams.group_title)
+                .subquery()
+            )
+            
+            # Get the total count of unique groups
+            total_groups = await session.scalar(distinct_groups_count_query)
+            
+            # Apply search filter to count if provided
+            if search_value:
+                filtered_groups_count_query = select(func.count()).select_from(
+                    select(PlaylistStreams.group_title)
+                    .filter(
+                        PlaylistStreams.playlist_id == playlist_id,
+                        PlaylistStreams.group_title != None,
+                        PlaylistStreams.group_title != '',
+                        PlaylistStreams.group_title.ilike(f'%{search_value}%')
+                    )
+                    .group_by(PlaylistStreams.group_title)
+                    .subquery()
+                )
+                filtered_groups = await session.scalar(filtered_groups_count_query)
+            else:
+                filtered_groups = total_groups
+            
+            # Get distinct group names and count channels in each group
+            groups_query = select(
+                PlaylistStreams.group_title.label('name'),
+                func.count(PlaylistStreams.id).label('channel_count')
+            ).filter(
+                PlaylistStreams.playlist_id == playlist_id,
+                PlaylistStreams.group_title != None,  # Exclude streams without group
+                PlaylistStreams.group_title != ''     # Exclude streams with empty group
+            )
+            
+            # Apply search filter to groups
+            if search_value:
+                groups_query = groups_query.filter(PlaylistStreams.group_title.ilike(f'%{search_value}%'))
+            
+            # Group by group name
+            groups_query = groups_query.group_by(PlaylistStreams.group_title)
+            
+            # Apply ordering
+            if order_by == 'name':
+                if order_direction.lower() == 'desc':
+                    groups_query = groups_query.order_by(PlaylistStreams.group_title.desc())
+                else:
+                    groups_query = groups_query.order_by(PlaylistStreams.group_title.asc())
+            elif order_by == 'channel_count':
+                if order_direction.lower() == 'desc':
+                    groups_query = groups_query.order_by(func.count(PlaylistStreams.id).desc())
+                else:
+                    groups_query = groups_query.order_by(func.count(PlaylistStreams.id).asc())
+            
+            # Apply pagination
+            groups_query = groups_query.offset(start).limit(length)
+            
+            # Execute query
+            result = await session.execute(groups_query)
+            groups = result.all()
+            
+            # Format result
+            group_list = []
+            for group in groups:
+                group_list.append({
+                    'name': group.name or 'Unknown',
+                    'channel_count': group.channel_count
+                })
+            
+            return {
+                'groups': group_list,
+                'total': total_groups,
+                'records_filtered': filtered_groups
+            }
