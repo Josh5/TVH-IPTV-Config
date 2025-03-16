@@ -7,7 +7,7 @@ from quart import request, jsonify, current_app, send_file
 
 from backend.auth import admin_auth_required
 from backend.channels import read_config_all_channels, add_new_channel, read_config_one_channel, update_channel, \
-    delete_channel, add_bulk_channels, queue_background_channel_update_tasks, read_channel_logo
+    delete_channel, add_bulk_channels, queue_background_channel_update_tasks, read_channel_logo, add_channels_from_groups
 
 
 @blueprint.route('/tic-api/channels/get', methods=['GET'])
@@ -98,13 +98,16 @@ async def api_delete_multiple_channels():
     json_data = await request.get_json()
     config = current_app.config['APP_CONFIG']
     current_app.logger.warning(json_data)
+    
     for channel_id in json_data.get('channels', {}):
         await delete_channel(config, channel_id)
-    return jsonify(
-        {
-            "success": True
-        }
-    )
+    
+    # Queue background tasks to update TVHeadend
+    await queue_background_channel_update_tasks(config)
+    
+    return jsonify({
+        "success": True
+    })
 
 
 @blueprint.route('/tic-api/channels/settings/<channel_id>/delete', methods=['DELETE'])
@@ -127,3 +130,31 @@ async def api_get_channel_logo(channel_id, file_placeholder):
     image_io.seek(0)
     # Return file blob
     return await send_file(image_io, mimetype=mime_type)
+
+@blueprint.route('/tic-api/channels/settings/groups/add', methods=['POST'])
+@admin_auth_required
+async def api_add_channels_from_groups():
+    json_data = await request.get_json()
+    groups = json_data.get('groups', [])
+    
+    if not groups:
+        return jsonify({
+            "success": False,
+            "message": "No groups provided"
+        }), 400
+    
+    config = current_app.config['APP_CONFIG']
+    
+    # This function needs to be implemented in the channels module
+    # It should add all channels from the specified groups
+    added_count = await add_channels_from_groups(config, groups)
+    
+    await queue_background_channel_update_tasks(config)
+    
+    return jsonify({
+        "success": True,
+        "data": {
+            "added_count": added_count
+        }
+    })
+
