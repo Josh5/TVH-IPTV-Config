@@ -416,59 +416,192 @@ async def update_channel(config, channel_id, data):
             await session.commit()
 
 
-async def add_bulk_channels(config, data):
-    channel_number = db.session.query(func.max(Channel.number)).scalar()
-    if channel_number is None:
-        channel_number = 999
-    for channel in data:
-        # Make this new channel the next highest
-        channel_number = channel_number + 1
-        # Build new channel data
-        new_channel_data = {
-            'enabled': True,
-            'tags':    [],
-            'sources': [],
-        }
-        # Fetch the playlist channel by ID
-        playlist_stream = db.session.query(PlaylistStreams).where(PlaylistStreams.id == channel['stream_id']).one()
-        # Auto assign the name
-        new_channel_data['name'] = playlist_stream.name.strip()
-        # Auto assign the image URL
-        new_channel_data['logo_url'] = playlist_stream.tvg_logo
-        # Auto assign the channel number to the next available number
-        new_channel_data['number'] = int(channel_number)
-        # Find the best match for an EPG
-        epg_match = db.session.query(EpgChannels).filter(EpgChannels.channel_id == playlist_stream.tvg_id).first()
-        if epg_match is not None:
-            new_channel_data['guide'] = {
-                'channel_id': epg_match.channel_id,
-                'epg_id':     epg_match.epg_id,
-                'epg_name':   epg_match.name,
-            }
-        # Apply the stream to the channel
-        new_channel_data['sources'].append({
-            'playlist_id':   channel['playlist_id'],
-            'playlist_name': playlist_stream.playlist.name,
-            'stream_name':   playlist_stream.name
-        })
-        # Create new channel from data.
-        # Delay commit of transaction until all new channels are created
-        await add_new_channel(config, new_channel_data, commit=False)
-    # Commit all new channels
-    db.session.commit()
+async def add_bulk_channels(config, channels_list):
+    # First, determine the starting channel number
+    async with Session() as session:
+        result = await session.execute(select(func.max(Channel.number)))
+        max_channel_number = result.scalar()
+        channel_number = 999 if max_channel_number is None else max_channel_number
+    
+    # Add each channel one by one
+    for channel_data in channels_list:
+        try:
+            playlist_id = channel_data.get('playlist_id')
+            stream_id = channel_data.get('stream_id')
+            
+            # Fetch the stream info first
+            async with Session() as session:
+                async with session.begin():
+                    result = await session.execute(
+                        select(PlaylistStreams)
+                        .where(PlaylistStreams.id == stream_id)
+                        .where(PlaylistStreams.playlist_id == playlist_id)
+                    )
+                    stream = result.scalar_one_or_none()
+                    
+                    if not stream:
+                        continue
+                    
+                    # Find the best match for an EPG
+                    epg_info = None
+                    if stream.tvg_id:
+                        epg_result = await session.execute(
+                            select(EpgChannels).filter(EpgChannels.channel_id == stream.tvg_id)
+                        )
+                        epg_match = epg_result.scalar_one_or_none()
+                        if epg_match:
+                            epg_info = {
+                                'channel_id': epg_match.channel_id,
+                                'epg_id': epg_match.epg_id,
+                                'epg_name': epg_match.name,
+                            }
+                    
+                    # Check if the channel already exists with this name
+                    existing_channel_result = await session.execute(
+                        select(Channel).where(Channel.name == stream.name)
+                    )
+                    existing_channel = existing_channel_result.scalar_one_or_none()
+                    
+                    if existing_channel:
+                        logger.info(f"Channel '{stream.name}' already exists - updating instead of creating")
+                        
+                        # Update logo if needed
+                        if stream.tvg_logo and not existing_channel.logo_url:
+                            existing_channel.logo_url = stream.tvg_logo
+                        
+                        # Update EPG info if we found a match and it's not already set
+                        if epg_info and not existing_channel.guide_id:
+                            existing_channel.guide_id = epg_info['epg_id']
+                            existing_channel.guide_name = epg_info['epg_name']
+                            existing_channel.guide_channel_id = epg_info['channel_id']
+                        
+                        # Check if this source already exists
+                        source_result = await session.execute(
+                            select(ChannelSource)
+                            .where(ChannelSource.channel_id == existing_channel.id)
+                            .where(ChannelSource.playlist_id == playlist_id)
+                            .where(ChannelSource.playlist_stream_name == stream.name)
+                        )
+                        existing_source = source_result.scalar_one_or_none()
+                        
+                        # Only add the source if it doesn't exist
+                        if not existing_source:
+                            source = ChannelSource(
+                                channel_id=existing_channel.id,
+                                playlist_id=playlist_id,
+                                playlist_stream_name=stream.name,
+                                playlist_stream_url=stream.url,
+                                priority="1"
+                            )
+                            session.add(source)
+                        
+                        # Add tag if not already present
+                        tag_names = channel_data.get('tags', [])
+                        for tag_name in tag_names:
+                            # Find or create tag
+                            tag_result = await session.execute(
+                                select(ChannelTag).where(ChannelTag.name == tag_name)
+                            )
+                            tag = tag_result.scalar_one_or_none()
+                            if not tag:
+                                tag = ChannelTag(name=tag_name)
+                                session.add(tag)
+                                await session.flush()
+                            
+                            # Check if the tag is already associated with this channel
+                            assoc_result = await session.execute(
+                                select(channels_tags_association_table)
+                                .where(channels_tags_association_table.c.channel_id == existing_channel.id)
+                                .where(channels_tags_association_table.c.tag_id == tag.id)
+                            )
+                            assoc = assoc_result.first()
+                            
+                            # Only add the tag association if it doesn't exist
+                            if not assoc:
+                                await session.execute(
+                                    channels_tags_association_table.insert().values(
+                                        channel_id=existing_channel.id,
+                                        tag_id=tag.id
+                                    )
+                                )
+                    else:
+                        # Create a new channel
+                        # Use tvg_chno from playlist if available, otherwise increment
+                        if stream.tvg_chno and stream.tvg_chno > 0:
+                            use_channel_number = stream.tvg_chno
+                        else:
+                            channel_number += 1
+                            use_channel_number = channel_number
+                        
+                        # Create the channel object
+                        channel = Channel(
+                            enabled=True,
+                            name=stream.name,
+                            logo_url=stream.tvg_logo,
+                            number=use_channel_number,
+                        )
+                        
+                        # Set EPG info if we have a match
+                        if epg_info:
+                            channel.guide_id = epg_info['epg_id']
+                            channel.guide_name = epg_info['epg_name']
+                            channel.guide_channel_id = epg_info['channel_id']
+                        
+                        # Add channel to get its ID
+                        session.add(channel)
+                        await session.flush()
+                        
+                        # Now add the source
+                        source = ChannelSource(
+                            channel_id=channel.id,
+                            playlist_id=playlist_id,
+                            playlist_stream_name=stream.name,
+                            playlist_stream_url=stream.url,
+                            priority="1"
+                        )
+                        session.add(source)
+                        
+                        # Finally, handle tags
+                        tag_names = channel_data.get('tags', [])
+                        for tag_name in tag_names:
+                            # Find or create tag
+                            tag_result = await session.execute(
+                                select(ChannelTag).where(ChannelTag.name == tag_name)
+                            )
+                            tag = tag_result.scalar_one_or_none()
+                            if not tag:
+                                tag = ChannelTag(name=tag_name)
+                                session.add(tag)
+                                await session.flush()
+                            
+                            # Insert directly into association table
+                            await session.execute(
+                                channels_tags_association_table.insert().values(
+                                    channel_id=channel.id,
+                                    tag_id=tag.id
+                                )
+                            )
+        except Exception as e:
+            logger.error(f"Error adding channel: {e}")
 
 
 async def delete_channel(config, channel_id):
     async with Session() as session:
         async with session.begin():
-            channel = session.query(Channel).where(Channel.id == channel_id).one()
+            # Use select() instead of query()
+            result = await session.execute(select(Channel).where(Channel.id == channel_id))
+            channel = result.scalar_one()
+            
             # Remove all source entries in the channel_sources table
-            current_sources = session.query(ChannelSource).filter_by(channel_id=channel.id)
+            result = await session.execute(select(ChannelSource).filter_by(channel_id=channel.id))
+            current_sources = result.scalars().all()
+            
             for source in current_sources:
                 if source.tvh_uuid:
                     # Delete mux from TVH
                     await delete_channel_muxes(config, source.tvh_uuid)
-                session.delete(source)
+                await session.delete(source)
+                
             # Clear out association table. This fixes an issue where if multiple similar entries ended up in that table,
             # no more updates could be made to the channel.
             #   > sqlalchemy.orm.exc.StaleDataError:
@@ -476,10 +609,11 @@ async def delete_channel(config, channel_id):
             stmt = channels_tags_association_table.delete().where(
                 channels_tags_association_table.c.channel_id == channel_id
             )
-            session.execute(stmt)
+            await session.execute(stmt)
+            
             # Remove channel from DB
-            session.delete(channel)
-            session.commit()
+            await session.delete(channel)
+            await session.commit()
 
 
 async def build_m3u_lines_for_channel(tic_base_url, channel_uuid, channel):
@@ -729,3 +863,48 @@ async def queue_background_channel_update_tasks(config):
         'function': run_tvh_epg_grabbers,
         'args':     [config],
     }, priority=31)
+
+
+async def add_channels_from_groups(config, groups):
+    """
+    Add channels from specified groups to the channel list
+    """
+    added_channel_count = 0
+    
+    for group_info in groups:
+        playlist_id = group_info.get('playlist_id')
+        group_name = group_info.get('group_name')
+        
+        if not playlist_id or not group_name:
+            continue
+        
+        # Get all streams from this group
+        async with Session() as session:
+            result = await session.execute(
+                select(PlaylistStreams)
+                .where(PlaylistStreams.playlist_id == playlist_id)
+                .where(PlaylistStreams.group_title == group_name)
+            )
+            playlist_streams = result.scalars().all()
+            
+            for stream in playlist_streams:
+                try:
+                    channel_data = {
+                        'playlist_id': playlist_id,
+                        'playlist_name': group_info.get('playlist_name', ''),
+                        'stream_id': stream.id,
+                        'stream_name': stream.name,
+                        'tags': [group_name]  # Add group name as tag
+                    }
+                    
+                    # Process channel right away
+                    await add_bulk_channels(config, [channel_data])
+                    added_channel_count += 1
+                except Exception as e:
+                    logger.error(f"Error adding channel from group {group_name}: {e}")
+    
+    # Ensure TVHeadend gets properly updated after adding channels
+    # This is crucial for EPG connections to work
+    await queue_background_channel_update_tasks(config)
+    
+    return added_channel_count
