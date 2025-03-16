@@ -7,7 +7,8 @@ from backend.auth import admin_auth_required
 from backend.channels import queue_background_channel_update_tasks
 from backend.playlists import read_config_all_playlists, add_new_playlist, read_config_one_playlist, update_playlist, \
     delete_playlist, import_playlist_data, read_stream_details_from_all_playlists, probe_playlist_stream, \
-    read_filtered_stream_details_from_all_playlists
+    read_filtered_stream_details_from_all_playlists, get_playlist_groups
+
 from backend.api import blueprint
 from quart import request, jsonify, current_app
 
@@ -132,3 +133,42 @@ async def api_probe_playlist_stream(playlist_stream_id):
             "data":    probe
         }
     )
+
+@blueprint.route('/tic-api/playlists/groups', methods=['POST'])
+@admin_auth_required
+async def api_get_playlist_groups():
+    json_data = await request.get_json()
+    playlist_id = json_data.get('playlist_id')
+    
+    if not playlist_id:
+        return jsonify({
+            "success": False,
+            "message": "Playlist ID is required"
+        }), 400
+    
+    config = current_app.config['APP_CONFIG']
+    
+    # Get search/filter parameters
+    start = json_data.get('start', 0)
+    length = json_data.get('length', 10)
+    search_value = json_data.get('search_value', '')
+    order_by = json_data.get('order_by', 'name')
+    order_direction = json_data.get('order_direction', 'asc')
+    
+    # This function needs to be implemented in the playlists module
+    # It should fetch all groups from a playlist with filtering/sorting/pagination
+    groups_data = await get_playlist_groups(
+        config, 
+        playlist_id, 
+        start=start, 
+        length=length, 
+        search_value=search_value,
+        order_by=order_by,
+        order_direction=order_direction
+    )
+    
+    return jsonify({
+        "success": True,
+        "data": groups_data
+    })
+
