@@ -151,11 +151,11 @@ jobs:
             BASE_IMAGE=${{ matrix.base-image }}
           platforms: linux/amd64,linux/arm64
           pull: "true"
-          push: ${{ startsWith(github.ref, 'refs/heads/master') }}
+          push: "false"
           tags: |
             ${{ steps.prepare.outputs.ghcr_image }}:build-cache-frontend-build-stage
-          cache-from: type=gha,scope=frontend-build-stage
-          cache-to: type=gha,scope=frontend-build-stage,mode=max
+          cache-from: type=gha,scope=${{ steps.prepare.outputs.service_name }}-frontend-build-stage
+          cache-to: type=gha,scope=${{ steps.prepare.outputs.service_name }}-frontend-build-stage,mode=max
 
       # ---
       - name: Build Backend Cache
@@ -171,11 +171,11 @@ jobs:
             BASE_IMAGE=${{ matrix.base-image }}
           platforms: linux/amd64,linux/arm64
           pull: "true"
-          push: ${{ startsWith(github.ref, 'refs/heads/master') }}
+          push: "false"
           tags: |
             ${{ steps.prepare.outputs.ghcr_image }}:build-cache-backend-build-stage
-          cache-from: type=gha,scope=backend-build-stage
-          cache-to: type=gha,scope=backend-build-stage,mode=max
+          cache-from: type=gha,scope=${{ steps.prepare.outputs.service_name }}-backend-build-stage
+          cache-to: type=gha,scope=${{ steps.prepare.outputs.service_name }}-backend-build-stage,mode=max
 
       # ---
       - name: Build Main Image
@@ -196,7 +196,7 @@ jobs:
           labels: |
             ${{ steps.meta.outputs.labels }}
           cache-from: |
-            type=gha,scope=main
-            type=gha,scope=frontend-build-stage
-            type=gha,scope=backend-build-stage
-          cache-to: type=gha,scope=main,mode=max
+            type=gha,scope=${{ steps.prepare.outputs.service_name }}-main
+            type=gha,scope=${{ steps.prepare.outputs.service_name }}-frontend-build-stage
+            type=gha,scope=${{ steps.prepare.outputs.service_name }}-backend-build-stage
+          cache-to: type=gha,scope=${{ steps.prepare.outputs.service_name }}-main,mode=max
