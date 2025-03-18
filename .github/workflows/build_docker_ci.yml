@@ -50,13 +50,11 @@ jobs:
           BUILD_DATE="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 
           SERVICE_NAME=tvh-iptv-config
-          DOCKER_HUB_IMAGE=docker.io/josh5/tvh-iptv-config
-          GHCR_IMAGE=ghcr.io/${ORG:?}/tvh-iptv-config
           if [[ "${{ matrix.base-image }}" == *"tvheadend"* ]]; then
             SERVICE_NAME=tvh-iptv
-            DOCKER_HUB_IMAGE=docker.io/josh5/tvh-iptv
-            GHCR_IMAGE=ghcr.io/${ORG:?}/tvh-iptv
           fi
+          DOCKER_HUB_IMAGE=docker.io/josh5/${SERVICE_NAME:?}
+          GHCR_IMAGE=ghcr.io/${ORG:?}/${SERVICE_NAME:?}
 
           DOCKER_TAGS=""
           if [[ ${GITHUB_REF} == refs/heads/master ]]; then
@@ -81,6 +79,12 @@ jobs:
 
           echo "Build: [$(date +"%F %T")] [${GITHUB_REF_NAME}] [${GITHUB_SHA}]" > ./docker/overlay/version.txt
           cat ./docker/overlay/version.txt
+
+          echo "docker_hub_image:${DOCKER_HUB_IMAGE:?}"
+          echo "docker_hub_image=${DOCKER_HUB_IMAGE:?}" >> $GITHUB_OUTPUT
+
+          echo "ghcr_image:${GHCR_IMAGE:?}"
+          echo "ghcr_image=${GHCR_IMAGE:?}" >> $GITHUB_OUTPUT
 
           echo "service_name:${SERVICE_NAME:?}"
           echo "service_name=${SERVICE_NAME:?}" >> $GITHUB_OUTPUT
@@ -130,7 +134,47 @@ jobs:
             org.opencontainers.image.created=${{ steps.prepare.outputs.docker_build_date }}
 
       # ---
-      - name: Docker Build and Push
+      - name: Build Frontend Cache
+        if: success()
+        uses: docker/build-push-action@b32b51a8eda65d6793cd0494a773d4f6bcef32dc #v6.11.0
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: frontend_build_stage
+          build-args: |
+            VERSION=${{ github.sha }}
+            BUILD_DATE=${{ steps.prepare.outputs.docker_build_date }}
+            BASE_IMAGE=${{ matrix.base-image }}
+          platforms: linux/amd64,linux/arm64
+          pull: "true"
+          push: ${{ startsWith(github.ref, 'refs/heads/master') }}
+          tags: |
+            ${{ steps.prepare.outputs.ghcr_image }}:build-cache-frontend-build-stage
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ---
+      - name: Build Backend Cache
+        if: success()
+        uses: docker/build-push-action@b32b51a8eda65d6793cd0494a773d4f6bcef32dc #v6.11.0
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: backend_build_stage
+          build-args: |
+            VERSION=${{ github.sha }}
+            BUILD_DATE=${{ steps.prepare.outputs.docker_build_date }}
+            BASE_IMAGE=${{ matrix.base-image }}
+          platforms: linux/amd64,linux/arm64
+          pull: "true"
+          push: ${{ startsWith(github.ref, 'refs/heads/master') }}
+          tags: |
+            ${{ steps.prepare.outputs.ghcr_image }}:build-cache-backend-build-stage
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ---
+      - name: Build Main Image
         if: success()
         uses: docker/build-push-action@b32b51a8eda65d6793cd0494a773d4f6bcef32dc #v6.11.0
         with:
@@ -141,7 +185,7 @@ jobs:
             BUILD_DATE=${{ steps.prepare.outputs.docker_build_date }}
             BASE_IMAGE=${{ matrix.base-image }}
           platforms: linux/amd64,linux/arm64
-          pull: true
+          pull: "true"
           push: ${{ steps.prepare.outputs.docker_push }}
           tags: |
             ${{ steps.prepare.outputs.docker_tags }}
