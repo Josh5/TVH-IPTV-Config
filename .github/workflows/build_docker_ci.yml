@@ -150,8 +150,8 @@ jobs:
           push: ${{ startsWith(github.ref, 'refs/heads/master') }}
           tags: |
             ${{ steps.prepare.outputs.ghcr_image }}:build-cache-frontend-build-stage
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=frontend-build-stage
+          cache-to: type=gha,scope=frontend-build-stage,mode=max
 
       # ---
       - name: Build Backend Cache
@@ -170,8 +170,8 @@ jobs:
           push: ${{ startsWith(github.ref, 'refs/heads/master') }}
           tags: |
             ${{ steps.prepare.outputs.ghcr_image }}:build-cache-backend-build-stage
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=backend-build-stage
+          cache-to: type=gha,scope=backend-build-stage,mode=max
 
       # ---
       - name: Build Main Image
@@ -191,5 +191,8 @@ jobs:
             ${{ steps.prepare.outputs.docker_tags }}
           labels: |
             ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: |
+            type=gha,scope=main
+            type=gha,scope=frontend-build-stage
+            type=gha,scope=backend-build-stage
+          cache-to: type=gha,scope=main,mode=max
