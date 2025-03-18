@@ -9,6 +9,7 @@ from mimetypes import guess_type
 import aiofiles
 import aiohttp
 import requests
+import asyncio
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy import and_, func, select
 
@@ -424,6 +425,7 @@ async def add_bulk_channels(config, channels_list):
         channel_number = 999 if max_channel_number is None else max_channel_number
     
     # Add each channel one by one
+    channels_added = 0
     for channel_data in channels_list:
         try:
             playlist_id = channel_data.get('playlist_id')
@@ -432,6 +434,7 @@ async def add_bulk_channels(config, channels_list):
             # Fetch the stream info first
             async with Session() as session:
                 async with session.begin():
+                    # Use first() instead of one() to avoid multiple row errors
                     result = await session.execute(
                         select(PlaylistStreams)
                         .where(PlaylistStreams.id == stream_id)
@@ -440,130 +443,86 @@ async def add_bulk_channels(config, channels_list):
                     stream = result.scalar_one_or_none()
                     
                     if not stream:
+                        logger.warning(f"Stream with ID {stream_id} not found")
                         continue
                     
-                    # Find the best match for an EPG
-                    epg_info = None
-                    if stream.tvg_id:
-                        epg_result = await session.execute(
-                            select(EpgChannels).filter(EpgChannels.channel_id == stream.tvg_id)
-                        )
-                        epg_match = epg_result.scalar_one_or_none()
-                        if epg_match:
-                            epg_info = {
-                                'channel_id': epg_match.channel_id,
-                                'epg_id': epg_match.epg_id,
-                                'epg_name': epg_match.name,
-                            }
-                    
                     # Check if the channel already exists with this name
+                    # Use first() instead of one() to handle multiple results
                     existing_channel_result = await session.execute(
-                        select(Channel).where(Channel.name == stream.name)
+                        select(Channel)
+                        .where(Channel.name == stream.name)
+                        .limit(1)  # Limit to avoid multiple results
                     )
                     existing_channel = existing_channel_result.scalar_one_or_none()
                     
                     if existing_channel:
-                        logger.info(f"Channel '{stream.name}' already exists - updating instead of creating")
+                        logger.info(f"Channel '{stream.name}' already exists (ID: {existing_channel.id}) - updating")
                         
-                        # Update logo if needed
-                        if stream.tvg_logo and not existing_channel.logo_url:
-                            existing_channel.logo_url = stream.tvg_logo
-                        
-                        # Update EPG info if we found a match and it's not already set
-                        if epg_info and not existing_channel.guide_id:
-                            existing_channel.guide_id = epg_info['epg_id']
-                            existing_channel.guide_name = epg_info['epg_name']
-                            existing_channel.guide_channel_id = epg_info['channel_id']
-                        
-                        # Check if this source already exists
-                        source_result = await session.execute(
-                            select(ChannelSource)
-                            .where(ChannelSource.channel_id == existing_channel.id)
-                            .where(ChannelSource.playlist_id == playlist_id)
-                            .where(ChannelSource.playlist_stream_name == stream.name)
-                        )
-                        existing_source = source_result.scalar_one_or_none()
-                        
-                        # Only add the source if it doesn't exist
-                        if not existing_source:
+                        # Update source only if it doesn't exist already
+                        source_exists = False
+                        for source in existing_channel.sources:
+                            if source.playlist_id == playlist_id and source.playlist_stream_name == stream.name:
+                                source_exists = True
+                                break
+                                
+                        if not source_exists:
+                            logger.info(f"Adding new source to existing channel '{stream.name}'")
                             source = ChannelSource(
                                 channel_id=existing_channel.id,
                                 playlist_id=playlist_id,
                                 playlist_stream_name=stream.name,
                                 playlist_stream_url=stream.url,
-                                priority="1"
+                                priority=1
                             )
                             session.add(source)
-                        
-                        # Add tag if not already present
+                            
+                        # Add tags if provided and not already present
                         tag_names = channel_data.get('tags', [])
                         for tag_name in tag_names:
-                            # Find or create tag
-                            tag_result = await session.execute(
-                                select(ChannelTag).where(ChannelTag.name == tag_name)
-                            )
-                            tag = tag_result.scalar_one_or_none()
-                            if not tag:
-                                tag = ChannelTag(name=tag_name)
-                                session.add(tag)
-                                await session.flush()
-                            
-                            # Check if the tag is already associated with this channel
-                            assoc_result = await session.execute(
-                                select(channels_tags_association_table)
-                                .where(channels_tags_association_table.c.channel_id == existing_channel.id)
-                                .where(channels_tags_association_table.c.tag_id == tag.id)
-                            )
-                            assoc = assoc_result.first()
-                            
-                            # Only add the tag association if it doesn't exist
-                            if not assoc:
-                                await session.execute(
-                                    channels_tags_association_table.insert().values(
-                                        channel_id=existing_channel.id,
-                                        tag_id=tag.id
-                                    )
+                            tag_exists = False
+                            for tag in existing_channel.tags:
+                                if tag.name == tag_name:
+                                    tag_exists = True
+                                    break
+                                    
+                            if not tag_exists:
+                                # Find or create tag
+                                tag_result = await session.execute(
+                                    select(ChannelTag).where(ChannelTag.name == tag_name)
                                 )
+                                tag = tag_result.scalar_one_or_none()
+                                if not tag:
+                                    tag = ChannelTag(name=tag_name)
+                                    session.add(tag)
+                                    await session.flush()
+                                
+                                existing_channel.tags.append(tag)
                     else:
                         # Create a new channel
-                        # Use tvg_chno from playlist if available, otherwise increment
-                        if stream.tvg_chno and stream.tvg_chno > 0:
-                            use_channel_number = stream.tvg_chno
-                        else:
-                            channel_number += 1
-                            use_channel_number = channel_number
+                        channel_number += 1
+                        logger.info(f"Creating new channel '{stream.name}' with number {channel_number}")
                         
                         # Create the channel object
                         channel = Channel(
                             enabled=True,
                             name=stream.name,
                             logo_url=stream.tvg_logo,
-                            number=use_channel_number,
+                            number=channel_number,
                         )
                         
-                        # Set EPG info if we have a match
-                        if epg_info:
-                            channel.guide_id = epg_info['epg_id']
-                            channel.guide_name = epg_info['epg_name']
-                            channel.guide_channel_id = epg_info['channel_id']
-                        
-                        # Add channel to get its ID
-                        session.add(channel)
-                        await session.flush()
-                        
-                        # Now add the source
+                        # Add source
                         source = ChannelSource(
-                            channel_id=channel.id,
                             playlist_id=playlist_id,
                             playlist_stream_name=stream.name,
                             playlist_stream_url=stream.url,
-                            priority="1"
+                            priority=1
                         )
-                        session.add(source)
                         
-                        # Finally, handle tags
+                        # Handle tags
+                        tag_objects = []
                         tag_names = channel_data.get('tags', [])
                         for tag_name in tag_names:
+                            logger.info(f"Adding tag '{tag_name}' to channel '{stream.name}'")
                             # Find or create tag
                             tag_result = await session.execute(
                                 select(ChannelTag).where(ChannelTag.name == tag_name)
@@ -573,16 +532,26 @@ async def add_bulk_channels(config, channels_list):
                                 tag = ChannelTag(name=tag_name)
                                 session.add(tag)
                                 await session.flush()
+                            tag_objects.append(tag)
                             
-                            # Insert directly into association table
-                            await session.execute(
-                                channels_tags_association_table.insert().values(
-                                    channel_id=channel.id,
-                                    tag_id=tag.id
-                                )
-                            )
+                        # Set channel relationships
+                        channel.tags = tag_objects
+                        channel.sources = [source]
+                        
+                        # Add channel
+                        session.add(channel)
+                        channels_added += 1
+                        
+                    # Commit changes
+                    await session.commit()
+                    
         except Exception as e:
             logger.error(f"Error adding channel: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+    
+    logger.info(f"Added {channels_added} new channels")
+    return channels_added
 
 
 async def delete_channel(config, channel_id):
@@ -721,6 +690,18 @@ async def publish_channel_muxes(config):
             .order_by(Channel.id, Channel.number.asc()) \
             .all()
         existing_muxes = await tvh.list_all_muxes()
+        
+        # Liste aller EPG-Quellen abrufen
+        epg_channels = {}
+        epgs = db.session.query(Epg).all()
+        for epg in epgs:
+            epg_channels_result = db.session.query(EpgChannels).filter(EpgChannels.epg_id == epg.id).all()
+            for ch in epg_channels_result:
+                epg_channels[ch.channel_id] = {
+                    'epg_id': epg.id,
+                    'name': ch.name
+                }
+        
         for result in results:
             if result.enabled:
                 logger.info("Configuring MUX for channel '%s'", result.name)
@@ -755,6 +736,32 @@ async def publish_channel_muxes(config):
                     else:
                         logger.info("    - Updating existing MUX '%s' for channel '%s' with stream '%s'", mux_uuid,
                                     result.name, source.playlist_stream_url)
+                    
+                    # Determine EPG ID to use
+                    epg_id = None
+                    if result.guide_channel_id:
+                        epg_id = result.guide_channel_id
+                        logger.info(f"    - Using configured EPG ID: {epg_id}")
+                    else:
+                        # Versuche EPG-ID aus Kanalname oder anderen Quellen zu finden
+                        normalized_name = re.sub(r'[^a-zA-Z0-9]', '', result.name.lower())
+                        for epg_ch_id, epg_data in epg_channels.items():
+                            normalized_epg_name = re.sub(r'[^a-zA-Z0-9]', '', epg_data['name'].lower())
+                            if normalized_name == normalized_epg_name or normalized_name in normalized_epg_name:
+                                epg_id = epg_ch_id
+                                # Aktualisiere auch den Kanal mit dieser EPG-ID
+                                result.guide_channel_id = epg_id
+                                result.guide_id = epg_data['epg_id']
+                                result.guide_name = epg_data['name']
+                                db.session.commit()
+                                logger.info(f"    - Found matching EPG: {epg_id}")
+                                break
+                                
+                    # Fallback channel_id wenn kein EPG gefunden wurde
+                    channel_id = f"{result.number}_{re.sub(r'[^a-zA-Z0-9]', '', result.name)}"
+                    if epg_id:
+                        channel_id = epg_id
+                    
                     # Update mux
                     service_name = f"{source.playlist.name} - {source.playlist_stream_name}"
                     iptv_url = generate_iptv_url(
@@ -762,7 +769,7 @@ async def publish_channel_muxes(config):
                         url=source.playlist_stream_url,
                         service_name=service_name,
                     )
-                    channel_id = f"{result.number}_{re.sub(r'[^a-zA-Z0-9]', '', result.name)}"
+                    
                     mux_conf = {
                         'enabled':        1,
                         'uuid':           mux_uuid,
@@ -772,7 +779,8 @@ async def publish_channel_muxes(config):
                         'iptv_muxname':   service_name,
                         'channel_number': result.number,
                         'iptv_epgid':     channel_id,
-                        "priority":       source.priority, "spriority": source.priority,
+                        "priority":       source.priority, 
+                        "spriority":      source.priority,
                     }
                     if run_mux_scan:
                         mux_conf['scan_state'] = 1
@@ -797,9 +805,207 @@ async def delete_channel_muxes(config, mux_uuid):
 
 
 async def map_all_services(config):
+    """Map all services to channels in TVHeadend."""
     logger.info("Executing TVH Map all service")
     async with await get_tvh(config) as tvh:
+        # First, ensure all muxes are properly scanned with longer timeout
+        await ensure_muxes_scanned(tvh)
+        
+        # Then map all services to channels
         await tvh.map_all_services_to_channels()
+        
+        # Give a short pause for changes to take effect
+        await asyncio.sleep(5)
+        
+        # Verify and fix any channels without services
+        await verify_channel_service_mapping(tvh)
+        
+        # Nach dem Service-Mapping sollten wir auch das EPG-Mapping überprüfen
+        # EPG-Mapping in TVHeadend aktivieren
+        logger.info("Configuring EPG in TVHeadend")
+        
+        # Abrufen der TVHeadend-Kanäle und ihrer Konfiguration
+        channels = await tvh.list_all_channels()
+        
+        # Für jeden Kanal EPG-Mapping prüfen und ggf. konfigurieren
+        for channel in channels:
+            try:
+                ch_uuid = channel.get('uuid')
+                ch_name = channel.get('name')
+                
+                # Überprüfe, ob dieser Kanal in unserer Datenbank existiert
+                db_channel = db.session.query(Channel).filter(Channel.tvh_uuid == ch_uuid).first()
+                
+                if db_channel and db_channel.guide_channel_id:
+                    logger.info(f"Setting EPG mapping for channel {ch_name} to {db_channel.guide_channel_id}")
+                    
+                    # EPG-Mapping in TVHeadend konfigurieren
+                    channel_conf = {
+                        'uuid': ch_uuid,
+                        'epgauto': 0,  # EPG auto-mapping deaktivieren
+                        'epgid': db_channel.guide_channel_id  # Explizite EPG-ID setzen
+                    }
+                    
+                    # Konfiguration speichern
+                    await tvh.idnode_save(channel_conf)
+            except Exception as e:
+                logger.error(f"Error configuring EPG for channel: {e}")
+        
+        # TVHeadend EPG-Grabber ausführen
+        await tvh.epg_grab_now()
+        
+    return True
+
+
+async def ensure_muxes_scanned(tvh):
+    """Stelle sicher, dass alle Muxes ordnungsgemäß gescannt wurden."""
+    logger.info("Checking mux scan status")
+    muxes = await tvh.list_all_muxes()
+    
+    # Finde Muxes, die noch nicht gescannt wurden oder bei denen der Scan fehlgeschlagen ist
+    scan_needed = []
+    for mux in muxes:
+        if mux.get('scan_result', 0) != 1:  # Nicht erfolgreich gescannt
+            # Starte einen Scan, indem scan_state auf 1 gesetzt wird
+            mux_conf = {
+                'uuid': mux.get('uuid'),
+                'scan_state': 1  # Erzwinge Scan
+            }
+            await tvh.idnode_save(mux_conf)
+            scan_needed.append(mux.get('uuid'))
+    
+    if scan_needed:
+        logger.info(f"Started scanning {len(scan_needed)} muxes that need attention")
+        
+        # Erhöhte Basis-Wartezeit und pro-Mux-Wartezeit
+        wait_time = max(60, len(scan_needed) * 15)
+        logger.info(f"Waiting {wait_time} seconds for mux scanning to complete")
+        await asyncio.sleep(wait_time)
+        
+        # Nach dem Warten überprüfen, ob weitere Muxes gescannt werden müssen
+        muxes = await tvh.list_all_muxes()
+        services = await tvh.list_all_services()
+        logger.info(f"Found {len(services)} services after scanning")
+
+
+async def verify_channel_service_mapping(tvh):
+    """Verify all channels have services mapped to them."""
+    logger.info("Verifying channel-service mapping")
+    
+    # Get list of channels and services
+    channels = await tvh.list_all_channels()
+    services = await tvh.list_all_services()
+    
+    logger.info(f"Found {len(channels)} channels and {len(services)} services in TVHeadend")
+    
+    # Debug log all services
+    for service in services:
+        logger.info(f"Service available: {service.get('svcname')} - UUID: {service.get('uuid')}")
+    
+    # Check each channel for services
+    channels_without_services = []
+    for channel in channels:
+        if not channel.get('services'):
+            channels_without_services.append(channel)
+            logger.info(f"Channel without service: {channel.get('name')} - UUID: {channel.get('uuid')}")
+    
+    if channels_without_services:
+        logger.warning(f"Found {len(channels_without_services)} channels without services mapped")
+        
+        # ATTEMPT 1: Try direct service mapper first (TVHeadend's built-in mapping)
+        logger.info("Attempting to map all services using TVHeadend's built-in mapper")
+        await tvh.map_all_services_to_channels()
+        
+        # Wait for this to take effect
+        await asyncio.sleep(5)
+        
+        # Check again after built-in mapping
+        channels = await tvh.list_all_channels()
+        channels_without_services = []
+        for channel in channels:
+            if not channel.get('services'):
+                channels_without_services.append(channel)
+        
+        if channels_without_services:
+            logger.warning(f"After built-in mapping, still found {len(channels_without_services)} channels without services")
+            
+            # ATTEMPT 2: Try manual mapping for remaining channels
+            logger.info("Attempting manual service mapping for remaining channels")
+            
+            # Get fresh list of services
+            services = await tvh.list_all_services()
+            
+            # Map services to channels based on exact name match first
+            for channel in list(channels_without_services):
+                channel_name = channel.get('name', '')
+                channel_uuid = channel.get('uuid')
+                
+                # Try to find exact service match first
+                exact_match = None
+                for service in services:
+                    service_name = service.get('svcname', '')
+                    
+                    # Normalize names for comparison (remove HD, spaces, etc.)
+                    norm_channel = channel_name.lower().replace(' hd', '').replace('-', '').replace('_', '').strip()
+                    norm_service = service_name.lower().replace(' hd', '').replace('-', '').replace('_', '').strip()
+                    
+                    if norm_channel == norm_service:
+                        exact_match = service
+                        break
+                
+                if exact_match:
+                    logger.info(f"Mapping service '{exact_match.get('svcname')}' to channel '{channel_name}' (exact match)")
+                    channel_conf = {
+                        'uuid': channel_uuid,
+                        'services': [exact_match.get('uuid')]
+                    }
+                    await tvh.idnode_save(channel_conf)
+                    channels_without_services.remove(channel)
+            
+            # For remaining channels, try fuzzy matching
+            if channels_without_services:
+                for channel in list(channels_without_services):
+                    channel_name = channel.get('name', '')
+                    channel_uuid = channel.get('uuid')
+                    
+                    best_match = None
+                    best_score = 0
+                    
+                    for service in services:
+                        service_name = service.get('svcname', '')
+                        
+                        # Skip services already mapped
+                        already_mapped = False
+                        for c in channels:
+                            if c.get('services') and service.get('uuid') in c.get('services'):
+                                already_mapped = True
+                                break
+                        
+                        if already_mapped:
+                            continue
+                        
+                        # Calculate similarity score (simple implementation)
+                        # Normalize names for comparison
+                        norm_channel = channel_name.lower().replace(' hd', '').replace('-', '').replace('_', '').strip()
+                        norm_service = service_name.lower().replace(' hd', '').replace('-', '').replace('_', '').strip()
+                        
+                        # Check for substring matches
+                        if norm_channel in norm_service or norm_service in norm_channel:
+                            # Calculate similarity score
+                            score = len(set(norm_channel) & set(norm_service)) / max(len(norm_channel), len(norm_service))
+                            if score > best_score:
+                                best_score = score
+                                best_match = service
+                    
+                    if best_match and best_score > 0.5:  # Only map if reasonable match
+                        logger.info(f"Mapping service '{best_match.get('svcname')}' to channel '{channel_name}' (fuzzy match, score: {best_score:.2f})")
+                        channel_conf = {
+                            'uuid': channel_uuid,
+                            'services': [best_match.get('uuid')]
+                        }
+                        await tvh.idnode_save(channel_conf)
+    
+    return True
 
 
 async def cleanup_old_channels(config):
@@ -816,53 +1022,69 @@ async def queue_background_channel_update_tasks(config):
     # Update TVH
     from backend.api.tasks import TaskQueueBroker
     task_broker = await TaskQueueBroker.get_instance()
-    # Configure TVH with the list of channels
-    await task_broker.add_task({
-        'name':     'Configuring TVH channels',
-        'function': publish_bulk_channels_to_tvh_and_m3u,
-        'args':     [config],
-    }, priority=11)
-    # Configure TVH with muxes
-    await task_broker.add_task({
-        'name':     'Configuring TVH muxes',
-        'function': publish_channel_muxes,
-        'args':     [config],
-    }, priority=12)
-    # Map all services
-    await task_broker.add_task({
-        'name':     'Mapping all TVH services',
-        'function': map_all_services,
-        'args':     [config],
-    }, priority=13)
-    # Clear out old channels
-    await task_broker.add_task({
-        'name':     'Cleanup old TVH channels',
-        'function': cleanup_old_channels,
-        'args':     [config],
-    }, priority=14)
-    # Fetch additional EPG data from the internet
-    from backend.epgs import update_channel_epg_with_online_data
+    
+    current_tasks = await task_broker.get_pending_tasks()
+    task_names = []
+    if current_tasks:
+        if isinstance(current_tasks[0], dict):
+            task_names = [task.get('name') for task in current_tasks]
+        elif isinstance(current_tasks[0], str):
+            task_names = current_tasks
+    
+    if 'Configuring TVH channels' not in task_names:
+        await task_broker.add_task({
+            'name':     'Configuring TVH channels',
+            'function': publish_bulk_channels_to_tvh_and_m3u,
+            'args':     [config],
+        }, priority=11)
+    
+    if 'Configuring TVH muxes' not in task_names:
+        await task_broker.add_task({
+            'name':     'Configuring TVH muxes',
+            'function': publish_channel_muxes,
+            'args':     [config],
+        }, priority=12)
+    
+    if 'Mapping all TVH services' not in task_names:
+        await task_broker.add_task({
+            'name':     'Mapping all TVH services',
+            'function': map_all_services,
+            'args':     [config],
+        }, priority=13)
+    
+    if 'Cleanup old TVH channels' not in task_names:
+        await task_broker.add_task({
+            'name':     'Cleanup old TVH channels',
+            'function': cleanup_old_channels,
+            'args':     [config],
+        }, priority=14)
+    
+    # Restliche Tasks mit derselben Überprüfungslogik
     epg_settings = settings['settings'].get('epgs', {})
-    if epg_settings.get('enable_tmdb_metadata') or epg_settings.get('enable_google_image_search_metadata'):
+    if (epg_settings.get('enable_tmdb_metadata') or epg_settings.get('enable_google_image_search_metadata')) and \
+            'Update EPG Data with online metadata' not in task_names:
+        from backend.epgs import update_channel_epg_with_online_data
         await task_broker.add_task({
             'name':     'Update EPG Data with online metadata',
             'function': update_channel_epg_with_online_data,
             'args':     [config],
         }, priority=21)
-    # Generate 'epg.xml' file in .tvh_iptv_config directory
-    from backend.epgs import build_custom_epg
-    await task_broker.add_task({
-        'name':     'Recreating static XMLTV file',
-        'function': build_custom_epg,
-        'args':     [config],
-    }, priority=23)
-    # Trigger an update in TVH to fetch the latest EPG
-    from backend.epgs import run_tvh_epg_grabbers
-    await task_broker.add_task({
-        'name':     'Triggering an update in TVH to fetch the latest XMLTV',
-        'function': run_tvh_epg_grabbers,
-        'args':     [config],
-    }, priority=31)
+    
+    if 'Recreating static XMLTV file' not in task_names:
+        from backend.epgs import build_custom_epg
+        await task_broker.add_task({
+            'name':     'Recreating static XMLTV file',
+            'function': build_custom_epg,
+            'args':     [config],
+        }, priority=23)
+    
+    if 'Triggering an update in TVH to fetch the latest XMLTV' not in task_names:
+        from backend.epgs import run_tvh_epg_grabbers
+        await task_broker.add_task({
+            'name':     'Triggering an update in TVH to fetch the latest XMLTV',
+            'function': run_tvh_epg_grabbers,
+            'args':     [config],
+        }, priority=31)
 
 
 async def add_channels_from_groups(config, groups):
@@ -887,6 +1109,8 @@ async def add_channels_from_groups(config, groups):
             )
             playlist_streams = result.scalars().all()
             
+            logger.info(f"Found {len(playlist_streams)} streams in group '{group_name}' to add")
+            
             for stream in playlist_streams:
                 try:
                     channel_data = {
@@ -901,10 +1125,11 @@ async def add_channels_from_groups(config, groups):
                     await add_bulk_channels(config, [channel_data])
                     added_channel_count += 1
                 except Exception as e:
-                    logger.error(f"Error adding channel from group {group_name}: {e}")
+                    logger.error(f"Error adding channel '{stream.name}' from group '{group_name}': {str(e)}")
     
-    # Ensure TVHeadend gets properly updated after adding channels
-    # This is crucial for EPG connections to work
+    logger.info(f"Successfully added {added_channel_count} channels from groups")
+    
+    # Ensure a gets properly updated after adding channels
     await queue_background_channel_update_tasks(config)
     
     return added_channel_count
