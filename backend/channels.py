@@ -736,31 +736,12 @@ async def publish_channel_muxes(config):
                     else:
                         logger.info("    - Updating existing MUX '%s' for channel '%s' with stream '%s'", mux_uuid,
                                     result.name, source.playlist_stream_url)
-                    
-                    # Determine EPG ID to use
-                    epg_id = None
-                    if result.guide_channel_id:
-                        epg_id = result.guide_channel_id
-                        logger.info(f"    - Using configured EPG ID: {epg_id}")
-                    else:
-                        # Versuche EPG-ID aus Kanalname oder anderen Quellen zu finden
-                        normalized_name = re.sub(r'[^a-zA-Z0-9]', '', result.name.lower())
-                        for epg_ch_id, epg_data in epg_channels.items():
-                            normalized_epg_name = re.sub(r'[^a-zA-Z0-9]', '', epg_data['name'].lower())
-                            if normalized_name == normalized_epg_name or normalized_name in normalized_epg_name:
-                                epg_id = epg_ch_id
-                                # Aktualisiere auch den Kanal mit dieser EPG-ID
-                                result.guide_channel_id = epg_id
-                                result.guide_id = epg_data['epg_id']
-                                result.guide_name = epg_data['name']
-                                db.session.commit()
-                                logger.info(f"    - Found matching EPG: {epg_id}")
-                                break
                                 
-                    # Fallback channel_id wenn kein EPG gefunden wurde
+                    # Use only configured EPG ID
                     channel_id = f"{result.number}_{re.sub(r'[^a-zA-Z0-9]', '', result.name)}"
-                    if epg_id:
-                        channel_id = epg_id
+                    if result.guide_channel_id:
+                        channel_id = result.guide_channel_id
+                        logger.info(f"    - Using configured EPG ID: {channel_id}")
                     
                     # Update mux
                     service_name = f"{source.playlist.name} - {source.playlist_stream_name}"
@@ -808,50 +789,13 @@ async def map_all_services(config):
     """Map all services to channels in TVHeadend."""
     logger.info("Executing TVH Map all service")
     async with await get_tvh(config) as tvh:
-        # First, ensure all muxes are properly scanned with longer timeout
-        await ensure_muxes_scanned(tvh)
-        
-        # Then map all services to channels
+        # Map all services to channels using TVHeadend's built-in functionality
         await tvh.map_all_services_to_channels()
         
         # Give a short pause for changes to take effect
         await asyncio.sleep(5)
         
-        # Verify and fix any channels without services
-        await verify_channel_service_mapping(tvh)
-        
-        # Nach dem Service-Mapping sollten wir auch das EPG-Mapping überprüfen
-        # EPG-Mapping in TVHeadend aktivieren
-        logger.info("Configuring EPG in TVHeadend")
-        
-        # Abrufen der TVHeadend-Kanäle und ihrer Konfiguration
-        channels = await tvh.list_all_channels()
-        
-        # Für jeden Kanal EPG-Mapping prüfen und ggf. konfigurieren
-        for channel in channels:
-            try:
-                ch_uuid = channel.get('uuid')
-                ch_name = channel.get('name')
-                
-                # Überprüfe, ob dieser Kanal in unserer Datenbank existiert
-                db_channel = db.session.query(Channel).filter(Channel.tvh_uuid == ch_uuid).first()
-                
-                if db_channel and db_channel.guide_channel_id:
-                    logger.info(f"Setting EPG mapping for channel {ch_name} to {db_channel.guide_channel_id}")
-                    
-                    # EPG-Mapping in TVHeadend konfigurieren
-                    channel_conf = {
-                        'uuid': ch_uuid,
-                        'epgauto': 0,  # EPG auto-mapping deaktivieren
-                        'epgid': db_channel.guide_channel_id  # Explizite EPG-ID setzen
-                    }
-                    
-                    # Konfiguration speichern
-                    await tvh.idnode_save(channel_conf)
-            except Exception as e:
-                logger.error(f"Error configuring EPG for channel: {e}")
-        
-        # TVHeadend EPG-Grabber ausführen
+        # Run EPG grabber
         await tvh.epg_grab_now()
         
     return True
@@ -1023,46 +967,34 @@ async def queue_background_channel_update_tasks(config):
     from backend.api.tasks import TaskQueueBroker
     task_broker = await TaskQueueBroker.get_instance()
     
-    current_tasks = await task_broker.get_pending_tasks()
-    task_names = []
-    if current_tasks:
-        if isinstance(current_tasks[0], dict):
-            task_names = [task.get('name') for task in current_tasks]
-        elif isinstance(current_tasks[0], str):
-            task_names = current_tasks
+    # The add_task method already checks if tasks exist
+    await task_broker.add_task({
+        'name':     'Configuring TVH channels',
+        'function': publish_bulk_channels_to_tvh_and_m3u,
+        'args':     [config],
+    }, priority=11)
     
-    if 'Configuring TVH channels' not in task_names:
-        await task_broker.add_task({
-            'name':     'Configuring TVH channels',
-            'function': publish_bulk_channels_to_tvh_and_m3u,
-            'args':     [config],
-        }, priority=11)
+    await task_broker.add_task({
+        'name':     'Configuring TVH muxes',
+        'function': publish_channel_muxes,
+        'args':     [config],
+    }, priority=12)
     
-    if 'Configuring TVH muxes' not in task_names:
-        await task_broker.add_task({
-            'name':     'Configuring TVH muxes',
-            'function': publish_channel_muxes,
-            'args':     [config],
-        }, priority=12)
+    await task_broker.add_task({
+        'name':     'Mapping all TVH services',
+        'function': map_all_services,
+        'args':     [config],
+    }, priority=13)
     
-    if 'Mapping all TVH services' not in task_names:
-        await task_broker.add_task({
-            'name':     'Mapping all TVH services',
-            'function': map_all_services,
-            'args':     [config],
-        }, priority=13)
+    await task_broker.add_task({
+        'name':     'Cleanup old TVH channels',
+        'function': cleanup_old_channels,
+        'args':     [config],
+    }, priority=14)
     
-    if 'Cleanup old TVH channels' not in task_names:
-        await task_broker.add_task({
-            'name':     'Cleanup old TVH channels',
-            'function': cleanup_old_channels,
-            'args':     [config],
-        }, priority=14)
-    
-    # Restliche Tasks mit derselben Überprüfungslogik
+    # Add conditional tasks based on settings
     epg_settings = settings['settings'].get('epgs', {})
-    if (epg_settings.get('enable_tmdb_metadata') or epg_settings.get('enable_google_image_search_metadata')) and \
-            'Update EPG Data with online metadata' not in task_names:
+    if epg_settings.get('enable_tmdb_metadata') or epg_settings.get('enable_google_image_search_metadata'):
         from backend.epgs import update_channel_epg_with_online_data
         await task_broker.add_task({
             'name':     'Update EPG Data with online metadata',
@@ -1070,21 +1002,19 @@ async def queue_background_channel_update_tasks(config):
             'args':     [config],
         }, priority=21)
     
-    if 'Recreating static XMLTV file' not in task_names:
-        from backend.epgs import build_custom_epg
-        await task_broker.add_task({
-            'name':     'Recreating static XMLTV file',
-            'function': build_custom_epg,
-            'args':     [config],
-        }, priority=23)
+    from backend.epgs import build_custom_epg
+    await task_broker.add_task({
+        'name':     'Recreating static XMLTV file',
+        'function': build_custom_epg,
+        'args':     [config],
+    }, priority=23)
     
-    if 'Triggering an update in TVH to fetch the latest XMLTV' not in task_names:
-        from backend.epgs import run_tvh_epg_grabbers
-        await task_broker.add_task({
-            'name':     'Triggering an update in TVH to fetch the latest XMLTV',
-            'function': run_tvh_epg_grabbers,
-            'args':     [config],
-        }, priority=31)
+    from backend.epgs import run_tvh_epg_grabbers
+    await task_broker.add_task({
+        'name':     'Triggering an update in TVH to fetch the latest XMLTV',
+        'function': run_tvh_epg_grabbers,
+        'args':     [config],
+    }, priority=31)
 
 
 async def add_channels_from_groups(config, groups):
