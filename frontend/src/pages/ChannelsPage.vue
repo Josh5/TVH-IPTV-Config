@@ -27,35 +27,56 @@
                       label="Import Channels from playlist" />
                   </q-btn-group>
 
-                  <q-page-sticky
-                    v-if="bulkEditMode === true"
-                    position="top-left"
-                    :offset="[120, 48]"
-                    style="z-index: 3">
-                    <q-btn-group>
+                  <q-btn-group v-if="bulkEditMode !== true" class="q-ml-sm">
+                    <q-btn
+                      @click="openChannelsGroupImport()"
+                      class=""
+                      color="primary"
+                      icon-right="group_work"
+                      label="Import Channels by Group" />
+                  </q-btn-group>
+
+                  <div v-if="bulkEditMode === true" class="q-mt-md full-width">
+                    <div class="row q-gutter-sm">
                       <q-btn
                         @click="showBulkEditCategoriesDialog()"
                         :disabled="!anyChannelsSelectedInBulkEdit"
                         color="primary"
                         label="Edit Categories" />
-                    </q-btn-group>
-                    <q-btn-group class="q-ml-sm">
+                        
+                      <q-btn
+                        @click="selectAllChannels()"
+                        color="primary"
+                        :label="allChannelsSelected ? 'Deselect All' : 'Select All'" />
+                        
+                      <q-btn-dropdown
+                        color="primary"
+                        label="Select by Category">
+                        <q-list>
+                          <q-item
+                            v-for="category in availableCategories" 
+                            :key="category"
+                            clickable
+                            @click="selectChannelsByCategory(category)">
+                            <q-item-section>{{ category }}</q-item-section>
+                          </q-item>
+                        </q-list>
+                      </q-btn-dropdown>
+                      
                       <q-btn
                         @click="triggerRefreshChannelSources()"
                         :disabled="!anyChannelsSelectedInBulkEdit"
-                        class=""
                         color="primary"
                         label="Refresh Channel Sources" />
-                    </q-btn-group>
-                    <q-btn-group class="q-ml-sm">
+                        
                       <q-btn
                         @click="triggerDeleteChannels()"
                         :disabled="!anyChannelsSelectedInBulkEdit"
-                        class=""
                         color="primary"
                         label="Delete Channels" />
-                    </q-btn-group>
-                  </q-page-sticky>
+                    </div>
+                  </div>
+
                 </div>
                 <div class="col-auto">
                   <q-btn
@@ -450,6 +471,7 @@ import axios from 'axios';
 import draggable from 'vuedraggable';
 import ChannelInfoDialog from 'components/ChannelInfoDialog.vue';
 import ChannelStreamSelectorDialog from 'components/ChannelStreamSelectorDialog.vue';
+import ChannelGroupSelectorDialog from 'components/ChannelGroupSelectorDialog.vue';
 import {copyToClipboard} from 'quasar';
 
 export default defineComponent({
@@ -495,9 +517,25 @@ export default defineComponent({
         delayOnTouchOnly: true,
       };
     },
+    allChannelsSelected() {
+      return this.listOfChannels.length > 0 && 
+            this.listOfChannels.every(channel => channel.selected);
+    },
     anyChannelsSelectedInBulkEdit() {
       // Check if any channels are selected
       return this.listOfChannels.some(channel => channel.selected);
+    },
+    availableCategories() {
+    // Extract all unique categories from channels
+      const allCategories = new Set();
+      this.listOfChannels.forEach(channel => {
+        if (channel.tags && Array.isArray(channel.tags)) {
+          channel.tags.forEach(tag => {
+            if (tag) allCategories.add(tag);
+          });
+        }
+      });
+      return Array.from(allCategories).sort();
     },
   },
   methods: {
@@ -508,6 +546,54 @@ export default defineComponent({
         }
       }
       return null;
+    },
+    selectAllChannels() {
+      const shouldSelect = !this.allChannelsSelected;
+      
+      // Toggle selection on all channels
+      this.listOfChannels.forEach(channel => {
+        channel.selected = shouldSelect;
+        
+        if (shouldSelect) {
+          if (!this.selectedChannels.includes(channel.id)) {
+            this.selectedChannels.push(channel.id);
+          }
+        } else {
+          this.selectedChannels = this.selectedChannels.filter(id => id !== channel.id);
+        }
+      });
+      
+      // Show notification
+      this.$q.notify({
+        color: 'positive',
+        message: shouldSelect 
+          ? `Selected all ${this.listOfChannels.length} channels` 
+          : 'Deselected all channels',
+        icon: shouldSelect ? 'select_all' : 'deselect',
+        timeout: 2000
+      });
+    },
+    selectChannelsByCategory(category) {
+      let count = 0;
+      
+      // Loop through channels and select those with the specified category
+      this.listOfChannels.forEach(channel => {
+        if (channel.tags && channel.tags.includes(category)) {
+          channel.selected = true;
+          if (!this.selectedChannels.includes(channel.id)) {
+            this.selectedChannels.push(channel.id);
+          }
+          count++;
+        }
+      });
+      
+      // Show notification
+      this.$q.notify({
+        color: 'positive',
+        message: `Selected ${count} channels in category "${category}"`,
+        icon: 'category',
+        timeout: 2000
+      });
     },
     updateNumbers: function(myList, index) {
       for (let i = index + 1; i < myList.length; i++) {
@@ -782,6 +868,69 @@ export default defineComponent({
       } else {
         this.selectedChannels = this.selectedChannels.filter(id => id !== channel.id);
       }
+    },
+    openChannelsGroupImport: function() {
+      this.$q.dialog({
+        component: ChannelGroupSelectorDialog,
+      }).onOk((payload) => {
+        if (typeof payload.selectedGroups !== 'undefined' && payload.selectedGroups.length > 0) {
+          // Debug what's being received from the dialog
+          console.log("Selected groups payload:", payload.selectedGroups);
+          
+          // Add selected groups to list
+          this.$q.loading.show();
+          
+          // Send changes to backend
+          let data = {
+            groups: [],
+          };
+          
+          for (const i in payload.selectedGroups) {
+            const group = payload.selectedGroups[i];
+            console.log("Processing group:", group); // Debug each group
+            
+            data.groups.push({
+              playlist_id: group.playlist_id,
+              playlist_name: group.playlist_name,
+              group_name: group.group_name,
+            });
+          }
+          
+          console.log("Data being sent to backend:", data); // Debug the final payload
+          
+          axios({
+            method: 'POST',
+            url: '/tic-api/channels/settings/groups/add',
+            data: data,
+          }).then((response) => {
+            // Reload from backend
+            this.fetchChannels();
+            this.$q.loading.hide();
+            
+            this.$q.notify({
+              color: 'positive',
+              icon: 'cloud_done',
+              message: `Successfully imported channels from ${payload.selectedGroups.length} group(s)`,
+              timeout: 2000,
+            });
+          }).catch((error) => {
+            // Log detailed error information
+            console.error("Error response:", error.response ? error.response.data : error);
+            
+            // Notify failure
+            this.$q.notify({
+              color: 'negative',
+              position: 'top',
+              message: 'An error was encountered while adding channels from groups.',
+              icon: 'report_problem',
+              actions: [{icon: 'close', color: 'white'}],
+            });
+            this.$q.loading.hide();
+          });
+        }
+      }).onDismiss(() => {
+        // Handle dismiss if needed
+      });
     },
     submitBulkCategoriesChange() {
       // Implement your logic to apply category changes

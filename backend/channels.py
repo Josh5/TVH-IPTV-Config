@@ -461,14 +461,20 @@ async def add_bulk_channels(config, data):
 async def delete_channel(config, channel_id):
     async with Session() as session:
         async with session.begin():
-            channel = session.query(Channel).where(Channel.id == channel_id).one()
+            # Use select() instead of query()
+            result = await session.execute(select(Channel).where(Channel.id == channel_id))
+            channel = result.scalar_one()
+            
             # Remove all source entries in the channel_sources table
-            current_sources = session.query(ChannelSource).filter_by(channel_id=channel.id)
+            result = await session.execute(select(ChannelSource).filter_by(channel_id=channel.id))
+            current_sources = result.scalars().all()
+            
             for source in current_sources:
                 if source.tvh_uuid:
                     # Delete mux from TVH
                     await delete_channel_muxes(config, source.tvh_uuid)
-                session.delete(source)
+                await session.delete(source)
+                
             # Clear out association table. This fixes an issue where if multiple similar entries ended up in that table,
             # no more updates could be made to the channel.
             #   > sqlalchemy.orm.exc.StaleDataError:
@@ -476,10 +482,11 @@ async def delete_channel(config, channel_id):
             stmt = channels_tags_association_table.delete().where(
                 channels_tags_association_table.c.channel_id == channel_id
             )
-            session.execute(stmt)
+            await session.execute(stmt)
+            
             # Remove channel from DB
-            session.delete(channel)
-            session.commit()
+            await session.delete(channel)
+            await session.commit()
 
 
 async def build_m3u_lines_for_channel(tic_base_url, channel_uuid, channel):
@@ -638,7 +645,8 @@ async def publish_channel_muxes(config):
                         'iptv_muxname':   service_name,
                         'channel_number': result.number,
                         'iptv_epgid':     channel_id,
-                        "priority":       source.priority, "spriority": source.priority,
+                        "priority":       source.priority, 
+                        "spriority":      source.priority,
                     }
                     if run_mux_scan:
                         mux_conf['scan_state'] = 1
@@ -729,3 +737,83 @@ async def queue_background_channel_update_tasks(config):
         'function': run_tvh_epg_grabbers,
         'args':     [config],
     }, priority=31)
+
+
+async def add_channels_from_groups(config, groups):
+    """
+    Add channels from specified groups to the channel list using the same process
+    as add_new_channel to ensure full compatibility with TVHeadend
+    """
+    logger.info(f"Adding channels from {len(groups)} groups")
+    settings = config.read_settings()
+    added_channel_count = 0
+    
+    # First determine the starting channel number for the whole operation
+    channel_number = db.session.query(func.max(Channel.number)).scalar()
+    if channel_number is None:
+        channel_number = 999
+        
+    for group_info in groups:
+        playlist_id = group_info.get('playlist_id')
+        group_name = group_info.get('group_name')
+        
+        if not playlist_id or not group_name:
+            logger.warning(f"Missing playlist_id or group_name in group info: {group_info}")
+            continue
+            
+        # Get all streams from this group
+        playlist_streams_query = db.session.query(PlaylistStreams)\
+            .filter(PlaylistStreams.playlist_id == playlist_id)\
+            .filter(PlaylistStreams.group_title == group_name)\
+            .all()
+            
+        logger.info(f"Found {len(playlist_streams_query)} streams in group '{group_name}' to add")
+        
+        for stream in playlist_streams_query:
+            try:
+                # Increment the channel number for each new channel
+                channel_number += 1
+                
+                # Create channel data structure similar to what's used in add_new_channel
+                new_channel_data = {
+                    'enabled': True,
+                    'name': stream.name.strip(),
+                    'logo_url': stream.tvg_logo,
+                    'number': int(channel_number),
+                    'tags': [group_name],  # Add group name as tag
+                    'sources': []
+                }
+                
+                # Find the best match for an EPG
+                epg_match = db.session.query(EpgChannels).filter(EpgChannels.channel_id == stream.tvg_id).first()
+                if epg_match is not None:
+                    new_channel_data['guide'] = {
+                        'channel_id': epg_match.channel_id,
+                        'epg_id': epg_match.epg_id,
+                        'epg_name': epg_match.name,
+                    }
+                
+                # Get the playlist info
+                playlist_info = db.session.query(Playlist).filter(Playlist.id == playlist_id).one()
+                
+                # Add source information
+                new_channel_data['sources'].append({
+                    'playlist_id': playlist_id,
+                    'playlist_name': playlist_info.name,
+                    'stream_name': stream.name
+                })
+                
+                # Use add_new_channel to ensure consistent processing
+                await add_new_channel(config, new_channel_data, commit=False)
+                added_channel_count += 1
+                
+            except Exception as e:
+                logger.error(f"Error adding channel '{stream.name}' from group '{group_name}': {str(e)}")
+                import traceback
+                logger.error(traceback.format_exc())
+    
+    # Commit all new channels in one transaction
+    db.session.commit()
+    
+    logger.info(f"Successfully added {added_channel_count} channels from groups")
+    return added_channel_count
