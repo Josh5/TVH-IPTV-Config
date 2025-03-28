@@ -88,17 +88,9 @@ RUN \
 #
 FROM base_image
 
-# set version label
-ARG VERSION
-ARG BUILD_DATE
-ARG BASE_IMAGE
-LABEL maintainer="Josh.5 <jsunnex@gmail.com>"
-LABEL build="Version:- ${VERSION} Build-date:- ${BUILD_DATE} Base:- ${BASE_IMAGE}"
-
 USER root
 
 # Runtime packages
-COPY --from=tianon/gosu:bookworm /gosu /usr/local/bin/
 RUN \
     echo "**** update apt repositories ****" \
         && apt-get update \
@@ -171,6 +163,9 @@ RUN \
     && \
     echo
 
+# Install gosu
+COPY --from=tianon/gosu:bookworm /gosu /usr/local/bin/
+
 # Install project
 COPY --from=backend_build_stage /var/venv-docker /var/venv-docker
 COPY --from=frontend_build_stage /build/dist/spa /app/frontend/dist/spa
@@ -196,6 +191,13 @@ WORKDIR /app/
 
 # Expose ports
 EXPOSE 9985/tcp
+
+# Set version label
+ARG VERSION
+ARG BUILD_DATE
+ARG BASE_IMAGE
+LABEL maintainer="Josh.5 <jsunnex@gmail.com>"
+LABEL build="Version:- ${VERSION} Build-date:- ${BUILD_DATE} Base:- ${BASE_IMAGE}"
 
 # Install entrypoint script
 COPY ./docker/entrypoint.sh /entrypoint.sh
