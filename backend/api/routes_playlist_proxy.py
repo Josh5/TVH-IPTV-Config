@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
 import re
+import sqlalchemy.exc
 
 from flask import request
 
@@ -78,9 +79,12 @@ async def _get_channels(playlist_id):
 
 async def _get_playlist_connection_count(config, playlist_id):
     from backend.playlists import read_config_one_playlist
-    playlist_config = await read_config_one_playlist(config, playlist_id)
-    return playlist_config.get('connections', 1)
-
+    try:
+        playlist_config = await read_config_one_playlist(config, playlist_id)
+        return playlist_config.get('connections', 1)
+    except sqlalchemy.exc.NoResultFound:
+        # Playlist not found, return default value
+        return 1
 
 async def _get_discover_data(playlist_id=0):
     config = current_app.config['APP_CONFIG']
