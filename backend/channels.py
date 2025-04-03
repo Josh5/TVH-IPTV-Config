@@ -420,7 +420,24 @@ async def add_bulk_channels(config, data):
     channel_number = db.session.query(func.max(Channel.number)).scalar()
     if channel_number is None:
         channel_number = 999
+    
+    added_channel_count = 0
+    skipped_channel_count = 0
+    
     for channel in data:
+        # Fetch the playlist channel by ID
+        playlist_stream = db.session.query(PlaylistStreams).where(PlaylistStreams.id == channel['stream_id']).one()
+        
+        # Check if Channel with this name already exists
+        existing_channel = db.session.query(Channel).filter(
+            Channel.name == playlist_stream.name.strip()
+        ).first()
+        
+        if existing_channel:
+            logger.info(f"Channel '{playlist_stream.name}' already exists, skipping")
+            skipped_channel_count += 1
+            continue
+        
         # Make this new channel the next highest
         channel_number = channel_number + 1
         # Build new channel data
@@ -429,8 +446,6 @@ async def add_bulk_channels(config, data):
             'tags':    [],
             'sources': [],
         }
-        # Fetch the playlist channel by ID
-        playlist_stream = db.session.query(PlaylistStreams).where(PlaylistStreams.id == channel['stream_id']).one()
         # Auto assign the name
         new_channel_data['name'] = playlist_stream.name.strip()
         # Auto assign the image URL
@@ -454,8 +469,13 @@ async def add_bulk_channels(config, data):
         # Create new channel from data.
         # Delay commit of transaction until all new channels are created
         await add_new_channel(config, new_channel_data, commit=False)
+        added_channel_count += 1
+    
     # Commit all new channels
     db.session.commit()
+    
+    logger.info(f"Successfully added {added_channel_count} channels (skipped {skipped_channel_count} existing channels)")
+    return added_channel_count
 
 
 async def delete_channel(config, channel_id):
@@ -464,6 +484,12 @@ async def delete_channel(config, channel_id):
             # Use select() instead of query()
             result = await session.execute(select(Channel).where(Channel.id == channel_id))
             channel = result.scalar_one()
+            
+            # Remove channel from TVHeadend if it has a UUID
+            if channel.tvh_uuid:
+                async with await get_tvh(config) as tvh:
+                    logger.info(f"Removing channel '{channel.name}' (UUID: {channel.tvh_uuid}) from TVHeadend")
+                    await tvh.delete_channel(channel.tvh_uuid)
             
             # Remove all source entries in the channel_sources table
             result = await session.execute(select(ChannelSource).filter_by(channel_id=channel.id))
@@ -771,6 +797,15 @@ async def add_channels_from_groups(config, groups):
         
         for stream in playlist_streams_query:
             try:
+                # Check if Channel with this name already exists
+                existing_channel = db.session.query(Channel).filter(
+                    Channel.name == stream.name.strip()
+                ).first()
+                
+                if existing_channel:
+                    logger.info(f"Channel '{stream.name}' already exists, skipping")
+                    continue
+                
                 # Increment the channel number for each new channel
                 channel_number += 1
                 
