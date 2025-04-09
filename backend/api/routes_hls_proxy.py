@@ -49,6 +49,7 @@ class FFmpegStream:
         self.thread = threading.Thread(target=self.run_ffmpeg)
         self.connection_count = 0
         self.lock = threading.Lock()
+        self.last_activity = time.time()  # Track last activity time
         self.thread.start()
 
     def run_ffmpeg(self):
@@ -64,76 +65,109 @@ class FFmpegStream:
 
         # Start a thread to log stderr
         stderr_thread = threading.Thread(target=self.log_stderr)
+        stderr_thread.daemon = True  # Make this a daemon thread so it exits when main thread exits
         stderr_thread.start()
 
         chunk_size = 65536  # Read 64 KB at a time
         while self.running:
             try:
+                # Use select to avoid blocking indefinitely
+                import select
+                ready, _, _ = select.select([self.process.stdout], [], [], 1.0)
+                if not ready:
+                    # No data available, check if we should terminate due to inactivity
+                    if time.time() - self.last_activity > 300:  # 5 minutes of inactivity
+                        ffmpeg_logger.info("No activity for 5 minutes, terminating FFmpeg stream")
+                        self.stop()
+                        break
+                    continue
+                
                 chunk = self.process.stdout.read(chunk_size)
                 if not chunk:
                     ffmpeg_logger.warning("FFmpeg has finished streaming.")
                     break
+                
+                # Update last activity time
+                self.last_activity = time.time()
+                
                 # Append the chunk to all buffers
-                for buffer in self.buffers.values():
-                    buffer.append(chunk)
+                with self.lock:  # Use lock when accessing buffers
+                    for buffer in self.buffers.values():
+                        buffer.append(chunk)
             except Exception as e:
                 ffmpeg_logger.error("Error reading stdout: %s", e)
                 break
 
+        self.cleanup()
+
+    def cleanup(self):
+        """Clean up resources properly"""
         self.running = False
-        self.process.stdout.close()
-        self.process.wait()
-        stderr_thread.join()
-        ffmpeg_logger.info("FFmpeg process finished.")
+        if self.process:
+            try:
+                # Try to terminate the process gracefully first
+                self.process.terminate()
+                # Wait a bit for it to terminate
+                try:
+                    self.process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    # If it doesn't terminate, kill it
+                    self.process.kill()
+                    self.process.wait()
+            except Exception as e:
+                ffmpeg_logger.error("Error terminating FFmpeg process: %s", e)
+            
+            # Close file descriptors
+            if self.process.stdout:
+                self.process.stdout.close()
+            if self.process.stderr:
+                self.process.stderr.close()
+            
+        ffmpeg_logger.info("FFmpeg process cleaned up.")
+        
+        # Clear buffers
+        with self.lock:
+            self.buffers.clear()
+
+    def stop(self):
+        """Stop the FFmpeg process and clean up resources"""
+        if self.running:
+            self.running = False
+            self.cleanup()
 
     def log_stderr(self):
         """Log stderr output from the FFmpeg process."""
-        while self.running:
+        while self.running and self.process and self.process.stderr:
             try:
-                if self.process.stderr:
-                    line = self.process.stderr.readline()
-                    if line:
-                        ffmpeg_logger.debug(line.decode().strip())
-                    else:
-                        break
-            except ValueError as e:
+                line = self.process.stderr.readline()
+                if not line:
+                    break
+                ffmpeg_logger.debug("FFmpeg: %s", line.decode('utf-8', errors='replace').strip())
+            except Exception as e:
                 ffmpeg_logger.error("Error reading stderr: %s", e)
                 break
 
-    def increment_connection(self):
+    def add_buffer(self, buffer_id):
+        """Add a new buffer with proper locking"""
         with self.lock:
-            self.connection_count += 1
-            ffmpeg_logger.info("Adding new connection. Connection count now at %s", self.connection_count)
+            if buffer_id not in self.buffers:
+                self.buffers[buffer_id] = []
+                self.connection_count += 1
+                ffmpeg_logger.info(f"Added buffer {buffer_id}, connection count: {self.connection_count}")
+            return self.buffers[buffer_id]
 
-    def decrement_connection(self):
+    def remove_buffer(self, buffer_id):
+        """Remove a buffer with proper locking"""
         with self.lock:
-            self.connection_count -= 1
-            ffmpeg_logger.info("Removing connection. Connection count now at %s", self.connection_count)
-
-            # Do not stop FFmpeg until all connections are closed
-            if self.connection_count == 0:
-                ffmpeg_logger.info("No more active connections. Stopping FFmpeg.")
-                self.stop_ffmpeg()
-
-    def stop_ffmpeg(self):
-        if self.process:
-            self.running = False
-            self.process.stdout.close()
-            self.process.stderr.close()
-            self.process.terminate()
-            self.process.communicate()
-            ffmpeg_logger.info("Process terminated.")
-
-    def add_buffer(self, connection_id):
-        with self.lock:
-            ffmpeg_logger.info("Adding new buffer with ID %s", connection_id)
-            self.buffers[connection_id] = TimeBuffer()  # Add a new time-based buffer for the connection
-
-    def remove_buffer(self, connection_id):
-        with self.lock:
-            if connection_id in self.buffers:
-                ffmpeg_logger.info("Removing buffer with ID %s", connection_id)
-                del self.buffers[connection_id]  # Remove the buffer for the connection
+            if buffer_id in self.buffers:
+                del self.buffers[buffer_id]
+                self.connection_count -= 1
+                ffmpeg_logger.info(f"Removed buffer {buffer_id}, connection count: {self.connection_count}")
+                # If no more connections, stop the stream
+                if self.connection_count <= 0:
+                    ffmpeg_logger.info("No more connections, stopping FFmpeg stream")
+                    # Schedule the stop to happen outside of the lock
+                    threading.Thread(target=self.stop).start()
 
 
 class TimeBuffer:
@@ -162,60 +196,67 @@ class TimeBuffer:
             return b''  # Return empty bytes if no data
 
 
-class InMemoryCache:
-    _instance = None
-    _lock = asyncio.Lock()
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super(InMemoryCache, cls).__new__(cls)
-            cls._instance.cache = {}
-            cls._instance.expiration_times = {}
-        return cls._instance
+class Cache:
+    def __init__(self, ttl=3600):
+        self.cache = {}
+        self.expiration_times = {}
+        self._lock = asyncio.Lock()
+        self.ttl = ttl
+        self.max_size = 100  # Limit cache size to prevent memory issues
 
     async def get(self, key):
         async with self._lock:
-            return self.cache.get(key)
-
-    async def set(self, key, value, expiration_time=None):
-        if expiration_time is None:
-            expiration_time = 30
-        async with self._lock:
-            self.cache[key] = value
-            # Set expiration time; use default if not provided
-            self.expiration_times[key] = time.time() + expiration_time
-
-    async def exists(self, key):
-        async with self._lock:
-            current_time = time.time()
-            # Check if the key exists in both cache and expiration_times, and if it hasn't expired
-            if key in self.cache and key in self.expiration_times and (current_time <= self.expiration_times[key]):
-                return True
-            return False
-
-    async def delete(self, key):
-        async with self._lock:
             if key in self.cache:
-                del self.cache[key]
-                del self.expiration_times[key]
+                # Update expiration time on access
+                self.expiration_times[key] = time.time() + self.ttl
+                return self.cache[key]
+            return None
+
+    async def set(self, key, value):
+        async with self._lock:
+            # Check if we need to evict items due to size limit
+            if len(self.cache) >= self.max_size:
+                # Remove oldest item
+                oldest_key = min(self.expiration_times.items(), key=lambda x: x[1])[0]
+                del self.cache[oldest_key]
+                del self.expiration_times[oldest_key]
+                
+            self.cache[key] = value
+            self.expiration_times[key] = time.time() + self.ttl
 
     async def evict_expired_items(self):
         async with self._lock:
             current_time = time.time()
             keys_to_delete = [key for key, expiration_time in self.expiration_times.items() if
                               current_time > expiration_time]
+            
             for key in keys_to_delete:
+                # Properly clean up FFmpegStream objects
+                if key in self.cache and isinstance(self.cache[key], FFmpegStream):
+                    self.cache[key].stop()
+                
                 del self.cache[key]
                 del self.expiration_times[key]
-
-
-cache = InMemoryCache()
-
+                
+            return len(keys_to_delete)  # Return number of items evicted for logging
 
 async def periodic_cache_cleanup():
     while True:
-        await cache.evict_expired_items()
-        await asyncio.sleep(60)  # Evict every minute
+        try:
+            evicted_count = await cache.evict_expired_items()
+            if evicted_count > 0:
+                proxy_logger.info(f"Cache cleanup: evicted {evicted_count} expired items")
+            
+            # Log current memory usage
+            import psutil
+            process = psutil.Process()
+            memory_info = process.memory_info()
+            proxy_logger.debug(f"Current memory usage: {memory_info.rss / (1024 * 1024):.2f} MB")
+            
+        except Exception as e:
+            proxy_logger.error(f"Error during cache cleanup: {e}")
+        
+        await asyncio.sleep(60)
 
 
 async def prefetch_segments(segment_urls):
@@ -407,7 +448,7 @@ async def stream_ts(encoded_url):
 
     # Get the existing stream
     stream = active_streams[decoded_url]
-    stream.increment_connection()  # Increment connection count
+    stream.last_activity = time.time()  # Update last activity time
 
     # Add a new buffer for this connection
     stream.add_buffer(connection_id)
@@ -434,7 +475,6 @@ async def stream_ts(encoded_url):
                     break
         finally:
             stream.remove_buffer(connection_id)  # Remove the buffer on connection close
-            stream.decrement_connection()  # Decrement on connection close
 
     # Create a response object with the correct content type and set timeout to None
     response = Response(generate(), content_type='video/mp2t')
