@@ -212,17 +212,59 @@ class Cache:
                 return self.cache[key]
             return None
 
-    async def set(self, key, value):
+    async def set(self, key, value, expiration_time=None):
+        """Store a value in the cache.
+
+        :param key: Cache key
+        :param value: Value to store
+        :param expiration_time: Optional per-item TTL (seconds). Falls back to default self.ttl.
+        """
         async with self._lock:
+            # Evict expired first to free space
+            current_time = time.time()
+            expired_keys = [k for k, exp in self.expiration_times.items() if current_time > exp]
+            for k in expired_keys:
+                # Clean up any FFmpegStream
+                if isinstance(self.cache.get(k), FFmpegStream):
+                    try:
+                        self.cache[k].stop()
+                    except Exception:
+                        pass
+                self.cache.pop(k, None)
+                self.expiration_times.pop(k, None)
+
             # Check if we need to evict items due to size limit
             if len(self.cache) >= self.max_size:
-                # Remove oldest item
+                # Remove item with earliest expiration
                 oldest_key = min(self.expiration_times.items(), key=lambda x: x[1])[0]
+                if isinstance(self.cache.get(oldest_key), FFmpegStream):
+                    try:
+                        self.cache[oldest_key].stop()
+                    except Exception:
+                        pass
                 del self.cache[oldest_key]
                 del self.expiration_times[oldest_key]
-                
+
+            ttl = expiration_time if expiration_time is not None else self.ttl
             self.cache[key] = value
-            self.expiration_times[key] = time.time() + self.ttl
+            self.expiration_times[key] = time.time() + ttl
+
+    async def exists(self, key):
+        """Return True if key exists and is not expired."""
+        async with self._lock:
+            if key not in self.cache:
+                return False
+            if time.time() > self.expiration_times.get(key, 0):
+                # Expired: remove
+                if isinstance(self.cache.get(key), FFmpegStream):
+                    try:
+                        self.cache[key].stop()
+                    except Exception:
+                        pass
+                self.cache.pop(key, None)
+                self.expiration_times.pop(key, None)
+                return False
+            return True
 
     async def evict_expired_items(self):
         async with self._lock:
@@ -257,6 +299,22 @@ async def periodic_cache_cleanup():
             proxy_logger.error(f"Error during cache cleanup: {e}")
         
         await asyncio.sleep(60)
+
+
+# Global cache instance (short default TTL for HLS segments)
+cache = Cache(ttl=120)
+
+# Schedule periodic cleanup once the event loop is running. We guard against Missing loop during import.
+try:
+    loop = asyncio.get_event_loop()
+    if loop.is_running():
+        loop.create_task(periodic_cache_cleanup())
+    else:
+        # Defer starting until first iteration via call_soon
+        loop.call_soon(lambda: loop.create_task(periodic_cache_cleanup()))
+except RuntimeError:
+    # No event loop yet; will rely on first request to trigger manual start if needed.
+    pass
 
 
 async def prefetch_segments(segment_urls):
