@@ -113,28 +113,17 @@ RUN \
             ffmpeg \
             procps \
     && \
-    if command -v tvheadend &> /dev/null; then \
-        echo "**** install tvh application runtime packages ****" \
+    if ! command -v tvheadend &> /dev/null; then \
+        echo "**** base image lacks tvheadend, installing tvh dependency libs ****" \
             && apt-get install -y --no-install-recommends \
                 libavahi-client3 \
-                libavcodec59 \
-                libavdevice59 \
-                libavfilter8 \
-                libavfilter8 \
-                libavutil57 \
                 libdbus-1-3 \
                 libdvbcsa1 \
-                libhdhomerun4 \
                 libopus0 \
                 libpcre2-8-0 \
-                libpostproc56 \
                 libssl3 \
-                libswscale6 \
                 liburiparser1 \
                 libva2 \
-                libvpx7 \
-                libx264-164 \
-                libx265-199 \
                 mesa-va-drivers \
                 mesa-vdpau-drivers \
                 pngquant \
@@ -143,22 +132,15 @@ RUN \
                 x265 \
                 xmltv \
                 zlib1g \
-                zlib1g-dev \
-        && \
-        echo "**** install nginx reverse proxy ****" \
-            && apt-get install -y --no-install-recommends \
-                nginx \
-        && \
-        if [ "$(uname -m)" = 'x86_64' ]; then \
-            echo "**** install intel media driver packages for x86_64 ****" \
-                && apt-get install -y --no-install-recommends \
-                    intel-media-va-driver \
-                    i965-va-driver \
-            && \
-            echo \
-        ; fi \
-        && \
-        echo \
+        && echo "(Skipped version-specific ffmpeg codec libs; assumed present or not required)" \
+    ; fi \
+    && \
+    echo "**** optionally install nginx reverse proxy (set INSTALL_NGINX=1) ****" \
+    && if [ "${INSTALL_NGINX:-0}" = "1" ]; then apt-get install -y --no-install-recommends nginx; fi \
+    && \
+    if [ "$(uname -m)" = 'x86_64' ] && command -v tvheadend &> /dev/null; then \
+        echo "**** install intel media driver packages for x86_64 (optional if hardware accel) ****" \
+            && apt-get install -y --no-install-recommends intel-media-va-driver i965-va-driver \
     ; fi \
     && \
     echo "**** cleanup apt cache ****" \
