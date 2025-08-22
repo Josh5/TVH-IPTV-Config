@@ -1,4 +1,4 @@
-ARG BASE_IMAGE
+ARG BASE_IMAGE=python:3.12-bookworm
 FROM ${BASE_IMAGE} AS base_image
 
 #  _____ ____   ___  _   _ _____ _____ _   _ ____    ____ _____  _    ____ _____
@@ -52,7 +52,7 @@ USER root
 WORKDIR /var
 
 RUN \
-    echo "** Install python build dependencies **" \
+    echo "** Install python build dependencies (only if base image is minimal python)**" \
         && apt-get update \
         && apt-get install -y --no-install-recommends \
             build-essential \
@@ -66,16 +66,20 @@ RUN \
     && \
     echo
 
+# Reduce pip noise & ensure deterministic, faster installs
+ENV PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
 # Install python dependencies
-ARG PYTHONDONTWRITEBYTECODE="1"
-ARG PYTHONUNBUFFERED="1"
 COPY requirements.txt /requirements.txt
-RUN \
+RUN --mount=type=cache,target=/root/.cache/pip \
     echo "**** Install python dependencies ****" \
         && python3 -m venv --symlinks /var/venv-docker \
         && . /var/venv-docker/bin/activate \
-        && python3 -m pip install --no-cache-dir --upgrade pip \
-        && python3 -m pip install --no-cache-dir -r /requirements.txt \
+        && python3 -m pip install --upgrade pip \
+        && python3 -m pip install -r /requirements.txt \
     && \
     echo
 
@@ -176,8 +180,9 @@ COPY alembic.ini /app/alembic.ini
 COPY run.py /app/run.py
 COPY db-migrate.sh /app/db-migrate.sh
 
-# Set environment variables
-ENV HOME="/config"
+# Set environment variables (add venv bin to PATH for implicit execution)
+ENV HOME="/config" \
+    PATH="/var/venv-docker/bin:${PATH}"
 ENV FLASK_APP="/app/run.py"
 ENV FLASK_RUN_PORT="9985"
 ENV FLASK_RUN_HOST="0.0.0.0"
@@ -201,4 +206,5 @@ LABEL build="Version:- ${VERSION} Build-date:- ${BUILD_DATE} Base:- ${BASE_IMAGE
 
 # Install entrypoint script
 COPY ./docker/entrypoint.sh /entrypoint.sh
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ENTRYPOINT [ "/usr/bin/tini", "--", "/entrypoint.sh" ]
