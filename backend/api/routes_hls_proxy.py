@@ -148,10 +148,10 @@ class FFmpegStream:
                 break
 
     def add_buffer(self, buffer_id):
-        """Add a new buffer with proper locking"""
+        """Add a new per-connection TimeBuffer with proper locking."""
         with self.lock:
             if buffer_id not in self.buffers:
-                self.buffers[buffer_id] = []
+                self.buffers[buffer_id] = TimeBuffer()
                 self.connection_count += 1
                 ffmpeg_logger.info(f"Added buffer {buffer_id}, connection count: {self.connection_count}")
             return self.buffers[buffer_id]
@@ -204,83 +204,51 @@ class Cache:
         self.ttl = ttl
         self.max_size = 100  # Limit cache size to prevent memory issues
 
+    async def _cleanup_expired_items(self):
+        current_time = time.time()
+        expired_keys = [k for k, exp in self.expiration_times.items() if current_time > exp]
+        for k in expired_keys:
+            if isinstance(self.cache.get(k), FFmpegStream):
+                try:
+                    self.cache[k].stop()
+                except Exception:
+                    pass
+            self.cache.pop(k, None)
+            self.expiration_times.pop(k, None)
+        return len(expired_keys)
+
     async def get(self, key):
         async with self._lock:
-            if key in self.cache:
-                # Update expiration time on access
+            if key in self.cache and time.time() <= self.expiration_times.get(key, 0):
+                # Access refreshes TTL
                 self.expiration_times[key] = time.time() + self.ttl
                 return self.cache[key]
             return None
 
     async def set(self, key, value, expiration_time=None):
-        """Store a value in the cache.
-
-        :param key: Cache key
-        :param value: Value to store
-        :param expiration_time: Optional per-item TTL (seconds). Falls back to default self.ttl.
-        """
         async with self._lock:
-            # Evict expired first to free space
-            current_time = time.time()
-            expired_keys = [k for k, exp in self.expiration_times.items() if current_time > exp]
-            for k in expired_keys:
-                # Clean up any FFmpegStream
-                if isinstance(self.cache.get(k), FFmpegStream):
-                    try:
-                        self.cache[k].stop()
-                    except Exception:
-                        pass
-                self.cache.pop(k, None)
-                self.expiration_times.pop(k, None)
-
-            # Check if we need to evict items due to size limit
-            if len(self.cache) >= self.max_size:
-                # Remove item with earliest expiration
+            await self._cleanup_expired_items()
+            if len(self.cache) >= self.max_size and self.expiration_times:
                 oldest_key = min(self.expiration_times.items(), key=lambda x: x[1])[0]
                 if isinstance(self.cache.get(oldest_key), FFmpegStream):
                     try:
                         self.cache[oldest_key].stop()
                     except Exception:
                         pass
-                del self.cache[oldest_key]
-                del self.expiration_times[oldest_key]
-
+                self.cache.pop(oldest_key, None)
+                self.expiration_times.pop(oldest_key, None)
             ttl = expiration_time if expiration_time is not None else self.ttl
             self.cache[key] = value
             self.expiration_times[key] = time.time() + ttl
 
     async def exists(self, key):
-        """Return True if key exists and is not expired."""
         async with self._lock:
-            if key not in self.cache:
-                return False
-            if time.time() > self.expiration_times.get(key, 0):
-                # Expired: remove
-                if isinstance(self.cache.get(key), FFmpegStream):
-                    try:
-                        self.cache[key].stop()
-                    except Exception:
-                        pass
-                self.cache.pop(key, None)
-                self.expiration_times.pop(key, None)
-                return False
-            return True
+            await self._cleanup_expired_items()
+            return key in self.cache
 
     async def evict_expired_items(self):
         async with self._lock:
-            current_time = time.time()
-            keys_to_delete = [key for key, expiration_time in self.expiration_times.items() if
-                              current_time > expiration_time]
-            
-            for key in keys_to_delete:
-                # Properly clean up FFmpegStream objects
-                if key in self.cache and isinstance(self.cache[key], FFmpegStream):
-                    self.cache[key].stop()
-                
-                del self.cache[key]
-                del self.expiration_times[key]
-                
-            return len(keys_to_delete)  # Return number of items evicted for logging
+            return await self._cleanup_expired_items()
 
 async def periodic_cache_cleanup():
     while True:
@@ -304,17 +272,14 @@ async def periodic_cache_cleanup():
 # Global cache instance (short default TTL for HLS segments)
 cache = Cache(ttl=120)
 
-# Schedule periodic cleanup once the event loop is running. We guard against Missing loop during import.
-try:
-    loop = asyncio.get_event_loop()
-    if loop.is_running():
-        loop.create_task(periodic_cache_cleanup())
-    else:
-        # Defer starting until first iteration via call_soon
-        loop.call_soon(lambda: loop.create_task(periodic_cache_cleanup()))
-except RuntimeError:
-    # No event loop yet; will rely on first request to trigger manual start if needed.
-    pass
+# Register a startup hook to launch the periodic cache cleanup task once the app is ready.
+@blueprint.record_once
+def _register_startup(state):
+    app = state.app
+
+    @app.before_serving
+    async def _start_periodic_cache_cleanup():
+        asyncio.create_task(periodic_cache_cleanup())
 
 
 async def prefetch_segments(segment_urls):
