@@ -95,58 +95,44 @@ FROM base_image
 USER root
 
 # Runtime packages
-RUN \
-    echo "**** update apt repositories ****" \
-        && apt-get update \
-    && \
-    echo "**** install container runtime packages ****" \
-        && apt-get install -y --no-install-recommends \
-            bash \
-            ca-certificates \
-            curl \
-            sqlite3 \
-            tini \
-            tzdata \
-    && \
-    echo "**** install tic application runtime packages ****" \
-        && apt-get install -y --no-install-recommends \
-            ffmpeg \
-            procps \
-    && \
-    if ! command -v tvheadend &> /dev/null; then \
-        echo "**** base image lacks tvheadend, installing tvh dependency libs ****" \
-            && apt-get install -y --no-install-recommends \
-                libavahi-client3 \
-                libdbus-1-3 \
-                libdvbcsa1 \
-                libopus0 \
-                libpcre2-8-0 \
-                libssl3 \
-                liburiparser1 \
-                libva2 \
-                mesa-va-drivers \
-                mesa-vdpau-drivers \
-                pngquant \
-                python3 \
-                x264 \
-                x265 \
-                xmltv \
-                zlib1g \
-        && echo "(Skipped version-specific ffmpeg codec libs; assumed present or not required)" \
-    ; fi \
-    && \
-    echo "**** optionally install nginx reverse proxy (set INSTALL_NGINX=1) ****" \
-    && if [ "${INSTALL_NGINX:-0}" = "1" ]; then apt-get install -y --no-install-recommends nginx; fi \
-    && \
-    if [ "$(uname -m)" = 'x86_64' ] && command -v tvheadend &> /dev/null; then \
-        echo "**** install intel media driver packages for x86_64 (optional if hardware accel) ****" \
-            && apt-get install -y --no-install-recommends intel-media-va-driver i965-va-driver \
-    ; fi \
-    && \
-    echo "**** cleanup apt cache ****" \
-        && apt-get clean \
-        && rm -rf /var/lib/apt/lists/* \
-    && \
+RUN set -eux; \
+    echo "**** update apt repositories & install base runtime packages ****"; \
+    apt-get update; \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        bash \
+        ca-certificates \
+        curl \
+        sqlite3 \
+        tini \
+        tzdata \
+        procps \
+        ffmpeg; \
+    echo "**** conditional tvheadend dependency libraries (only if tvheadend missing) ****"; \
+    if ! command -v tvheadend >/dev/null 2>&1; then \
+        # Pruned list to only widely available Debian bookworm runtime libs; removed: x264, x265, xmltv, pngquant, python3 (already present), libssl3 (already in base), to prevent 'unable to locate package' failures. \
+        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            libavahi-client3 \
+            libdbus-1-3 \
+            libdvbcsa1 \
+            libopus0 \
+            libpcre2-8-0 \
+            liburiparser1 \
+            libva2 \
+            mesa-va-drivers \
+            mesa-vdpau-drivers \
+            zlib1g; \
+    fi; \
+    echo "**** optional nginx install (INSTALL_NGINX=1) ****"; \
+    if [ "${INSTALL_NGINX:-0}" = "1" ]; then \
+        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends nginx; \
+    fi; \
+    echo "**** optional Intel media drivers for hardware accel (x86_64 only; requires tvheadend present) ****"; \
+    if [ "$(uname -m)" = 'x86_64' ] && command -v tvheadend >/dev/null 2>&1; then \
+        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends intel-media-va-driver i965-va-driver || echo "(Intel media drivers not available – continuing)"; \
+    fi; \
+    echo "**** cleanup apt cache ****"; \
+    apt-get clean; \
+    rm -rf /var/lib/apt/lists/*; \
     echo
 
 # Install gosu
