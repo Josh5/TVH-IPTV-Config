@@ -75,11 +75,148 @@ class EpgChannelProgrammes(Base):
     stop_timestamp = Column(String(256), index=False, unique=False)
     categories = Column(String(256), index=True, unique=False)
 
+    # Extended XMLTV fields
+    # Alle folgenden Felder sind optional (nullable=True explizit gesetzt zur Klarheit)
+    summary = Column(String(500), nullable=True, index=False, unique=False)           # <summary>
+    keywords = Column(String(500), nullable=True, index=False, unique=False)          # multiple <keyword> (Delimiter)
+    actors = Column(String(500), nullable=True, index=False, unique=False)            # multiple <actor>
+    directors = Column(String(500), nullable=True, index=False, unique=False)         # multiple <director>
+    guests = Column(String(500), nullable=True, index=False, unique=False)            # multiple <guest>
+    presenters = Column(String(500), nullable=True, index=False, unique=False)        # multiple <presenter>
+    writers = Column(String(500), nullable=True, index=False, unique=False)           # multiple <writer>
+    video_colour = Column(String(32), nullable=True, index=False, unique=False)       # <video><colour>
+    video_aspect = Column(String(32), nullable=True, index=False, unique=False)       # <video><aspect>
+    video_quality = Column(String(16), nullable=True, index=False, unique=False)      # <video><quality>
+    subtitles_type = Column(String(32), nullable=True, index=False, unique=False)     # <subtitles type="">
+    audio_described = Column(Boolean, nullable=True, unique=False)                    # <audio-described />
+    previously_shown = Column(String(32), nullable=True, index=False, unique=False)   # <previously-shown start="">
+    premiere = Column(Boolean, nullable=True, unique=False)                           # <premiere />
+    is_new = Column(Boolean, nullable=True, unique=False)                             # <new />
+    episode_num_onscreen = Column(String(128), nullable=True, index=False, unique=False)   # episode-num onscreen
+    episode_num_xmltv_ns = Column(String(128), nullable=True, index=False, unique=False)   # episode-num xmltv_ns
+    episode_num_dd_progid = Column(String(128), nullable=True, index=False, unique=False)  # episode-num dd_progid
+    star_rating = Column(String(32), nullable=True, index=False, unique=False)        # <star-rating><value>
+    date = Column(String(8), nullable=True, index=False, unique=False)                # <date>YYYY
+    rating_system = Column(String(64), nullable=True, index=False, unique=False)      # <rating system="Name">
+    rating_value = Column(String(64), nullable=True, index=False, unique=False)       # <rating><value>
+
     # Link with an epg channel
     epg_channel_id = Column(Integer, ForeignKey('epg_channels.id'), nullable=False)
 
     def __repr__(self):
         return '<EpgChannelProgrammes {}>'.format(self.id)
+
+    # -------- Helper für Listenfelder --------
+    _DELIM = '\u001f'  # Unit Separator als Delimiter, geringes Kollisionsrisiko
+
+    def _split(self, value):
+        return [] if not value else value.split(self._DELIM)
+
+    def _join(self, items):
+        if not items:
+            return None
+        return self._DELIM.join([i for i in items if i])
+
+    # Keywords
+    @property
+    def keyword_list(self):
+        return self._split(self.keywords)
+
+    @keyword_list.setter
+    def keyword_list(self, items):
+        self.keywords = self._join(items)
+
+    # Actors
+    @property
+    def actor_list(self):
+        return self._split(self.actors)
+
+    @actor_list.setter
+    def actor_list(self, items):
+        self.actors = self._join(items)
+
+    # Directors
+    @property
+    def director_list(self):
+        return self._split(self.directors)
+
+    @director_list.setter
+    def director_list(self, items):
+        self.directors = self._join(items)
+
+    # Guests
+    @property
+    def guest_list(self):
+        return self._split(self.guests)
+
+    @guest_list.setter
+    def guest_list(self, items):
+        self.guests = self._join(items)
+
+    # Presenters
+    @property
+    def presenter_list(self):
+        return self._split(self.presenters)
+
+    @presenter_list.setter
+    def presenter_list(self, items):
+        self.presenters = self._join(items)
+
+    # Writers
+    @property
+    def writer_list(self):
+        return self._split(self.writers)
+
+    @writer_list.setter
+    def writer_list(self, items):
+        self.writers = self._join(items)
+
+    def as_xmltv_dict(self):
+        """Gibt nur gesetzte (nicht-leere) Felder zurück -> erleichtert XML-Export."""
+        fields = {}
+        simple_map = {
+            'summary': self.summary,
+            'desc': self.desc,
+            'sub_title': self.sub_title,
+            'series_desc': self.series_desc,
+            'country': self.country,
+            'video_colour': self.video_colour,
+            'video_aspect': self.video_aspect,
+            'video_quality': self.video_quality,
+            'subtitles_type': self.subtitles_type,
+            'previously_shown': self.previously_shown,
+            'star_rating': self.star_rating,
+            'date': self.date,
+            'rating_system': self.rating_system,
+            'rating_value': self.rating_value,
+            'episode_num_onscreen': self.episode_num_onscreen,
+            'episode_num_xmltv_ns': self.episode_num_xmltv_ns,
+            'episode_num_dd_progid': self.episode_num_dd_progid,
+        }
+        for k, v in simple_map.items():
+            if v not in (None, '', []):
+                fields[k] = v
+        # Boolean Flags
+        if self.audio_described:
+            fields['audio_described'] = True
+        if self.premiere:
+            fields['premiere'] = True
+        if self.is_new:
+            fields['is_new'] = True
+        # Listen
+        if self.keyword_list:
+            fields['keywords'] = self.keyword_list
+        if self.actor_list:
+            fields['actors'] = self.actor_list
+        if self.director_list:
+            fields['directors'] = self.director_list
+        if self.guest_list:
+            fields['guests'] = self.guest_list
+        if self.presenter_list:
+            fields['presenters'] = self.presenter_list
+        if self.writer_list:
+            fields['writers'] = self.writer_list
+        return fields
 
 
 class Playlist(Base):
