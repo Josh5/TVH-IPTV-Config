@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
 import base64
+import asyncio
 import logging
 import os
 import re
+import time
 from mimetypes import guess_type
+from collections import OrderedDict
 
 import aiofiles
 import aiohttp
@@ -21,6 +24,35 @@ from backend.tvheadend.tvh_requests import get_tvh
 logger = logging.getLogger('tic.channels')
 
 image_placeholder_base64 = 'iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAIAAAD/gAIDAAACiUlEQVR4nO2cy46sMAxEzdX8/y/3XUSKUM+I7sLlF6qzYgE4HJwQEsLxer1MfMe/6gJMQrIAJAtAsgAkC0CyACQLQLIAJAtAsgAkC0CyACQLQLIAJAtAsgAkC0CyACQL4Md5/HEclFH84ziud+gwV+C61H2F905yFvTxDNDOQXjz4p6vddTt0M7Db0OoRN/7cmZi6Nm+iphWblbrlnnm90CsMBe+EmpNTsVk3pM/faXd9oRYzH7WLui2lmlqFeBjF8QD/2LKn/Fxd4jfgy/vPcblV+zrTmiluCDIF1/WqgW/269kInyRZZ3bi+f5Ysr63bI+zFf4EE25LyI0WRcP7FpfxOTiyPrYtXmGr7yR0gfUx9Rh5em+CLKg14sqX5SaWDBhMTe/vLLuvbWW+PInV9lU2MT8qpw3HOereJJ1li+XLMowW6YvZ7PVYvp+Sn61kGVDfHWRZRN8NZJl7X31kmW9fbWTZY19dZRlXX01lWUtffWVZf18tZZlzXy5ZEV/iLGjrA1/LOf7WffMWjTJrxmyrIevMbKsgS+vrJxm6xxubdwI6h9QmpRZi8L8IshKTi675YsyTjkvsxYl+TVVllX44sjKr4k77tq4js76JJeWWW19ET9eHlwNN2n1kbxooPBzyLXxVgDuN/HkzGrli756IGQxQvIqlLfQe5tehpA2q0N+RRDVwBf62nRfNHCmxFfo+o7YrkOyr+j1HRktceFKVvKq7AcsM70+M9FX6jO+avU9K25Nhyj/vw4UX2W9R0v/Y4jfV6WsMzn/ovH+D6aJrDQ8z5knDNFAPH9GugmSBSBZAJIFIFkAkgUgWQCSBSBZAJIFIFkAkgUgWQCSBSBZAJIFIFkA/wGlHK2X7Li2TQAAAABJRU5ErkJggg=='
+
+
+# Simple in-process LRU cache for expensive list operations (not persistent, per worker)
+class LRUCache:
+    def __init__(self, max_size=32):
+        self.max_size = max_size
+        self.store = OrderedDict()
+
+    def get(self, key):
+        if key not in self.store:
+            return None
+        value, expires_at = self.store[key]
+        if expires_at and expires_at < time.time():
+            # Expired
+            del self.store[key]
+            return None
+        # Move to end (recently used)
+        self.store.move_to_end(key)
+        return value
+
+    def set(self, key, value, ttl=60):
+        if key in self.store:
+            self.store.move_to_end(key)
+        self.store[key] = (value, time.time() + ttl if ttl else None)
+        if len(self.store) > self.max_size:
+            self.store.popitem(last=False)
+
+
+_list_cache = LRUCache(max_size=8)
 
 
 async def read_config_all_channels(filter_playlist_ids=None, output_for_export=False):
@@ -202,7 +234,11 @@ async def read_channel_logo(channel_id):
     return image_base64_string, mime_type
 
 
-async def add_new_channel(config, data, commit=True):
+async def add_new_channel(config, data, commit=True, publish=True):
+    """Create Channel row and optionally publish immediately to TVHeadend.
+
+    Returns the Channel ORM object (with tvh_uuid if published).
+    """
     settings = config.read_settings()
     channel = Channel(
         enabled=data.get('enabled'),
@@ -210,8 +246,7 @@ async def add_new_channel(config, data, commit=True):
         logo_url=data.get('logo_url'),
         number=data.get('number'),
     )
-    # Add tags
-    channel.tags.clear()
+    # Tags
     for tag_name in data.get('tags', []):
         channel_tag = db.session.query(ChannelTag).filter(ChannelTag.name == tag_name).one_or_none()
         if not channel_tag:
@@ -233,7 +268,6 @@ async def add_new_channel(config, data, commit=True):
         playlist_info = db.session.query(Playlist).filter(Playlist.id == source_info['playlist_id']).one()
         playlist_streams = fetch_playlist_streams(playlist_info.id)
         playlist_stream = playlist_streams.get(source_info['stream_name'])
-        # Modify stream if using HLS proxy
         if playlist_info.use_hls_proxy:
             if not playlist_info.use_custom_hls_proxy:
                 app_url = settings['settings']['app_url']
@@ -241,15 +275,14 @@ async def add_new_channel(config, data, commit=True):
                 extension = 'ts'
                 if playlist_url.endswith('m3u8'):
                     extension = 'm3u8'
-                encoded_playlist_url = base64.b64encode(playlist_url.encode('utf-8')).decode('utf-8')
-                # noinspection HttpUrlsUsage
-                playlist_stream['url'] = f'{app_url}/tic-hls-proxy/{encoded_playlist_url}.{extension}'
+                encoded_url = base64.b64encode(playlist_url.encode('utf-8')).decode('utf-8')
+                playlist_stream['url'] = f'{app_url}/tic-hls-proxy/{encoded_url}.{extension}'
             else:
                 hls_proxy_path = playlist_info.hls_proxy_path
                 playlist_url = playlist_stream['url']
-                encoded_playlist_url = base64.b64encode(playlist_url.encode('utf-8')).decode('utf-8')
+                encoded_url = base64.b64encode(playlist_url.encode('utf-8')).decode('utf-8')
                 hls_proxy_path = hls_proxy_path.replace("[URL]", playlist_url)
-                hls_proxy_path = hls_proxy_path.replace("[B64_URL]", encoded_playlist_url)
+                hls_proxy_path = hls_proxy_path.replace("[B64_URL]", encoded_url)
                 playlist_stream['url'] = hls_proxy_path
         channel_source = ChannelSource(
             playlist_id=playlist_info.id,
@@ -258,19 +291,21 @@ async def add_new_channel(config, data, commit=True):
         )
         new_sources.append(channel_source)
     if new_sources:
-        channel.sources.clear()
         channel.sources = new_sources
 
-    # Publish changes to TVH
-    async with await get_tvh(config) as tvh:
-        channel_uuid = await publish_channel_to_tvh(tvh, channel)
-        # Save network UUID against playlist in settings
-        channel.tvh_uuid = channel_uuid
+    db.session.add(channel)
 
-        # Add new row and commit
-        db.session.add(channel)
-        if commit:
-            db.session.commit()
+    if publish:
+        try:
+            async with await get_tvh(config) as tvh:
+                channel_uuid = await publish_channel_to_tvh(tvh, channel)
+                channel.tvh_uuid = channel_uuid
+        except Exception as e:
+            logger.error("Immediate publish failed for channel '%s': %s", channel.name, e)
+
+    if commit:
+        db.session.commit()
+    return channel
 
 
 async def update_channel(config, channel_id, data):
@@ -424,6 +459,7 @@ async def add_bulk_channels(config, data):
     added_channel_count = 0
     skipped_channel_count = 0
     
+    new_channels = []
     for channel in data:
         # Fetch the playlist channel by ID
         playlist_stream = db.session.query(PlaylistStreams).where(PlaylistStreams.id == channel['stream_id']).one()
@@ -471,13 +507,18 @@ async def add_bulk_channels(config, data):
             'playlist_name': playlist_stream.playlist.name,
             'stream_name':   playlist_stream.name
         })
-        # Create new channel from data.
-        # Delay commit of transaction until all new channels are created
-        await add_new_channel(config, new_channel_data, commit=False)
+        channel_obj = await add_new_channel(config, new_channel_data, commit=False, publish=False)
+        new_channels.append(channel_obj)
         added_channel_count += 1
     
     # Commit all new channels
     db.session.commit()
+
+    # Batch publish
+    try:
+        await batch_publish_new_channels_to_tvh(config, new_channels)
+    except Exception as e:
+        logger.error("Batch publish (bulk) failed: %s", e)
     
     logger.info(f"Successfully added {added_channel_count} channels (skipped {skipped_channel_count} existing channels)")
     return added_channel_count
@@ -577,6 +618,78 @@ async def publish_channel_to_tvh(tvh, channel):
     return channel_uuid
 
 
+async def batch_publish_new_channels_to_tvh(config, channels):
+    """Batch publish a list of newly created Channel objects to TVHeadend.
+
+    Reduces API calls by fetching existing channels and tags once and only creating
+    what is missing.
+    """
+    if not channels:
+        return
+    async with await get_tvh(config) as tvh:
+        logger.info("Batch publishing %d new channels to TVH", len(channels))
+        existing_channels = await tvh.list_all_channels()
+        existing_by_name = {c.get('name'): c.get('uuid') for c in existing_channels if c.get('name')}
+
+        # Collect tag names
+        unique_tags = set()
+        for ch in channels:
+            for tag in getattr(ch, 'tags', []) or []:
+                tag_name = getattr(tag, 'name', None) or (tag if isinstance(tag, str) else None)
+                if tag_name:
+                    unique_tags.add(tag_name)
+
+        # Existing managed channel tags
+        existing_tag_details = {}
+        if unique_tags:
+            for tvh_tag in await tvh.list_all_managed_channel_tags():
+                existing_tag_details[tvh_tag.get('name')] = tvh_tag.get('uuid')
+
+        # Create missing tags
+        for tag_name in list(unique_tags):
+            if tag_name not in existing_tag_details:
+                try:
+                    logger.info("Creating new channel tag '%s' (batch)", tag_name)
+                    tag_uuid = await tvh.create_channel_tag(tag_name)
+                    if tag_uuid:
+                        existing_tag_details[tag_name] = tag_uuid
+                except Exception as e:
+                    logger.error("Failed to create channel tag '%s': %s", tag_name, e)
+
+        # Publish each channel
+        for ch in channels:
+            if ch.tvh_uuid:
+                continue
+            existing_uuid = existing_by_name.get(ch.name)
+            if not existing_uuid:
+                try:
+                    existing_uuid = await tvh.create_channel(ch.name, ch.number, ch.logo_url)
+                    existing_by_name[ch.name] = existing_uuid
+                except Exception as e:
+                    logger.error("Failed creating channel '%s': %s", ch.name, e)
+                    continue
+            tag_uuids = []
+            for tag in getattr(ch, 'tags', []) or []:
+                tag_name = getattr(tag, 'name', None) or (tag if isinstance(tag, str) else None)
+                if tag_name and existing_tag_details.get(tag_name):
+                    tag_uuids.append(existing_tag_details[tag_name])
+            channel_conf = {
+                'enabled': True,
+                'uuid': existing_uuid,
+                'name': ch.name,
+                'number': ch.number,
+                'icon': ch.logo_url,
+                'tags': tag_uuids,
+            }
+            try:
+                await tvh.idnode_save(channel_conf)
+                ch.tvh_uuid = existing_uuid
+            except Exception as e:
+                logger.error("Failed saving channel '%s': %s", ch.name, e)
+        db.session.commit()
+        logger.info("Batch publish completed")
+
+
 async def publish_bulk_channels_to_tvh_and_m3u(config):
     settings = config.read_settings()
     tic_base_url = settings['settings']['app_url']
@@ -618,82 +731,103 @@ async def publish_bulk_channels_to_tvh_and_m3u(config):
 
 async def publish_channel_muxes(config):
     async with await get_tvh(config) as tvh:
-        # Loop over configured channels
-        managed_uuids = []
+        # Fetch results with relationships
         results = db.session.query(Channel) \
             .options(joinedload(Channel.tags), joinedload(Channel.sources).subqueryload(ChannelSource.playlist)) \
             .order_by(Channel.id, Channel.number.asc()) \
             .all()
-        existing_muxes = await tvh.list_all_muxes()
-        for result in results:
-            if result.enabled:
-                logger.info("Configuring MUX for channel '%s'", result.name)
-                # Create/update a network in TVH for each enabled playlist line
-                for source in result.sources:
-                    # Write playlist to TVH Network
-                    net_uuid = source.playlist.tvh_uuid
-                    if not net_uuid:
-                        # Show error
-                        logger.info("Playlist is not configured on TVH")
-                        continue
-                    # Check if MUX exists with a matching UUID and create it if not
-                    mux_uuid = source.tvh_uuid
-                    run_mux_scan = False
-                    if mux_uuid:
-                        found = False
-                        for mux in existing_muxes:
-                            if mux.get('uuid') == mux_uuid:
-                                found = True
-                                if mux.get('scan_result') == 2:
-                                    # Scan failed last time, re-run it
-                                    run_mux_scan = True
-                        if not found:
-                            mux_uuid = None
-                    if not mux_uuid:
-                        logger.info("    - Creating new MUX for channel '%s' with stream '%s'", result.name,
-                                    source.playlist_stream_url)
-                        # No mux exists, create one
-                        mux_uuid = await tvh.network_mux_create(net_uuid)
-                        logger.info(mux_uuid)
-                        run_mux_scan = True
-                    else:
-                        logger.info("    - Updating existing MUX '%s' for channel '%s' with stream '%s'", mux_uuid,
-                                    result.name, source.playlist_stream_url)
-                    # Update mux
-                    service_name = f"{source.playlist.name} - {source.playlist_stream_name}"
-                    iptv_url = generate_iptv_url(
-                        config,
-                        url=source.playlist_stream_url,
-                        service_name=service_name,
-                    )
-                    channel_id = f"{result.number}_{re.sub(r'[^a-zA-Z0-9]', '', result.name)}"
-                    mux_conf = {
-                        'enabled':        1,
-                        'uuid':           mux_uuid,
-                        'iptv_url':       iptv_url,
-                        'iptv_icon':      result.logo_url,
-                        'iptv_sname':     result.name,
-                        'iptv_muxname':   service_name,
-                        'channel_number': result.number,
-                        'iptv_epgid':     channel_id,
-                        "priority":       source.priority, 
-                        "spriority":      source.priority,
-                    }
-                    if run_mux_scan:
-                        mux_conf['scan_state'] = 1
-                    await tvh.idnode_save(mux_conf)
-                    # Save network UUID against playlist in settings
-                    source.tvh_uuid = mux_uuid
-                    db.session.commit()
-                    # Append to list of current network UUIDs
-                    managed_uuids.append(mux_uuid)
 
-        #  Remove any muxes that are not managed.
+        # Cache existing mux list (LRU) to avoid repeat heavy calls within TTL
+        cached_muxes = _list_cache.get('existing_muxes')
+        if cached_muxes is None:
+            cached_muxes = await tvh.list_all_muxes()
+            _list_cache.set('existing_muxes', cached_muxes, ttl=30)
+        existing_muxes = cached_muxes
+        existing_mux_uuids = {m.get('uuid') for m in existing_muxes}
+
+        managed_uuids = []
+        sem = asyncio.Semaphore(8)  # limit concurrency
+        mux_tasks = []
+
+        async def process_source(channel_obj, source_obj):
+            async with sem:
+                net_uuid = source_obj.playlist.tvh_uuid
+                if not net_uuid:
+                    logger.debug("Playlist not configured on TVH for channel '%s'", channel_obj.name)
+                    return
+                mux_uuid = source_obj.tvh_uuid
+                run_mux_scan = False
+                if mux_uuid and mux_uuid in existing_mux_uuids:
+                    # Check scan_result
+                    for mux in existing_muxes:
+                        if mux.get('uuid') == mux_uuid and mux.get('scan_result') == 2:
+                            run_mux_scan = True
+                            break
+                else:
+                    mux_uuid = None
+                if not mux_uuid:
+                    logger.info("    - Creating new MUX for channel '%s'", channel_obj.name)
+                    try:
+                        mux_uuid = await tvh.network_mux_create(net_uuid)
+                        run_mux_scan = True
+                    except Exception as e:
+                        logger.error("Failed creating MUX for channel '%s': %s", channel_obj.name, e)
+                        return
+                else:
+                    logger.debug("    - Updating existing MUX '%s' for '%s'", mux_uuid, channel_obj.name)
+
+                service_name = f"{source_obj.playlist.name} - {source_obj.playlist_stream_name}"
+                iptv_url = generate_iptv_url(
+                    config,
+                    url=source_obj.playlist_stream_url,
+                    service_name=service_name,
+                )
+                channel_id = f"{channel_obj.number}_{re.sub(r'[^a-zA-Z0-9]', '', channel_obj.name)}"
+                mux_conf = {
+                    'enabled':        1,
+                    'uuid':           mux_uuid,
+                    'iptv_url':       iptv_url,
+                    'iptv_icon':      channel_obj.logo_url,
+                    'iptv_sname':     channel_obj.name,
+                    'iptv_muxname':   service_name,
+                    'channel_number': channel_obj.number,
+                    'iptv_epgid':     channel_id,
+                    'priority':       source_obj.priority,
+                    'spriority':      source_obj.priority,
+                }
+                if run_mux_scan:
+                    mux_conf['scan_state'] = 1
+                try:
+                    await tvh.idnode_save(mux_conf)
+                    source_obj.tvh_uuid = mux_uuid
+                    managed_uuids.append(mux_uuid)
+                except Exception as e:
+                    logger.error("Failed saving MUX for channel '%s': %s", channel_obj.name, e)
+
+        # Schedule tasks
+        for channel_obj in results:
+            if not channel_obj.enabled:
+                continue
+            for source_obj in channel_obj.sources:
+                mux_tasks.append(asyncio.create_task(process_source(channel_obj, source_obj)))
+
+        # Await all
+        if mux_tasks:
+            await asyncio.gather(*mux_tasks)
+            db.session.commit()
+
+        # Cleanup unused muxes
         logger.info("Running cleanup task on current TVH muxes")
-        for existing_mux in await tvh.list_all_muxes():
-            if existing_mux.get('uuid') not in managed_uuids:
-                logger.info("    - Removing mux UUID - %s", existing_mux.get('uuid'))
-                await tvh.delete_mux(existing_mux.get('uuid'))
+        # Refresh existing mux list for cleanup (not from cache to be up-to-date)
+        current_muxes = await tvh.list_all_muxes()
+        for existing_mux in current_muxes:
+            uuid = existing_mux.get('uuid')
+            if uuid and uuid not in managed_uuids:
+                try:
+                    logger.info("    - Removing mux UUID - %s", uuid)
+                    await tvh.delete_mux(uuid)
+                except Exception as e:
+                    logger.error("Failed removing mux '%s': %s", uuid, e)
 
 
 async def delete_channel_muxes(config, mux_uuid):
@@ -778,7 +912,8 @@ async def add_channels_from_groups(config, groups):
     logger.info(f"Adding channels from {len(groups)} groups")
     settings = config.read_settings()
     added_channel_count = 0
-    
+    group_new_channels = []
+
     # First determine the starting channel number for the whole operation
     channel_number = db.session.query(func.max(Channel.number)).scalar()
     if channel_number is None:
@@ -843,8 +978,8 @@ async def add_channels_from_groups(config, groups):
                     'stream_name': stream.name
                 })
                 
-                # Use add_new_channel to ensure consistent processing
-                await add_new_channel(config, new_channel_data, commit=False)
+                channel_obj = await add_new_channel(config, new_channel_data, commit=False, publish=False)
+                group_new_channels.append(channel_obj)
                 added_channel_count += 1
                 
             except Exception as e:
@@ -854,6 +989,11 @@ async def add_channels_from_groups(config, groups):
     
     # Commit all new channels in one transaction
     db.session.commit()
-    
+
+    try:
+        await batch_publish_new_channels_to_tvh(config, group_new_channels)
+    except Exception as e:
+        logger.error("Batch publish (groups) failed: %s", e)
+
     logger.info(f"Successfully added {added_channel_count} channels from groups")
     return added_channel_count
