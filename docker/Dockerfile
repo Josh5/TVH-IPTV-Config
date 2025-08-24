@@ -1,4 +1,4 @@
-ARG BASE_IMAGE
+ARG BASE_IMAGE=python:3.12-bookworm
 FROM ${BASE_IMAGE} AS base_image
 
 #  _____ ____   ___  _   _ _____ _____ _   _ ____    ____ _____  _    ____ _____
@@ -52,7 +52,7 @@ USER root
 WORKDIR /var
 
 RUN \
-    echo "** Install python build dependencies **" \
+    echo "** Install python build dependencies (only if base image is minimal python)**" \
         && apt-get update \
         && apt-get install -y --no-install-recommends \
             build-essential \
@@ -66,16 +66,20 @@ RUN \
     && \
     echo
 
+# Reduce pip noise & ensure deterministic, faster installs
+ENV PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
 # Install python dependencies
-ARG PYTHONDONTWRITEBYTECODE="1"
-ARG PYTHONUNBUFFERED="1"
 COPY requirements.txt /requirements.txt
-RUN \
+RUN --mount=type=cache,target=/root/.cache/pip \
     echo "**** Install python dependencies ****" \
         && python3 -m venv --symlinks /var/venv-docker \
         && . /var/venv-docker/bin/activate \
-        && python3 -m pip install --no-cache-dir --upgrade pip \
-        && python3 -m pip install --no-cache-dir -r /requirements.txt \
+        && python3 -m pip install --upgrade pip \
+        && python3 -m pip install -r /requirements.txt \
     && \
     echo
 
@@ -91,76 +95,44 @@ FROM base_image
 USER root
 
 # Runtime packages
-RUN \
-    echo "**** update apt repositories ****" \
-        && apt-get update \
-    && \
-    echo "**** install container runtime packages ****" \
-        && apt-get install -y --no-install-recommends \
-            bash \
-            ca-certificates \
-            curl \
-            sqlite3 \
-            tini \
-            tzdata \
-    && \
-    echo "**** install tic application runtime packages ****" \
-        && apt-get install -y --no-install-recommends \
-            ffmpeg \
-            procps \
-    && \
-    if command -v tvheadend &> /dev/null; then \
-        echo "**** install tvh application runtime packages ****" \
-            && apt-get install -y --no-install-recommends \
-                libavahi-client3 \
-                libavcodec59 \
-                libavdevice59 \
-                libavfilter8 \
-                libavfilter8 \
-                libavutil57 \
-                libdbus-1-3 \
-                libdvbcsa1 \
-                libhdhomerun4 \
-                libopus0 \
-                libpcre2-8-0 \
-                libpostproc56 \
-                libssl3 \
-                libswscale6 \
-                liburiparser1 \
-                libva2 \
-                libvpx7 \
-                libx264-164 \
-                libx265-199 \
-                mesa-va-drivers \
-                mesa-vdpau-drivers \
-                pngquant \
-                python3 \
-                x264 \
-                x265 \
-                xmltv \
-                zlib1g \
-                zlib1g-dev \
-        && \
-        echo "**** install nginx reverse proxy ****" \
-            && apt-get install -y --no-install-recommends \
-                nginx \
-        && \
-        if [ "$(uname -m)" = 'x86_64' ]; then \
-            echo "**** install intel media driver packages for x86_64 ****" \
-                && apt-get install -y --no-install-recommends \
-                    intel-media-va-driver \
-                    i965-va-driver \
-            && \
-            echo \
-        ; fi \
-        && \
-        echo \
-    ; fi \
-    && \
-    echo "**** cleanup apt cache ****" \
-        && apt-get clean \
-        && rm -rf /var/lib/apt/lists/* \
-    && \
+RUN set -eux; \
+    echo "**** update apt repositories & install base runtime packages ****"; \
+    apt-get update; \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        bash \
+        ca-certificates \
+        curl \
+        sqlite3 \
+        tini \
+        tzdata \
+        procps \
+        ffmpeg; \
+    echo "**** conditional tvheadend dependency libraries (only if tvheadend missing) ****"; \
+    if ! command -v tvheadend >/dev/null 2>&1; then \
+        # Pruned list to only widely available Debian bookworm runtime libs; removed: x264, x265, xmltv, pngquant, python3 (already present), libssl3 (already in base), to prevent 'unable to locate package' failures. \
+        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            libavahi-client3 \
+            libdbus-1-3 \
+            libdvbcsa1 \
+            libopus0 \
+            libpcre2-8-0 \
+            liburiparser1 \
+            libva2 \
+            mesa-va-drivers \
+            mesa-vdpau-drivers \
+            zlib1g; \
+    fi; \
+    echo "**** optional nginx install (INSTALL_NGINX=1) ****"; \
+    if [ "${INSTALL_NGINX:-0}" = "1" ]; then \
+        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends nginx; \
+    fi; \
+    echo "**** optional Intel media drivers for hardware accel (x86_64 only; requires tvheadend present) ****"; \
+    if [ "$(uname -m)" = 'x86_64' ] && command -v tvheadend >/dev/null 2>&1; then \
+        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends intel-media-va-driver i965-va-driver || echo "(Intel media drivers not available – continuing)"; \
+    fi; \
+    echo "**** cleanup apt cache ****"; \
+    apt-get clean; \
+    rm -rf /var/lib/apt/lists/*; \
     echo
 
 # Install gosu
@@ -176,8 +148,9 @@ COPY alembic.ini /app/alembic.ini
 COPY run.py /app/run.py
 COPY db-migrate.sh /app/db-migrate.sh
 
-# Set environment variables
-ENV HOME="/config"
+# Set environment variables (add venv bin to PATH for implicit execution)
+ENV HOME="/config" \
+    PATH="/var/venv-docker/bin:${PATH}"
 ENV FLASK_APP="/app/run.py"
 ENV FLASK_RUN_PORT="9985"
 ENV FLASK_RUN_HOST="0.0.0.0"
@@ -201,4 +174,5 @@ LABEL build="Version:- ${VERSION} Build-date:- ${BUILD_DATE} Base:- ${BASE_IMAGE
 
 # Install entrypoint script
 COPY ./docker/entrypoint.sh /entrypoint.sh
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ENTRYPOINT [ "/usr/bin/tini", "--", "/entrypoint.sh" ]
