@@ -50,6 +50,8 @@ if [ "$(id -u)" = "0" ]; then
         chown -R "${PUID:-1000}:${PGID:-1000}" /recordings
         mkdir -p /timeshift
         chown -R "${PUID:-1000}:${PGID:-1000}" /timeshift
+    else
+        print_log warn "tvheadend binary NOT found during root setup phase (PATH=$PATH)"
     fi
     exec gosu "${PUID:-1000}" env HOME="/config" "$0" "$@"
 fi
@@ -123,9 +125,22 @@ else
             cp -rf /defaults/tvheadend/config /config/.tvheadend/config
         fi
         print_log info "Starting tvheadend service"
-        tvheadend --config /config/.tvheadend --http_root /tic-tvh --nobackup --nosatipcli &
+        set +e
+        tvheadend --version 2>/dev/null || print_log warn "Unable to display tvheadend version (non-fatal)"
+        set -e
+        tvheadend --config /config/.tvheadend --http_root /tic-tvh --nobackup --nosatipcli \
+            > /tmp/tvh_stdout.log 2> /tmp/tvh_stderr.log &
         tvh_pid=$!
-        print_log info "Started tvheadend service with PID $tvh_pid"
+        sleep 1
+        if kill -0 "$tvh_pid" 2>/dev/null; then
+            print_log info "Started tvheadend service with PID $tvh_pid"
+        else
+            print_log error "tvheadend failed to start (exit $?)";
+            print_log error "Stdout:"; sed -e 's/^/[TVH-STDOUT] /' /tmp/tvh_stdout.log || true
+            print_log error "Stderr:"; sed -e 's/^/[TVH-STDERR] /' /tmp/tvh_stderr.log || true
+        fi
+    else
+        print_log warn "tvheadend binary not found at application start (PATH=$PATH). Skipping TVH launch."
     fi
 
     # Check if the database file exists
