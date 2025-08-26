@@ -735,89 +735,93 @@ async def publish_bulk_channels_to_tvh_and_m3u(config):
 async def publish_channel_muxes(config):
     async with await get_tvh(config) as tvh:
         # Fetch results with relationships
-        results = (
-            db.session.query(Channel)
-            .options(
-                joinedload(Channel.tags),
-                joinedload(Channel.sources).subqueryload(ChannelSource.playlist),
-            )
-            .order_by(Channel.id, Channel.number.asc())
+        results = db.session.query(Channel) \
+            .options(joinedload(Channel.tags), joinedload(Channel.sources).subqueryload(ChannelSource.playlist)) \
+            .order_by(Channel.id, Channel.number.asc()) \
             .all()
-        )
-        existing_muxes = await tvh.list_all_muxes()
-        managed_uuids: list[str] = []
-        pending_commit = False
 
-        for result in results:
-            if not result.enabled:
-                continue
-            logger.info("Configuring MUX for channel '%s'", result.name)
-            for source in result.sources:
-                net_uuid = source.playlist.tvh_uuid
+        # Cache existing mux list (LRU) to avoid repeat heavy calls within TTL
+        cached_muxes = _list_cache.get('existing_muxes')
+        if cached_muxes is None:
+            cached_muxes = await tvh.list_all_muxes()
+            _list_cache.set('existing_muxes', cached_muxes, ttl=30)
+        existing_muxes = cached_muxes
+        existing_mux_uuids = {m.get('uuid') for m in existing_muxes}
+
+        managed_uuids = []
+        sem = asyncio.Semaphore(8)  # limit concurrency
+        mux_tasks = []
+
+        async def process_source(channel_obj, source_obj):
+            async with sem:
+                net_uuid = source_obj.playlist.tvh_uuid
                 if not net_uuid:
-                    logger.info("Playlist is not configured on TVH")
-                    continue
-                mux_uuid = source.tvh_uuid
+                    logger.debug("Playlist not configured on TVH for channel '%s'", channel_obj.name)
+                    return
+                mux_uuid = source_obj.tvh_uuid
                 run_mux_scan = False
-                if mux_uuid:
-                    found = False
+                if mux_uuid and mux_uuid in existing_mux_uuids:
+                    # Check scan_result
                     for mux in existing_muxes:
-                        if mux.get('uuid') == mux_uuid:
-                            found = True
-                            if mux.get('scan_result') == 2:
-                                run_mux_scan = True
+                        if mux.get('uuid') == mux_uuid and mux.get('scan_result') == 2:
+                            run_mux_scan = True
                             break
-                    if not found:
-                        mux_uuid = None
-                if not mux_uuid:
-                    logger.info(
-                        "    - Creating new MUX for channel '%s' with stream '%s'",
-                        result.name,
-                        source.playlist_stream_url,
-                    )
-                    mux_uuid = await tvh.network_mux_create(net_uuid)
-                    run_mux_scan = True
                 else:
-                    logger.info(
-                        "    - Updating existing MUX '%s' for channel '%s' with stream '%s'",
-                        mux_uuid,
-                        result.name,
-                        source.playlist_stream_url,
-                    )
-                service_name = f"{source.playlist.name} - {source.playlist_stream_name}"
+                    mux_uuid = None
+                if not mux_uuid:
+                    logger.info("    - Creating new MUX for channel '%s'", channel_obj.name)
+                    try:
+                        mux_uuid = await tvh.network_mux_create(net_uuid)
+                        run_mux_scan = True
+                    except Exception as e:
+                        logger.error("Failed creating MUX for channel '%s': %s", channel_obj.name, e)
+                        return
+                else:
+                    logger.debug("    - Updating existing MUX '%s' for '%s'", mux_uuid, channel_obj.name)
+
+                service_name = f"{source_obj.playlist.name} - {source_obj.playlist_stream_name}"
                 iptv_url = generate_iptv_url(
                     config,
-                    url=source.playlist_stream_url,
+                    url=source_obj.playlist_stream_url,
                     service_name=service_name,
                 )
-                channel_id = f"{result.number}_{re.sub(r'[^a-zA-Z0-9]', '', result.name)}"
+                channel_id = f"{channel_obj.number}_{re.sub(r'[^a-zA-Z0-9]', '', channel_obj.name)}"
                 mux_conf = {
-                    'enabled': 1,
-                    'uuid': mux_uuid,
-                    'iptv_url': iptv_url,
-                    'iptv_icon': result.logo_url,
-                    'iptv_sname': result.name,
-                    'iptv_muxname': service_name,
-                    'channel_number': result.number,
-                    'iptv_epgid': channel_id,
-                    'priority': source.priority,
-                    'spriority': source.priority,
+                    'enabled':        1,
+                    'uuid':           mux_uuid,
+                    'iptv_url':       iptv_url,
+                    'iptv_icon':      channel_obj.logo_url,
+                    'iptv_sname':     channel_obj.name,
+                    'iptv_muxname':   service_name,
+                    'channel_number': channel_obj.number,
+                    'iptv_epgid':     channel_id,
+                    'priority':       source_obj.priority,
+                    'spriority':      source_obj.priority,
                 }
                 if run_mux_scan:
                     mux_conf['scan_state'] = 1
-                await tvh.idnode_save(mux_conf)
-                source.tvh_uuid = mux_uuid
-                pending_commit = True
-                managed_uuids.append(mux_uuid)
+                try:
+                    await tvh.idnode_save(mux_conf)
+                    source_obj.tvh_uuid = mux_uuid
+                    managed_uuids.append(mux_uuid)
+                except Exception as e:
+                    logger.error("Failed saving MUX for channel '%s': %s", channel_obj.name, e)
 
-        if pending_commit:
-            try:
-                db.session.commit()
-            except Exception:
-                db.session.rollback()
-                raise
+        # Schedule tasks
+        for channel_obj in results:
+            if not channel_obj.enabled:
+                continue
+            for source_obj in channel_obj.sources:
+                mux_tasks.append(asyncio.create_task(process_source(channel_obj, source_obj)))
 
+        # Await all
+        if mux_tasks:
+            await asyncio.gather(*mux_tasks)
+            db.session.commit()
+
+        # Cleanup unused muxes
         logger.info("Running cleanup task on current TVH muxes")
+        # Refresh existing mux list for cleanup (not from cache to be up-to-date)
         current_muxes = await tvh.list_all_muxes()
         for existing_mux in current_muxes:
             uuid = existing_mux.get('uuid')
