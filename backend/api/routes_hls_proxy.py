@@ -259,7 +259,7 @@ async def periodic_cache_cleanup():
             
             # Log current memory usage (optional)
             try:
-                import psutil  # type: ignore
+                import psutil
                 process = psutil.Process()
                 memory_info = process.memory_info()
                 proxy_logger.debug(f"Current memory usage: {memory_info.rss / (1024 * 1024):.2f} MB")
