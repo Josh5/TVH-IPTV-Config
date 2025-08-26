@@ -359,17 +359,35 @@ async def build_custom_epg(config):
             logger.info("       - Building programme list for %s - %s.", channel_id, result.name)
             for programme in db_programmes:
                 programmes.append({
-                    'start':           programme.start,
-                    'stop':            programme.stop,
-                    'start_timestamp': programme.start_timestamp,
-                    'stop_timestamp':  programme.stop_timestamp,
-                    'title':           programme.title,
-                    'sub-title':       programme.sub_title,
-                    'desc':            programme.desc,
-                    'series-desc':     programme.series_desc,
-                    'country':         programme.country,
-                    'icon_url':        programme.icon_url,
-                    'categories':      json.loads(programme.categories)
+                    'start':                 programme.start,
+                    'stop':                  programme.stop,
+                    'start_timestamp':       programme.start_timestamp,
+                    'stop_timestamp':        programme.stop_timestamp,
+                    'title':                 programme.title,
+                    'sub-title':             programme.sub_title,
+                    'desc':                  programme.desc,
+                    'series-desc':           programme.series_desc,
+                    'country':               programme.country,
+                    'icon_url':              programme.icon_url,
+                    'categories':            json.loads(programme.categories),
+                    'summary':               programme.summary,
+                    'keywords':              programme.keywords,  # JSON encoded list
+                    'credits_json':          programme.credits_json,
+                    'video_colour':          programme.video_colour,
+                    'video_aspect':          programme.video_aspect,
+                    'video_quality':         programme.video_quality,
+                    'subtitles_type':        programme.subtitles_type,
+                    'audio_described':       programme.audio_described,
+                    'previously_shown_date': programme.previously_shown_date,
+                    'premiere':              programme.premiere,
+                    'is_new':                programme.is_new,
+                    'epnum_onscreen':        programme.epnum_onscreen,
+                    'epnum_xmltv_ns':        programme.epnum_xmltv_ns,
+                    'epnum_dd_progid':       programme.epnum_dd_progid,
+                    'star_rating':           programme.star_rating,
+                    'production_year':       programme.production_year,
+                    'rating_system':         programme.rating_system,
+                    'rating_value':          programme.rating_value,
                 })
             all_channel_programmes_data.append({
                 'channel':    channel_id,
@@ -419,12 +437,87 @@ async def build_custom_epg(config):
                 if child in epg_channel_programme and epg_channel_programme[child] is not None:
                     output_child = ET.SubElement(output_programme, child)
                     output_child.text = epg_channel_programme[child]
+                    output_child.set('lang', 'en')
+            # Optional summary
+            if epg_channel_programme.get('summary'):
+                c = ET.SubElement(output_programme, 'summary')
+                c.text = epg_channel_programme['summary']
+                c.set('lang', 'en')
             # If we have a programme icon, add it
             if epg_channel_programme['icon_url']:
                 output_child = ET.SubElement(output_programme, 'icon')
                 output_child.set('src', epg_channel_programme['icon_url'])
                 output_child.set('height', "")
                 output_child.set('width', "")
+            # Keywords
+            if epg_channel_programme.get('keywords'):
+                try:
+                    for kw in json.loads(epg_channel_programme['keywords']):
+                        if kw:
+                            kc = ET.SubElement(output_programme, 'keyword')
+                            kc.text = kw
+                            kc.set('lang', 'en')
+                except Exception:
+                    pass
+            # Credits
+            if epg_channel_programme.get('credits_json'):
+                try:
+                    credits_data = json.loads(epg_channel_programme['credits_json'])
+                    if isinstance(credits_data, dict) and credits_data:
+                        credits_el = ET.SubElement(output_programme, 'credits')
+                        for role, people in credits_data.items():
+                            if not people:
+                                continue
+                            for person in people:
+                                pe = ET.SubElement(credits_el, role)
+                                pe.text = person
+                except Exception:
+                    pass
+            # Video
+            if any(epg_channel_programme.get(k) for k in ['video_colour','video_aspect','video_quality']):
+                video_el = ET.SubElement(output_programme, 'video')
+                if epg_channel_programme.get('video_colour'):
+                    c = ET.SubElement(video_el, 'colour'); c.text = epg_channel_programme['video_colour']
+                if epg_channel_programme.get('video_aspect'):
+                    a = ET.SubElement(video_el, 'aspect'); a.text = epg_channel_programme['video_aspect']
+                if epg_channel_programme.get('video_quality'):
+                    q = ET.SubElement(video_el, 'quality'); q.text = epg_channel_programme['video_quality']
+            # Subtitles
+            if epg_channel_programme.get('subtitles_type'):
+                subs = ET.SubElement(output_programme, 'subtitles')
+                subs.set('type', epg_channel_programme['subtitles_type'])
+            # Audio described
+            if epg_channel_programme.get('audio_described'):
+                ET.SubElement(output_programme, 'audio-described')
+            # Previously shown
+            if epg_channel_programme.get('previously_shown_date'):
+                ps = ET.SubElement(output_programme, 'previously-shown')
+                ps.set('start', epg_channel_programme['previously_shown_date'])
+            # Premiere / New
+            if epg_channel_programme.get('premiere'):
+                ET.SubElement(output_programme, 'premiere')
+            if epg_channel_programme.get('is_new'):
+                ET.SubElement(output_programme, 'new')
+            # Episode numbers
+            if epg_channel_programme.get('epnum_onscreen'):
+                e1 = ET.SubElement(output_programme, 'episode-num'); e1.set('system', 'onscreen'); e1.text = epg_channel_programme['epnum_onscreen']
+            if epg_channel_programme.get('epnum_xmltv_ns'):
+                e2 = ET.SubElement(output_programme, 'episode-num'); e2.set('system', 'xmltv_ns'); e2.text = epg_channel_programme['epnum_xmltv_ns']
+            if epg_channel_programme.get('epnum_dd_progid'):
+                e3 = ET.SubElement(output_programme, 'episode-num'); e3.set('system', 'dd_progid'); e3.text = epg_channel_programme['epnum_dd_progid']
+            # Star rating
+            if epg_channel_programme.get('star_rating'):
+                sr = ET.SubElement(output_programme, 'star-rating')
+                val = ET.SubElement(sr, 'value'); val.text = epg_channel_programme['star_rating']
+            # Production year
+            if epg_channel_programme.get('production_year'):
+                d = ET.SubElement(output_programme, 'date'); d.text = epg_channel_programme['production_year']
+            # Rating system
+            if epg_channel_programme.get('rating_value'):
+                rating_el = ET.SubElement(output_programme, 'rating')
+                if epg_channel_programme.get('rating_system'):
+                    rating_el.set('system', epg_channel_programme['rating_system'])
+                rv = ET.SubElement(rating_el, 'value'); rv.text = epg_channel_programme['rating_value']
             # Loop through all categories for this programme and add them as "category" child elements
             if epg_channel_programme['categories']:
                 for category in epg_channel_programme['categories']:

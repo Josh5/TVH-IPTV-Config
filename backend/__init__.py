@@ -49,7 +49,26 @@ def init_db(app):
     from backend.models import db
     app.config["SQLALCHEMY_DATABASE_URI"] = config.sqlalchemy_database_uri
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = config.sqlalchemy_track_modifications
+    # Increase SQLite timeout to reduce 'database is locked' errors under concurrent access
+    app.config.setdefault("SQLALCHEMY_ENGINE_OPTIONS", {})
+    engine_opts = app.config["SQLALCHEMY_ENGINE_OPTIONS"]
+    connect_args = engine_opts.get("connect_args", {})
+    # Only set timeout if not already user-defined
+    connect_args.setdefault("timeout", 30)  # seconds
+    engine_opts["connect_args"] = connect_args
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = engine_opts
     db.init_app(app)
+
+    # Enable WAL + relaxed synchronous for better concurrent write characteristics on SQLite
+    try:
+        from sqlalchemy import text
+        with app.app_context():
+            db.session.execute(text("PRAGMA journal_mode=WAL"))
+            db.session.execute(text("PRAGMA synchronous=NORMAL"))
+            db.session.commit()
+    except Exception:
+        # Ignore if not SQLite or already configured
+        pass
 
     @app.teardown_appcontext
     def shutdown_session(exception=None):

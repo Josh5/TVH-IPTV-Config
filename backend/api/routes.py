@@ -53,12 +53,36 @@ def serve_playlist_static():
 
 @blueprint.route('/tic-api/ping')
 async def ping():
-    return jsonify(
-        {
-            "success": True,
-            "data":    "pong"
-        }
-    ), 200
+    # Frontend AIO mixin expects uppercase 'PONG' substring in plain response
+    return 'PONG', 200, {'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store'}
+
+# Convenience alias: some clients are probing /tic-tvh/ping (tvheadend http_root); return same pong
+@blueprint.route('/tic-tvh/ping')
+async def ping_tvh_alias():
+    return await ping()
+
+
+# Fallback redirector for TVHeadend UI paths when nginx reverse proxy is not installed.
+# Without nginx, requests to /tic-tvh/... hit the Quart app and 404. We redirect the
+# browser to the real TVH port (9981) preserving the sub-path. This does not proxy
+# WebSockets (so log streaming etc may be limited) but restores basic UI access.
+@blueprint.route('/tic-tvh/')
+@admin_auth_required
+async def tvh_root_redirect():
+    host_only = request.host.split(':')[0]
+    target = f'http://{host_only}:9981/tic-tvh/'
+    return redirect(target, 302)
+
+
+@blueprint.route('/tic-tvh/<path:subpath>')
+@admin_auth_required
+async def tvh_any_redirect(subpath: str):
+    # Special case: keep existing ping handler (already defined above)
+    if subpath == 'ping':
+        return await ping()
+    host_only = request.host.split(':')[0]
+    target = f'http://{host_only}:9981/tic-tvh/{subpath}'
+    return redirect(target, 302)
 
 
 @blueprint.route('/tic-api/check-auth')
