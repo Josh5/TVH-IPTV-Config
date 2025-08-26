@@ -135,7 +135,7 @@ else
         if kill -0 "$tvh_pid" 2>/dev/null; then
             print_log info "Started tvheadend service with PID $tvh_pid"
         else
-            print_log error "tvheadend failed to start (exit $?)";
+            print_log error "tvheadend failed to start";
             print_log error "Stdout:"; sed -e 's/^/[TVH-STDOUT] /' /tmp/tvh_stdout.log || true
             print_log error "Stderr:"; sed -e 's/^/[TVH-STDERR] /' /tmp/tvh_stderr.log || true
         fi
