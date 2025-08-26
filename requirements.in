@@ -31,12 +31,12 @@ quart-flask-patch~=0.3
 Flask-SQLAlchemy~=3.1
     #   Reason:             Needed for legacy support of some endpoints that have yet to be converted to plain SQLAlchemy.
     #   Import example:     from flask_sqlalchemy import SQLAlchemy
-SQLAlchemy~=2.0
-    #   Reason:             Database Abstraction Library.
+SQLAlchemy>=2.0.32,<3.0
+    #   Reason:             Database Abstraction Library. >=2.0.32 bringt Fixes für Python 3.13 Runtime (z.B. generische TypeError/AttributeError Bugs) – konservativer Upper-Bound <3.0.
     #   Import example:     from sqlalchemy import
 # Explicit greenlet version constraint for Python 3.13 compatibility (transitive via SQLAlchemy)
-greenlet>=3.1.0
-alembic~=1.13
+greenlet>=3.1.1
+alembic>=1.13.2,<2.0
     #   Reason:             SQLAlchemy database migrations for the application
     #   Import example:     from alembic import context
 APScheduler~=3.10
@@ -65,4 +65,7 @@ requests>=2.31.0
 beautifulsoup4>=4.12.3
     #   Reason:             HTTP parsing
     #   Import example:     from bs4 import BeautifulSoup
+psutil>=5.9.8
+    #   Reason:             Optional process/memory metrics used by HLS proxy cache cleanup task
+    #   Import example:     import psutil
 
