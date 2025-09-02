@@ -34,9 +34,7 @@ Flask-SQLAlchemy~=3.1
 SQLAlchemy>=2.0.32,<3.0
     #   Reason:             Database Abstraction Library. >=2.0.32 brings fixes for Python 3.13 runtime (e.g., generic TypeError/AttributeError bugs) – conservative upper bound <3.0.
     #   Import example:     from sqlalchemy import
-# Explicit greenlet version constraint for Python 3.13 compatibility (transitive via SQLAlchemy)
-greenlet>=3.1.1
-alembic>=1.13.2,<2.0
+alembic~=1.13
     #   Reason:             SQLAlchemy database migrations for the application
     #   Import example:     from alembic import context
 APScheduler~=3.10
@@ -68,4 +66,3 @@ beautifulsoup4>=4.12.3
 psutil>=5.9.8
     #   Reason:             Optional process/memory metrics used by HLS proxy cache cleanup task
     #   Import example:     import psutil
-

@@ -5,7 +5,7 @@ networks:
 services:
   # -- TVH IPTV CONFIG --
   tic:
-    image: josh5/tvh-iptv:latest
+    image: ghcr.io/josh5/tvh-iptv:latest
     build:
       context: ..
       dockerfile: docker/Dockerfile

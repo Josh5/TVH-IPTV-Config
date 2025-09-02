@@ -17,11 +17,10 @@ networks:
     # Configure as external. This requires that you have first set up the VPN docker network named 'docker-wg0'
     external: true
 
-
 services:
   # -- TVH IPTV CONFIG --
   tic:
-    image: josh5/tvh-iptv:latest
+    image: ghcr.io/josh5/tvh-iptv:latest
 
     # NETWORK:
     networks:
@@ -57,15 +56,40 @@ services:
       # Configuration files
       - /data/containers/tvh-iptv/tic-config:/config
 
-  # -- HLS Proxy --
+  # -- HLS Proxy (option #1) --
   #
-  # Run 'HLS-Proxy' - A feature rich HTTP Live Streaming Proxy
+  # Run Josh5/HLS-Proxy - A simple HLS proxy that uses ffmpeg to buffer video streams. Written my Josh.5.
+  #   REF: https://github.com/Josh5/HLS-Proxy
+  #
+  # To use this with TVH-IPTV-Config, configure the playlist with a custom HLS proxy using this URL:
+  #   > http://hls-proxy-1:9987/[B64_URL].m3u8
+  #
+  hls-proxy-1:
+    image: ghcr.io/josh5/hls-proxy:latest
+
+    # NETWORK:
+    networks:
+      - private-net
+      - docker-wg0
+    dns:
+      - 1.1.1.1
+      - 8.8.4.4
+
+    # ENVIRONMENT:
+    environment:
+      # Container:
+      HLS_PROXY_LOG_LEVEL: ${HLS_PROXY_LOG_LEVEL:-1}
+      HLS_PROXY_HOST_IP: hls-proxy-1
+
+  # -- HLS Proxy (option #2) --
+  #
+  # Run node 'HLS-Proxy' - A feature rich HTTP Live Streaming Proxy
   #   REF: https://github.com/warren-bank/HLS-Proxy
   #
   # To use this with TVH-IPTV-Config, configure the playlist with a custom HLS proxy using this URL:
-  #   > http://hls-proxy:9987/[B64_URL].m3u8
+  #   > http://hls-proxy-2:9987/[B64_URL].m3u8
   #
-  hls-proxy:
+  hls-proxy-2:
     image: node:latest
     entrypoint: "sh"
     command: |
