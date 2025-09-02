@@ -74,6 +74,25 @@ class EpgChannelProgrammes(Base):
     start_timestamp = Column(String(256), index=False, unique=False)
     stop_timestamp = Column(String(256), index=False, unique=False)
     categories = Column(String(256), index=True, unique=False)
+    # Extended optional XMLTV / TVHeadend supported metadata (all nullable / optional)
+    summary = Column(String(1000), index=False, unique=False)
+    keywords = Column(String(1000), index=False, unique=False)          # JSON encoded list of keyword strings
+    credits_json = Column(String(4000), index=False, unique=False)      # JSON: {"actor":[],"director":[],...}
+    video_colour = Column(String(10), index=False, unique=False)
+    video_aspect = Column(String(32), index=False, unique=False)
+    video_quality = Column(String(16), index=False, unique=False)
+    subtitles_type = Column(String(32), index=False, unique=False)
+    audio_described = Column(Boolean, nullable=True)                    # True -> <audio-described />
+    previously_shown_date = Column(String(32), index=False, unique=False)  # YYYY-MM-DD
+    premiere = Column(Boolean, nullable=True)
+    is_new = Column(Boolean, nullable=True)
+    epnum_onscreen = Column(String(64), index=False, unique=False)
+    epnum_xmltv_ns = Column(String(64), index=False, unique=False)
+    epnum_dd_progid = Column(String(64), index=False, unique=False)
+    star_rating = Column(String(16), index=False, unique=False)          # e.g. "3/5"
+    production_year = Column(String(8), index=False, unique=False)       # <date>
+    rating_system = Column(String(32), index=False, unique=False)
+    rating_value = Column(String(64), index=False, unique=False)
 
     # Link with an epg channel
     epg_channel_id = Column(Integer, ForeignKey('epg_channels.id'), nullable=False)

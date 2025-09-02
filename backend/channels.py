@@ -703,17 +703,20 @@ async def publish_bulk_channels_to_tvh_and_m3u(config):
         # Fetch existing channels
         logger.info("Publishing all channels to TVH and M3U")
         playlist = [f'#EXTM3U url-tvg="{tic_base_url}/tic-web/epg.xml"']
+        pending_commit = False
         for result in results:
             channel_uuid = await publish_channel_to_tvh(tvh, result)
             playlist += await build_m3u_lines_for_channel(tic_base_url, channel_uuid, result)
-            # Save network UUID against playlist in settings
             result.tvh_uuid = channel_uuid
-            # Generate a local image cache
             result.logo_base64 = await parse_image_as_base64(result.logo_url)
-            # Save channel details
-            db.session.commit()
-            # Append to list of current network UUIDs
             managed_uuids.append(channel_uuid)
+            pending_commit = True
+        if pending_commit:
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+                raise
 
         # Write playlist file
         custom_playlist_file = os.path.join(config.config_path, "playlist.m3u8")

@@ -257,11 +257,15 @@ async def periodic_cache_cleanup():
             if evicted_count > 0:
                 proxy_logger.info(f"Cache cleanup: evicted {evicted_count} expired items")
             
-            # Log current memory usage
-            import psutil
-            process = psutil.Process()
-            memory_info = process.memory_info()
-            proxy_logger.debug(f"Current memory usage: {memory_info.rss / (1024 * 1024):.2f} MB")
+            # Log current memory usage (optional)
+            try:
+                import psutil
+                process = psutil.Process()
+                memory_info = process.memory_info()
+                proxy_logger.debug(f"Current memory usage: {memory_info.rss / (1024 * 1024):.2f} MB")
+            except Exception as _e:
+                # Silently skip if psutil not installed or fails
+                pass
             
         except Exception as e:
             proxy_logger.error(f"Error during cache cleanup: {e}")

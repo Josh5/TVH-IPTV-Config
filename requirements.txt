@@ -20,6 +20,8 @@ attrs==23.2.0
     # via aiohttp
 beautifulsoup4==4.12.3
     # via -r ./requirements.in
+psutil==5.9.8
+    # via -r ./requirements.in
 blinker==1.8.2
     # via
     #   flask
