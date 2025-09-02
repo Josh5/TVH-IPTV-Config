@@ -86,6 +86,8 @@ multidict==6.0.5
     #   yarl
 priority==2.0.0
     # via hypercorn
+psutil==7.0.0
+    # via -r ./requirements.in
 pytz==2024.1
     # via apscheduler
 pyyaml==6.0.1

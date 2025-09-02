@@ -63,4 +63,6 @@ requests>=2.31.0
 beautifulsoup4>=4.12.3
     #   Reason:             HTTP parsing
     #   Import example:     from bs4 import BeautifulSoup
-
+psutil>=5.9.8
+    #   Reason:             Optional process/memory metrics used by HLS proxy cache cleanup task
+    #   Import example:     import psutil
