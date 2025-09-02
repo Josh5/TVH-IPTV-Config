@@ -1,7 +1,8 @@
 # Create migrations
 ```
-docker compose \
-    -f docker-compose.yml -f docker-compose.dev-override.yml run \
-    --entrypoint='' tvh-iptv-config \
+sudo docker compose \
+    -f ./docker/docker-compose.dev-aio.yml run \
+    --user $(id -u) \
+    --entrypoint='' tic \
     /var/venv-docker/bin/python -m alembic revision --autogenerate
 ```
