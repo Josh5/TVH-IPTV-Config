@@ -293,10 +293,12 @@ class Tvheadend:
             raise Exception(f"JSON Failed to TVH API - CODE:{r.status} - CONTENT:{await r.text()}")
 
 
-    def proxy_get(self, url, payload=None):
+    async def proxy_get(self, url, payload=None):
         headers = self.default_headers
-        r = self.session.get(url, headers=headers, params=payload, allow_redirects=False, timeout=self.timeout)
-        return r.content
+        async with self.session.get(url, headers=headers, params=payload, allow_redirects=False,
+                                    timeout=self.timeout) as r:
+            content = await r.read()
+            return content, r.status, dict(r.headers)
 
     async def idnode_load(self, data):
         url = f"{self.api_url}/{api_idnode_load}"

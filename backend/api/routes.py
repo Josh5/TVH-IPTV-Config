@@ -3,7 +3,7 @@
 import asyncio
 import os
 
-from quart import request, jsonify, redirect, send_from_directory, current_app
+from quart import request, jsonify, redirect, send_from_directory, current_app, Response
 
 from backend.api import blueprint
 
@@ -39,23 +39,70 @@ async def serve_static(path):
 
 
 @blueprint.route('/tvh-admin/')
-def serve_tvh_admin():
-    return send_from_directory(current_app.config['TVH_ADMIN_ROOT'], 'index.html')
+async def serve_tvh_admin():
+    response = await send_from_directory(current_app.config['TVH_ADMIN_ROOT'], 'index.html')
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 
 @blueprint.route('/tvh-admin/<path:path>')
-def serve_tvh_admin_static(path):
-    return send_from_directory(current_app.config['TVH_ADMIN_ROOT'], path)
+async def serve_tvh_admin_static(path):
+    response = await send_from_directory(current_app.config['TVH_ADMIN_ROOT'], path)
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 
-@blueprint.route('/status.xml', defaults={'path': ''}, methods=['GET'])
+def _filter_proxy_headers(headers: dict) -> dict:
+    hop_by_hop = {
+        'connection',
+        'keep-alive',
+        'proxy-authenticate',
+        'proxy-authorization',
+        'te',
+        'trailers',
+        'transfer-encoding',
+        'upgrade',
+        'content-length',
+    }
+    return {k: v for k, v in headers.items() if k.lower() not in hop_by_hop}
+
+
+async def _proxy_tvh_get(path: str):
+    config = current_app.config['APP_CONFIG']
+    conn = await config.tvh_connection_settings()
+    tvh_host = conn.get('tvh_host')
+    tvh_port = conn.get('tvh_port')
+    tvh_path = conn.get('tvh_path') or ''
+    if tvh_path and not tvh_path.startswith('/'):
+        tvh_path = f'/{tvh_path}'
+    base_url = f"http://{tvh_host}:{tvh_port}{tvh_path}"
+    from backend.tvheadend.tvh_requests import get_tvh
+    try:
+        async with await get_tvh(config) as tvh:
+            content, status, headers = await tvh.proxy_get(f'{base_url}/{path}', payload=request.args)
+    except Exception as exc:
+        return Response(f"TVH proxy error: {exc}", status=502, content_type='text/plain; charset=utf-8')
+    response = Response(content, status=status)
+    response.headers.update(_filter_proxy_headers(headers))
+    return response
+
+
+@blueprint.route('/status.xml', methods=['GET'])
+async def proxy_status():
+    return await _proxy_tvh_get('status.xml')
+
+
 @blueprint.route('/api/', defaults={'path': ''}, methods=['GET'])
 @blueprint.route('/api/<path:path>', methods=['GET'])
-def proxy_get(path):
-    tvh_url = "http://localhost:9981"
-    from backend.tvheadend.tvh_requests import get_tvh
-    tvh = get_tvh(current_app.config['APP_CONFIG'])
-    return tvh.proxy_get(f'{tvh_url}/api/{path}')
+async def proxy_get(path):
+    api_path = f"api/{path}".rstrip('/')
+    if api_path == 'api':
+        api_path = 'api/'
+    return await _proxy_tvh_get(api_path)
 
 
 @blueprint.route('/tic-web/epg.xml')
