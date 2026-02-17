@@ -1,6 +1,13 @@
 Tvheadend IPTV Config
 ===========================
 
+> [!WARNING]
+> **ARCHIVED:** This repository is archived and no longer maintained.
+>
+> **SUPERSEDED:** Please use [Headendarr](https://github.com/Headendarr/Headendarr) instead.
+>
+> **Docker users:** Update your image tag to `ghcr.io/headendarr/headendarr:latest`.
+
 ![Tvheadend IPTV Config](https://github.com/Josh5/TVH-IPTV-Config/raw/master/logo.png)
 
 <a href='https://ko-fi.com/I2I21F8E1' target='_blank'><img height='26' style='border:0px;height:26px;' src='https://cdn.ko-fi.com/cdn/kofi1.png?v=2' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
@@ -101,4 +108,3 @@ pip-compile ./requirements.in --upgrade
 This projected is licensed under the [Apache 2.0 Licence](./LICENSE). 
 
 Copyright (C) Josh Sunnex - All Rights Reserved.
-
